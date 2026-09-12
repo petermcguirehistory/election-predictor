@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026 Midterm Forecast</title>
+<meta name="description" content="A calibrated forecast of the 2026 US House, Senate and governor elections, with its own error record.">
+<link rel="stylesheet" href="css/theme.css">
+</head>
+<body>
+
+<header class="masthead wrap">
+  <h1>2026 Midterm Forecast</h1>
+  <div class="asof" id="asof">loading…</div>
+</header>
+
+<main>
+  <div id="loading" class="wrap" style="padding:4rem 0;color:var(--muted)">Loading the forecast…</div>
+
+  <div id="app" hidden>
+
+    <!-- The tab strip is built from the panels below, so a tab's name and its
+         membership are declared in exactly one place: the [data-tab] element. -->
+    <nav class="tabbar" aria-label="Forecast sections">
+      <div class="wrap tabbar-inner" id="tablist" role="tablist"></div>
+    </nav>
+
+    <!-- Conditioning is not a section, it is a mode: a pinned race changes every
+         number on every tab. So it lives in the chrome, above the panels, and
+         stays on screen wherever the reader has navigated to. -->
+    <div class="cond-bar" id="cond-bar">
+      <div class="wrap">
+        <div id="flash" class="flash" hidden></div>
+        <div class="viewrow">
+          <div class="scope-ctl" id="scope-ctl"></div>
+          <div id="pins" class="pins"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap">
+
+      <div class="tabpanel" id="tab-forecast" data-tab="forecast" data-tab-label="Forecast" role="tabpanel" tabindex="0">
+
+        <section id="s-headline">
+          <p class="lede" id="lede"></p>
+          <!-- The left column used to hold the icon array and then stop, leaving
+               roughly 350px of nothing beside the cards. The array now draws once
+               rather than once per chamber (js/main.js), and the environment strip
+               takes the room it gave back: the generic ballot is the input every
+               number in this block is downstream of, and it was reported nowhere
+               on this page. -->
+          <div class="split">
+            <div>
+              <div id="iconarray" class="iconwrap"></div>
+              <div class="env-strip" id="environment"></div>
+              <p class="read">A probability, not a prediction. The model plays election night out
+                 <span data-cal="n.sims">20,000</span> times, drawing all 506 races together in each
+                 run so that a polling miss in one place carries into the others the way a real one
+                 would, and the headline is the share of those runs in which a party ends up in
+                 control. A 70% is not a forecast that the party wins — it is a forecast that they
+                 win in about 70 runs out of every 100 and lose in the other 30, and those 30 are as
+                 much a part of the answer as the 70. Whether that has held up in practice is the
+                 <a href="#s-calibration">Track record</a> tab.</p>
+            </div>
+            <div>
+              <div class="toplines" id="toplines"></div>
+              <p class="tl-note" id="tl-note"></p>
+            </div>
+          </div>
+          <div class="caveat-block" id="caveats"></div>
+        </section>
+
+        <!-- The delta under each card said how far the number moved and never
+             why. This is the why, and it is an exact re-run per cause rather
+             than a share of a linearisation. -->
+        <section id="s-movement">
+          <h2>What moved it</h2>
+          <p class="q">Why is this number different from last time?</p>
+          <p>A forecast that changes is either news about the electorate or news about the model,
+             and a reader cannot tell which from the size of the move. So each possible cause is
+             priced by re-running the whole forecast with only that input changed, and the rest
+             held exactly where they were. The causes below add up to the movement on the card
+             above.</p>
+          <div id="movement"></div>
+        </section>
+
+        <section id="s-seats">
+          <h2>Seat totals</h2>
+          <p class="q">How many seats, and not just who wins?</p>
+          <p>The same simulations, counted a different way. Every run ends with a seat total, and
+             the dots below are those totals sorted into a hundred equal groups — one dot per
+             percentile. How far the dots spread is how uncertain the model is; the line is the
+             number needed for control, so the dots past it are the runs that were won.</p>
+          <div id="dotplot"></div>
+        </section>
+
+        <!-- The only route from this page to a single race used to be the snake
+             chart. This is the list a reader actually arrives wanting, and every
+             row opens that race's full working. -->
+        <section id="s-watch">
+          <h2>What to watch</h2>
+          <p class="q">Which races is this resting on?</p>
+          <!-- True under every scope, including governors, where the ranking is a
+               different quantity because the question has no answer. The list
+               beneath names the quantity it actually used. -->
+          <p>Not simply the closest ones: a race belongs here in proportion to how much the answer
+             rests on it. Where there is a majority at stake that is measurable — how often the race
+             turns out to be the seat that makes it, counted across all the simulations rather than
+             guessed from its margin. The 36 governorships confer no majority, so no governor's race
+             can be that seat, and those are ranked instead by how near they are to an even chance.
+             Each list says which of the two it used. Click any row for that race's full working:
+             who is on the ballot, what the prior said, what the polls said, and how much weight
+             each was given.</p>
+          <div id="watch"></div>
+        </section>
+
+      </div>
+
+      <div class="tabpanel" id="tab-map" data-tab="map" data-tab-label="Map" role="tabpanel" tabindex="0" hidden>
+
+        <section id="s-map">
+          <div class="head"><h2>The House, by district</h2><div id="map-controls"></div></div>
+          <p class="q">Where are the seats, and how much does the model know about each one?</p>
+          <p>Colour carries whichever quantity is selected above — by default each side's chance
+             of winning the seat, blue for Democrats and red for Republicans, deeper where the seat
+             is safer. Colour is also <em>drained toward grey wherever the model knows least</em>:
+             a seat with no usable polling is pulled in toward the middle of the scale, so a guess
+             cannot be shown as boldly as a well-polled near-certainty. That is on by default, and
+             <b>Suppress uncertain colour</b> turns it off if you would rather see the raw estimate.
+             <b>Play simulations</b> swaps the forecast for single runs, one after another, which is
+             the quickest way to see how much of the country moves together.</p>
+          <div id="cartogram"></div>
+          <p class="chart-note" id="map-caption"></p>
+          <p class="hops-read chart-note" id="hops-read"></p>
+        </section>
+
+        <section id="s-flows">
+          <h2>Where the seats come from</h2>
+          <p class="q">Which seats change hands?</p>
+          <p>Each race contributes its probability rather than a whole seat, so a district
+             Democrats take in 60% of runs counts as 0.6 of a gain and not as one. Adding those up
+             gives an expected net change — a summary of every simulation at once, not a picture of
+             any single election night, on which seats flip in whole numbers.</p>
+          <div id="flows"></div>
+        </section>
+
+        <!-- One pair of charts per chamber in scope, built in js/main.js: the
+             majority line is a different number in each, and for governors there
+             is none. -->
+        <section id="s-path">
+          <h2>Path to a majority</h2>
+          <p class="q">Which seat decides it?</p>
+          <p>Two ways of asking that, side by side, and they do not give the same answer.
+             <b>Ordered by margin</b> lines every seat on the ballot up from safest Democratic to
+             safest Republican and marks the one that reaches a majority — a single ordering, using
+             each race's expected margin. <b>Which race decides it</b> asks instead how often each
+             race <em>actually</em> casts the deciding vote across all the simulations, and the
+             answer is spread over many races, because the order of the seats is different in
+             every run.</p>
+          <div id="path"></div>
+        </section>
+
+      </div>
+
+      <div class="tabpanel" id="tab-races" data-tab="races" data-tab-label="Races" role="tabpanel" tabindex="0" hidden>
+
+        <section id="s-races">
+          <h2>Every race</h2>
+          <p class="q">What does the whole field look like, race by race?</p>
+          <p>One dot per race, placed at the margin the model expects — Democrats to the left of
+             zero, Republicans to the right, safest seats at the outer edges. Dots stack up
+             vertically wherever several races sit at a similar margin, so the shape of the swarm
+             is the shape of the field, and the shaded band in the middle is everything within 5
+             points of a tie. Click any dot, or any row of the table beneath it, for that race's
+             full working.</p>
+          <div id="beeswarm"></div>
+          <div id="racetable"></div>
+        </section>
+
+      </div>
+
+      <div class="tabpanel" id="tab-drivers" data-tab="drivers" data-tab-label="Playing field" role="tabpanel" tabindex="0" hidden>
+
+        <section id="s-field">
+          <h2>The House map</h2>
+          <p class="q">How far is the map from the country it is drawn on?</p>
+          <p>Every district is scored by how it voted for president in 2024, measured against how
+             the whole country voted the same day. A district at R+5 is five points more Republican
+             <em>than the nation</em> — not five points Republican outright, but five points to the
+             right of wherever the country lands. Put all 435 in order from most Democratic to most
+             Republican and the 218th is the one that decides the House.</p>
+          <p>That 218th district sits <span data-cal="field.bias">3.26</span> points to the right of
+             the country. Read it as a price of entry: Democrats have to carry the country by about
+             three points before the median district is theirs, and anything short of that means
+             leading the national vote and losing the chamber anyway.</p>
+          <div id="playingfield"></div>
+        </section>
+
+        <!-- Deliberately NOT a chamber mode of s-field above: a districting
+             bias is a choice somebody made and can unmake, and equal suffrage in
+             the Senate is the one clause Article V puts beyond amendment. Same
+             election, same national vote, different kind of fact. -->
+        <section id="s-statewide">
+          <h2>The state borders</h2>
+          <p class="q">And how far are the Senate and the governorships?</p>
+          <p>Those are decided by states, and a state's weight has nothing to do with how many
+             people live in it: Wyoming and California send two senators each. Scoring the same 2024
+             presidential result by state instead of by district says how far that arrangement sits
+             from the country.</p>
+          <p>It is a different kind of fact from the one above, which is why it is a separate
+             section rather than the same chart on a different unit. District lines were drawn by
+             somebody and can be drawn again. State borders were not drawn for this purpose and
+             are not going to move — equal representation in the Senate is the one provision
+             Article V puts beyond amendment without a state's own consent.</p>
+          <div id="statewide"></div>
+        </section>
+
+        <section id="s-scenario">
+          <h2>The national polling</h2>
+          <p class="q">What happens to the forecast if the polls are off?</p>
+          <p>The generic ballot — <em>which party's candidate would you vote for in your
+             district?</em> — is the model's most important single input, and it has a known lean.
+             In 10 of the last 13 cycles it has overstated Democrats, by
+             <span data-cal="gb.bias">2.74</span> points on average, so the model subtracts that
+             before using it. That subtraction is an estimate from past elections, not a measurement
+             of this one, and on this run it is worth about <span data-cal="gb.leverage">13</span>
+             points of House control for every point it turns out to be wrong — read off the
+             sweep below, which is why the figure moves from run to run.</p>
+          <p>The slider re-runs the entire forecast at a different assumed lean, so you can see how
+             much of the headline number rests on it.</p>
+          <div id="scenario"></div>
+        </section>
+
+        <section id="s-correlation">
+          <h2>Shared error</h2>
+          <p class="q">When the model is wrong about one race, is it wrong about the others?</p>
+          <p>Usually yes, and that is most of what makes forecasting hard. If the polls are three
+             points too Democratic in one Pennsylvania district, they are probably about three
+             points too Democratic in Ohio and Michigan too. A model that treated 435 races as 435
+             independent coin flips would report that a 40-seat swing is nearly impossible, when the
+             country produces one every decade or so.</p>
+          <p>So each race carries four sources of error rather than one: a national miss shared by
+             every race, a regional miss, a miss shared across the state — worth
+             <span data-cal="sigma.state">3.39</span> points — and the race's own. The grid below
+             is what that adds up to, measured off the simulations themselves rather than assumed.</p>
+          <div id="correlation"></div>
+        </section>
+
+      </div>
+
+      <div class="tabpanel" id="tab-record" data-tab="record" data-tab-label="Track record" role="tabpanel" tabindex="0" hidden>
+
+        <section id="s-calibration">
+          <h2>Out-of-sample checks</h2>
+          <p class="q">Has this model been right before?</p>
+          <p>Every check on this page is <b>out of sample</b>: whenever the model is scored against
+             a past election, it is rebuilt with that election removed from everything it was fitted
+             on first. It never grades a test it has already seen. That is the difference between a
+             track record and a model describing the data it was built from.</p>
+          <p>Which checks appear follows the scope control above, because the evidence is not the
+             same for all three chambers. The House has three past elections that can be replayed
+             district by district. The Senate and the governorships do not, so their cards show what
+             <em>was</em> measured about them instead of borrowing the House's record — including
+             one measurement that was taken and then deliberately not acted on.</p>
+          <!-- Built in js/main.js, because which checks exist depends on the
+               chamber: the replays are House, the interval check is the polling
+               corpus across all three, and the other two chambers have their own
+               measurements rather than a replay. Each card names its own source. -->
+          <div class="three-col" id="calibration"></div>
+        </section>
+
+        <section id="s-trend">
+          <h2>Forecast history</h2>
+          <p class="q">How has this forecast moved over time?</p>
+          <p>Each point is a run that was published. The line is drawn solid only between two runs
+             that used the same model on the same sources; where something in the build changed in
+             between — a new prior source, a different poll feed, a different number of draws — the
+             line is broken instead. A jump caused by the model changing is not news about the
+             election, and joining it up would present it as though it were.</p>
+          <div id="trend"></div>
+        </section>
+
+      </div>
+
+      <div class="tabpanel" id="tab-method" data-tab="method" data-tab-label="Method" role="tabpanel" tabindex="0" hidden>
+
+        <section id="s-walkthrough">
+          <h2>One race, step by step</h2>
+          <p class="q">How does a single seat get its number?</p>
+          <p>All 506 races go through the same seven steps, and nothing is added that is not shown
+             here. Pick a race and walk it: the chart redraws at every step, so you can watch the
+             estimate move as each piece of evidence goes in, and see how much — or how little —
+             the polls changed the answer.</p>
+          <div id="walkthrough"></div>
+        </section>
+
+        <section id="s-limits">
+          <h2>What could be wrong</h2>
+          <p class="q">What does this model say is wrong with it?</p>
+          <p>Two kinds of thing, kept apart because they behave differently. <b>Alarms</b> are
+             recomputed on every run and come and go with the data — a feed going quiet, a race
+             average resting on a single poll. <b>Limitations</b> are structural: they were
+             established when the model was built and will not clear by themselves, only when
+             somebody finds the missing data or changes the model. Both sit on the page rather than
+             behind a methodology link, because a reader who never opens the methodology is exactly
+             the one who needs to know how old the generic ballot is.</p>
+          <div id="limits"></div>
+        </section>
+
+        <section id="s-coverage">
+          <h2>What the model is working from</h2>
+          <p class="q">How much of this is polling, and how much is inference?</p>
+          <p>Mostly inference, and that is normal for a midterm: almost no one polls a safe
+             district. Unpolled races are not left out — they are forecast from how the seat voted
+             for president, the national environment and whether an incumbent is running, with
+             wider error bars to match. These are the counts.</p>
+          <div class="stat-row" id="coverage"></div>
+          <div id="coverage-split"></div>
+        </section>
+
+        <section id="s-diag">
+          <h2>Payload diagnostics</h2>
+          <p class="q">Is the page showing what the engine actually computed?</p>
+          <p>The full simulation is far too large to send to a browser, so what ships is one bit
+             per race per draw: who won, 20,000 times over. Every total on this page is counted
+             back out of those bits in your browser. These checks confirm that the counting still
+             reproduces the engine's own answers exactly — if it ever stopped, the numbers would
+             still look entirely plausible, which is why this is checked rather than assumed.</p>
+          <div id="diagnostics"></div>
+        </section>
+
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<aside id="drawer" class="drawer" hidden aria-live="polite"></aside>
+
+<footer class="wrap">
+  Built from the run in <code>runs/</code> by <code>python -m engine.dashboard.build</code>.
+  Model, method and known limitations are in the repository's README and PLAN, and the
+  <a href="scope.html">scope document</a>.
+  Governors are included, with one caveat carried on their own card: how uncertain a governor's
+  race is before any polling is the only quantity in this model that was assumed rather than
+  measured against past elections.
+</footer>
+
+<script src="vendor/d3.v7.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

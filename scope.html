@@ -1,0 +1,1028 @@
+<title>2026 Midterm Forecast Engine</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --paper:#EBEEF2; --surface:#FBFCFD; --surface-2:#F3F5F9; --surface-3:#E4E8EF;
+  --ink:#131820; --ink-2:#4E5867; --ink-3:#7C8593;
+  --rule:#CFD6E0; --rule-soft:#E0E5EC;
+  --accent:#9A6A16; --accent-ink:#7A5310; --accent-wash:#F2E8D3;
+  --dem:#2A62C4; --gop:#C4413A;
+  --ok:#2F7A4F; --warn:#9A6A16; --crit:#B23B33;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1116; --surface:#161A21; --surface-2:#1B2028; --surface-3:#232935;
+    --ink:#E3E8EF; --ink-2:#9AA4B4; --ink-3:#727C8C;
+    --rule:#2A313D; --rule-soft:#20262F;
+    --accent:#D8A644; --accent-ink:#E5B963; --accent-wash:#312817;
+    --dem:#5C90E6; --gop:#DD6A61;
+    --ok:#5FB183; --warn:#D8A644; --crit:#E27168;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1116; --surface:#161A21; --surface-2:#1B2028; --surface-3:#232935;
+  --ink:#E3E8EF; --ink-2:#9AA4B4; --ink-3:#727C8C;
+  --rule:#2A313D; --rule-soft:#20262F;
+  --accent:#D8A644; --accent-ink:#E5B963; --accent-wash:#312817;
+  --dem:#5C90E6; --gop:#DD6A61;
+  --ok:#5FB183; --warn:#D8A644; --crit:#E27168;
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Source Serif 4",Georgia,"Times New Roman",serif;
+  font-size:17px; line-height:1.62; margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:0 28px 96px;}
+
+/* ---------- shared type ---------- */
+h1,h2,h3,h4{font-family:Archivo,"Helvetica Neue",Arial,sans-serif; text-wrap:balance; margin:0;}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:600;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+}
+p{margin:0;}
+a{color:var(--accent-ink);}
+
+/* ---------- masthead ---------- */
+.mast{padding:64px 0 34px; border-bottom:2px solid var(--ink); }
+.mast .kicker{display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; margin-bottom:22px;}
+.mast h1{
+  font-size:clamp(38px,6.2vw,66px); font-weight:700; line-height:1.02;
+  letter-spacing:-.025em;
+}
+.mast .thesis{
+  margin-top:20px; font-size:20px; line-height:1.5; color:var(--ink-2); max-width:60ch;
+}
+.tag{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--accent-ink);
+  border:1px solid var(--accent); border-radius:2px; padding:3px 8px;
+}
+
+/* ---------- readout strip ---------- */
+.readout{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+  border:1px solid var(--rule); border-top:none; background:var(--surface);
+}
+.readout div{padding:16px 18px; border-right:1px solid var(--rule-soft);}
+.readout div:last-child{border-right:none;}
+.readout .n{
+  font-family:"IBM Plex Mono",monospace; font-size:25px; font-weight:600;
+  letter-spacing:-.02em; font-variant-numeric:tabular-nums; display:block; line-height:1.2;
+}
+.readout .l{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); display:block; margin-top:7px;
+}
+
+/* ---------- section scaffolding ---------- */
+section{
+  display:grid; grid-template-columns:168px minmax(0,1fr); gap:36px;
+  padding:52px 0; border-bottom:1px solid var(--rule);
+}
+.rail{display:flex; flex-direction:column; gap:10px;}
+.rail .note{
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; line-height:1.6; color:var(--ink-3);
+}
+.body-col{display:flex; flex-direction:column; gap:22px; min-width:0;}
+.body-col h2{font-size:31px; font-weight:600; letter-spacing:-.02em; line-height:1.15;}
+.body-col h3{
+  font-size:14px; font-weight:600; letter-spacing:.02em; margin-top:6px;
+  color:var(--ink);
+}
+.body-col p{max-width:68ch;}
+.lede{font-size:19px; color:var(--ink-2); max-width:64ch;}
+
+/* ---------- pipeline ---------- */
+.pipe{display:flex; gap:0; overflow-x:auto; border:1px solid var(--rule); background:var(--surface);}
+.stage{
+  flex:1 0 190px; padding:18px 18px 20px; border-right:1px solid var(--rule-soft);
+  display:flex; flex-direction:column; gap:8px;
+}
+.stage:last-child{border-right:none;}
+.stage .num{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; color:var(--accent-ink);
+}
+.stage .nm{font-family:Archivo,sans-serif; font-size:16px; font-weight:600;}
+.stage .io{font-family:"IBM Plex Mono",monospace; font-size:11.5px; line-height:1.65; color:var(--ink-3);}
+.stage .d{font-size:14.5px; line-height:1.5; color:var(--ink-2);}
+
+/* ---------- code / formula ---------- */
+pre{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:13px; line-height:1.75;
+  background:var(--surface); border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:18px 20px; overflow-x:auto; margin:0; color:var(--ink);
+}
+pre .c{color:var(--ink-3);}
+code{
+  font-family:"IBM Plex Mono",monospace; font-size:.88em;
+  background:var(--surface-2); border:1px solid var(--rule-soft); border-radius:2px; padding:1px 5px;
+}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto; border:1px solid var(--rule); background:var(--surface);}
+table{border-collapse:collapse; width:100%; min-width:560px; font-size:14.5px;}
+th{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); text-align:left;
+  padding:11px 16px; border-bottom:1px solid var(--rule); white-space:nowrap;
+}
+td{padding:12px 16px; border-bottom:1px solid var(--rule-soft); vertical-align:top; line-height:1.5;}
+tr:last-child td{border-bottom:none;}
+td.m,th.m{font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-variant-numeric:tabular-nums;}
+.pill{
+  font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:600; letter-spacing:.08em;
+  text-transform:uppercase; padding:3px 7px; border-radius:2px; white-space:nowrap;
+  border:1px solid currentColor;
+}
+.p-crit{color:var(--crit);} .p-warn{color:var(--warn);} .p-ok{color:var(--ok);} .p-mute{color:var(--ink-3);}
+
+/* ---------- wireframes ---------- */
+.wf{
+  border:1px dashed var(--rule); background:var(--surface-2); padding:16px;
+  display:flex; flex-direction:column; gap:12px;
+}
+.wf-cap{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.wf-row{display:grid; gap:10px;}
+.box{
+  border:1px solid var(--rule); background:var(--surface); border-radius:2px;
+  padding:12px 14px; min-height:56px; display:flex; flex-direction:column; gap:5px; justify-content:center;
+}
+.box .t{font-family:Archivo,sans-serif; font-size:13px; font-weight:600;}
+.box .s{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); line-height:1.5;}
+.chart-note{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); line-height:1.6;
+}
+
+/* ---------- phases ---------- */
+.phases{display:flex; flex-direction:column; gap:0; border:1px solid var(--rule); background:var(--surface);}
+.phase{
+  display:grid; grid-template-columns:56px 1fr; gap:20px;
+  padding:20px 20px; border-bottom:1px solid var(--rule-soft);
+}
+.phase:last-child{border-bottom:none;}
+.phase.out{background:var(--surface-2);}
+.phase .pid{
+  font-family:"IBM Plex Mono",monospace; font-size:22px; font-weight:600; color:var(--accent-ink);
+  letter-spacing:-.02em; line-height:1.1;
+}
+.phase .dates{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-3);
+  letter-spacing:.05em; margin-top:5px; line-height:1.4;
+}
+.phase h4{font-size:17px; font-weight:600; margin-bottom:7px;}
+.phase p{font-size:15px; line-height:1.55; color:var(--ink-2);}
+.gate{
+  margin-top:11px; font-family:"IBM Plex Mono",monospace; font-size:12px; line-height:1.6;
+  color:var(--ink); border-left:2px solid var(--accent); padding-left:11px;
+}
+
+/* ---------- ladder ---------- */
+.ladder{display:flex; flex-direction:column; border:1px solid var(--rule); background:var(--surface);}
+.rung{display:grid; grid-template-columns:34px 1fr; gap:14px; padding:12px 16px; border-bottom:1px solid var(--rule-soft); align-items:baseline;}
+.rung:last-child{border-bottom:none;}
+.rung .r{font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--ink-3); font-variant-numeric:tabular-nums;}
+.rung .x{font-size:15px; line-height:1.5;}
+.rung .x em{color:var(--ink-2); font-style:normal; font-size:13.5px;}
+.core{border:1px solid var(--ink); background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:8px;}
+.core .h{font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600; letter-spacing:.11em; text-transform:uppercase; color:var(--ink);}
+
+/* ---------- lists ---------- */
+ul.clean{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:13px;}
+ul.clean li{
+  padding-left:20px; position:relative; max-width:68ch; line-height:1.55;
+}
+ul.clean li::before{
+  content:""; position:absolute; left:2px; top:.62em; width:7px; height:1px; background:var(--accent);
+}
+ol.dec{margin:0; padding-left:22px; display:flex; flex-direction:column; gap:13px;}
+ol.dec li{max-width:66ch; line-height:1.55; padding-left:4px;}
+ol.dec li::marker{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--accent-ink); font-weight:600;}
+
+.callout{
+  border:1px solid var(--accent); background:var(--accent-wash); padding:18px 20px;
+  display:flex; flex-direction:column; gap:9px;
+}
+.callout .h{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:600; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--accent-ink);
+}
+.callout p{color:var(--ink); max-width:66ch;}
+
+.tree{
+  font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.85;
+  background:var(--surface); border:1px solid var(--rule); padding:18px 20px; overflow-x:auto;
+  white-space:pre; margin:0;
+}
+.tree .cm{color:var(--ink-3);}
+
+footer{padding:42px 0 0; }
+footer p{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-3); line-height:1.8; max-width:74ch;}
+
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important;}}
+
+@media (max-width:860px){
+  section{grid-template-columns:1fr; gap:16px; padding:40px 0;}
+  .rail{flex-direction:row; align-items:baseline; gap:14px; flex-wrap:wrap;}
+  .wrap{padding:0 20px 64px;}
+  .mast{padding:40px 0 26px;}
+  .phase{grid-template-columns:1fr; gap:10px;}
+}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="kicker">
+    <span class="eyebrow">Build Scope &middot; v0.4</span>
+    <span class="tag">Greenfield</span>
+    <span class="tag">73 days to polls</span>
+    <span class="tag">Hardened</span>
+    <span class="tag">P0 shipped</span>
+    <span class="tag">Plan committed</span>
+  </div>
+  <h1>2026 Midterm<br>Forecast Engine</h1>
+  <p class="thesis">A daily probabilistic forecast for all 506 races on the 2026 ballot, and a dashboard that starts at &ldquo;who controls the House&rdquo; and drills to &ldquo;which three polls moved NE&#8209;02, and what does the majority look like if it flips.&rdquo;</p>
+</header>
+
+<div class="readout">
+  <div><span class="n">Nov 3</span><span class="l">Election Day 2026</span></div>
+  <div><span class="n">435</span><span class="l">House seats</span></div>
+  <div><span class="n">35</span><span class="l">Senate seats &middot; 2 special</span></div>
+  <div><span class="n">36</span><span class="l">Governorships</span></div>
+  <div><span class="n">218</span><span class="l">House majority</span></div>
+  <div><span class="n">D+4</span><span class="l">Senate flip needed</span></div>
+</div>
+
+<!-- ============ THE BOARD ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">The Board</span>
+    <span class="note">Verified against live sources, Aug 2026. Re&#8209;verify before build.</span>
+  </div>
+  <div class="body-col">
+    <h2>What is actually on the 2026 ballot</h2>
+    <p class="lede">Three simultaneous forecasts over one shared national environment. They differ in polling density, correlation structure, and how much of the answer the priors have to carry.</p>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>Chamber</th><th class="m">Races</th><th>Control math</th><th>Polling density</th><th>Modeling character</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>House</strong></td><td class="m">435</td>
+            <td class="m">218 to win</td>
+            <td>Very sparse &mdash; most districts have <em>zero</em> public polls</td>
+            <td>Priors&#8209;dominated. National environment &times; district lean does nearly all the work.</td>
+          </tr>
+          <tr>
+            <td><strong>Senate</strong></td><td class="m">35</td>
+            <td class="m">D&nbsp;+4 for 51</td>
+            <td>Dense in ~10 battlegrounds, thin elsewhere</td>
+            <td>Closest to a classic state model. Correlated error dominates the topline.</td>
+          </tr>
+          <tr>
+            <td><strong>Governor</strong></td><td class="m">36</td>
+            <td class="m">No control stake</td>
+            <td>Moderate, uneven</td>
+            <td>Candidate&#8209;driven, weakest partisan correlation, fattest idiosyncratic tails.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The one structural fact that shapes the whole House model</h3>
+    <p>After the 2025&ndash;26 mid&#8209;decade redistricting round, the <em>median</em> district is Virginia&#8217;s 1st, which Trump carried by 4.9 points &mdash; roughly <strong>3.4 points to the right of the nation</strong>. Democrats can win the national House vote outright and still lose the chamber. Your seats&#8209;votes curve has to encode that bias explicitly; a model that treats national margin as if it maps symmetrically onto seats will be systematically wrong in one direction.</p>
+
+    <div class="callout">
+      <span class="h">Sanity anchor for the build</span>
+      <p>Public forecasts in early August 2026 put Democrats near <strong>85%</strong> to win the House with a median around <strong>230 seats</strong> (range ~211&ndash;253), and the Senate close to a coin flip. Treat these as a smoke test, not a target: when your v0 first produces a number, being wildly outside this range means the district priors or the sign conventions are wrong, not that you have found an edge.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SIM MATRIX ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Core Decision</span>
+    <span class="note">Make this call in P0. Everything downstream depends on it.</span>
+  </div>
+  <div class="body-col">
+    <h2>The simulation matrix is the product</h2>
+    <p class="lede">Persist every draw, not the summary statistics. This is the single decision that separates a forecast you can drill into from one you can only look at.</p>
+    <p>Each run produces one array of shape <code>n_sims &times; n_races</code> holding a margin and a winner per cell. Every headline probability, every seat histogram, every tipping&#8209;point statistic, and every conditional question is then a <em>reduction over that array</em> rather than a separate model:</p>
+
+<pre><span class="c"># topline</span>
+P(House) = mean(seats[:, HOUSE].sum(axis=1) &gt;= 218)
+
+<span class="c"># conditional — the feature people actually come back for</span>
+mask     = win[:, "GA-SEN"] == DEM
+P(Senate | GA-SEN goes D) = mean(seats[mask, SENATE].sum(1) &gt;= 51)
+
+<span class="c"># tipping point — sort each sim's races by margin, find the seat that crosses 218</span>
+<span class="c"># correlation view — corr(margin[:, i], margin[:, j])</span>
+</pre>
+
+    <p>Homegrown forecasters routinely store only per&#8209;race win probabilities, then discover they can never answer a conditional question without re&#8209;running the model. The storage cost of avoiding that is trivial:</p>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>Component</th><th class="m">Shape</th><th class="m">Dtype</th><th class="m">Size / run</th></tr></thead>
+        <tbody>
+          <tr><td>Margins</td><td class="m">50,000 &times; 506</td><td class="m">float32</td><td class="m">~101 MB</td></tr>
+          <tr><td>Winners</td><td class="m">50,000 &times; 506</td><td class="m">int8</td><td class="m">~25 MB</td></tr>
+          <tr><td>Compressed (Parquet + zstd)</td><td class="m">&mdash;</td><td class="m">&mdash;</td><td class="m">~25&ndash;40 MB</td></tr>
+          <tr><td>Full cycle, one run/day to Nov 3</td><td class="m">73 runs</td><td class="m">&mdash;</td><td class="m">under 3 GB</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>One Parquet file per run date, partitioned by chamber. Precompute the L1/L2 aggregates into static JSON at run time; only conditional queries ever touch the matrix.</p>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Architecture</span>
+    <span class="note">Five stages, strictly ordered. Each writes an artifact the next one reads &mdash; no stage calls another directly.</span>
+  </div>
+  <div class="body-col">
+    <h2>Engine pipeline</h2>
+    <p class="lede">A batch pipeline, not a service. It runs once a day, writes immutable run artifacts, and the API only ever reads them. That makes every historical forecast reproducible and every regression bisectable.</p>
+
+    <div class="pipe">
+      <div class="stage">
+        <span class="num">01</span><span class="nm">Ingest</span>
+        <span class="io">&rarr; raw_polls.parquet</span>
+        <span class="d">Pluggable source adapters. Append&#8209;only, never mutate a fetched poll; corrections arrive as new rows.</span>
+      </div>
+      <div class="stage">
+        <span class="num">02</span><span class="nm">Normalize</span>
+        <span class="io">&rarr; polls.parquet</span>
+        <span class="d">Resolve race identity, dedupe across aggregators, tag population (LV/RV/A) and mode, reconcile candidate names.</span>
+      </div>
+      <div class="stage">
+        <span class="num">03</span><span class="nm">Estimate</span>
+        <span class="io">&rarr; posteriors.parquet</span>
+        <span class="d">National environment layer, then a per&#8209;race mean and sd blending prior, polls, and fundamentals.</span>
+      </div>
+      <div class="stage">
+        <span class="num">04</span><span class="nm">Simulate</span>
+        <span class="io">&rarr; matrix.parquet</span>
+        <span class="d">Correlated Monte Carlo. Draws hierarchical error terms, tabulates seats and control.</span>
+      </div>
+      <div class="stage">
+        <span class="num">05</span><span class="nm">Serve</span>
+        <span class="io">&rarr; summary.json<br>&rarr; races.json</span>
+        <span class="d">Reduce the matrix into static aggregates; expose a thin conditional&#8209;query endpoint over the raw draws.</span>
+      </div>
+    </div>
+
+    <h3>The race registry is a first&#8209;class input, not a constant</h3>
+    <p>Districts, candidates, incumbency and map versions all change during the cycle &mdash; Texas&#8217;s map is still on appeal at the Supreme Court as of this writing. Keep <code>districts_2026.csv</code> and <code>races.yaml</code> versioned inputs with an effective date, so a late map change is a data update and a re&#8209;run, not a code change. Never hardcode a district list.</p>
+    <p><strong>Key every race on <code>(cycle, map_version, district)</code>, never on the district string alone.</strong> Texas&#8217;s 35th district under the 2021 map and under the 2025 map are different electorates wearing the same name. A join on the bare string will silently blend them, and the resulting prior will look entirely reasonable.</p>
+  </div>
+</section>
+
+<!-- ============ MODEL V0 ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Model &middot; v0</span>
+    <span class="note">Deliberately naive. Builds in days, not weeks, and forces the whole pipeline to exist before any of it is tuned.</span>
+  </div>
+  <div class="body-col">
+    <h2>The naive baseline, specified</h2>
+    <p class="lede">This is what Phase 0 and 1 build. It is wrong in known, enumerated ways &mdash; and it produces a plausible, end&#8209;to&#8209;end forecast that the dashboard can be built against immediately.</p>
+
+<pre><span class="c">### 1. Candidate roster  ────────────────────────────────</span>
+FEC bulk cn26 → party, office, district, incumbency (CAND_ICI)
+<span class="c"># authoritative for federal races. Governors are not federal.</span>
+
+<span class="c">### 2. Resolve each poll to a matchup  ──────────────────</span>
+answers name PEOPLE, not parties: {"Casey Askar": 50.0}
+  → surname match inside this race's roster, fuzzy at 0.85
+  → drop matchups &gt;45d behind the race's newest poll
+    <span class="c"># TX-SEN polled Talarico-v-Paxton AND Talarico-v-Cornyn;</span>
+    <span class="c"># those are different races. Averaging them describes neither.</span>
+
+<span class="c">### 3. Weighted matchup average  ────────────────────────</span>
+w_p   = exp(-days_old / 30) · 0.35^partisan · 0.35^internal
+eff_n = (Σw)² / Σw²                        <span class="c"># NOT the raw poll count</span>
+p_i   = Σ(w_p · margin_p) / Σ(w_p)
+
+<span class="c">### 4. Prior — the fallback, not the driver  ────────────</span>
+lean_i   = pres24_margin_i - pres24_national
+prior_i  = lean_i + generic_ballot + inc_i   <span class="c"># inc from FEC</span>
+
+<span class="c">### 5. Blend on effective n  ────────────────────────────</span>
+w_i   = eff_n / (eff_n + 3)
+mu_i  = w_i·p_i + (1-w_i)·prior_i
+
+<span class="c">### 6. Sigma conditional on PRIOR QUALITY  ──────────────</span>
+sigma_i = (1-w_i)·sigma_prior_only[chamber] + w_i·2.5
+sigma_prior_only = {house 4.0, senate 6.5, governor 7.0}
+    <span class="c"># a presidential-lean prior for a Senate race carries far</span>
+    <span class="c"># more error than a candidate-poll-informed one</span>
+
+<span class="c">### 7. Simulate, S = 50,000  ────────────────────────────</span>
+margin[s,i] = mu_i + 3.0·z[s] + 1.5·z[region,s] + sigma_i·t[s,i]
+</pre>
+
+    <div class="callout">
+      <span class="h">Two choices worth keeping from day one</span>
+      <p><strong>Fat tails.</strong> Draw the idiosyncratic term from a Student&#8209;t with df&nbsp;&asymp;&nbsp;5, not a normal. It is a one&#8209;line change and it is the difference between a model that admits surprises and one that calls a 6&#8209;point lead a certainty.</p>
+      <p><strong>A hierarchical error, not independent races.</strong> Even the crude three&#8209;level structure above captures the thing that actually breaks forecasts: polling misses are <em>correlated</em>. Independent race errors would give you a House probability of 99.9% and it would be nonsense.</p>
+    </div>
+
+    <h3>What v0 knowingly gets wrong</h3>
+    <ul class="clean">
+      <li><strong>No house effects.</strong> A pollster that leans three points red is counted at face value. Biggest single accuracy loss.</li>
+      <li><strong>No pollster quality weighting.</strong> A partisan IVR poll counts the same as a gold&#8209;standard live&#8209;caller poll.</li>
+      <li><strong>No fundamentals.</strong> Presidential approval and the midterm penalty &mdash; the most reliable signals in a midterm &mdash; are absent, so sparse&#8209;poll races float on priors alone.</li>
+      <li><strong>Elasticity fixed at 1.0.</strong> Real districts vary in how much they swing with the nation; college&#8209;educated suburbs move more than ancestral&#8209;partisan rural seats.</li>
+      <li><strong>Crude correlation.</strong> A three&#8209;level hierarchy, not a covariance matrix built from demographic similarity. Regions are a poor proxy for &ldquo;races that miss together.&rdquo;</li>
+      <li><strong>Sign&#8209;of&#8209;margin decides the winner</strong>, which is simply false in Louisiana, in California and Washington top&#8209;two generals that can be D&nbsp;vs&nbsp;D, and under ranked&#8209;choice voting in Maine and Alaska &mdash; all of which have races in 2026.</li>
+      <li><strong>No candidate quality, fundraising, scandal, or retirement effects.</strong></li>
+      <li><strong>Undecideds are allocated proportionally by silent default</strong>, which is what working in margins rather than vote shares amounts to. Fine in a clean two&#8209;way race, wrong wherever undecideds run high or a third party is real. Make the rule explicit and configurable rather than implicit in the arithmetic.</li>
+    </ul>
+    <p>Each of these is a named upgrade with a phase attached below. Shipping them in that order is deliberate: the accuracy gains are roughly monotonic down the list.</p>
+  </div>
+</section>
+
+<!-- ============ UPGRADE PATH ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Upgrade Path</span>
+    <span class="note">Ordered by accuracy gained per day of work.</span>
+  </div>
+  <div class="body-col">
+    <h2>From baseline to a real model</h2>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Capability</th><th>What it buys</th><th class="m">Phase</th><th>Effort</th></tr></thead>
+        <tbody>
+          <tr><td><strong>House effects</strong></td><td>Removes each pollster&#8217;s systematic lean by solving jointly for pollster bias and race means. Largest single win.</td><td class="m">P2</td><td><span class="pill p-warn">3&ndash;4 d</span></td></tr>
+          <tr><td><strong>Own pollster ratings</strong></td><td>Weight by historical error, computed from the archived poll corpus with shrinkage toward the mean. Removes the dependence on a third party&#8217;s ratings.</td><td class="m">P2</td><td><span class="pill p-warn">3 d</span></td></tr>
+          <tr><td><strong>Fundamentals blend</strong></td><td>Presidential approval + midterm penalty + seat exposure, blended with poll weight rising as election day nears. Anchors the ~370 districts with no polls.</td><td class="m">P2</td><td><span class="pill p-warn">4 d</span></td></tr>
+          <tr><td><strong>Covariance matrix</strong></td><td>Correlated errors drawn from demographic distance (education, urbanicity, race, prior swing) instead of coarse regions. This is where topline calibration lives.</td><td class="m">P2</td><td><span class="pill p-crit">5 d</span></td></tr>
+          <tr><td><strong>District elasticity</strong></td><td>Per&#8209;district swing sensitivity estimated from prior cycles.</td><td class="m">P2</td><td><span class="pill p-ok">1&ndash;2 d</span></td></tr>
+          <tr><td><strong>Special voting systems</strong></td><td>RCV (ME, AK), top&#8209;two generals (CA, WA), Louisiana. Correctness, not accuracy &mdash; the model is currently capable of reporting an impossible winner.</td><td class="m">P3</td><td><span class="pill p-warn">3 d</span></td></tr>
+          <tr><td><strong>Candidate quality</strong></td><td>Prior office held, fundraising, scandal flags. Real but modest; mostly matters in open seats.</td><td class="m">P3</td><td><span class="pill p-ok">2 d</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DATA ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Data</span>
+    <span class="note">The schedule risk lives here, not in the math.</span>
+  </div>
+  <div class="body-col">
+    <h2>Sources, and the hole where FiveThirtyEight used to be</h2>
+
+    <div class="callout">
+      <span class="h">Read this before estimating the project</span>
+      <p>FiveThirtyEight was shut down in March 2025. There is no longer a free, clean, actively maintained polls feed with stable schemas. Every homegrown forecast built since then spends more time on ingestion than on modeling, and plans that assume otherwise slip. Budget for adapter work <em>and</em> a manual poll&#8209;entry path from the start &mdash; you will need it for under&#8209;covered House races no aggregator tracks.</p>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>Source</th><th>Provides</th><th>Access</th><th>Risk</th></tr></thead>
+        <tbody>
+          <tr><td><strong>The Downballot</strong><br><span class="mono" style="font-size:11px;color:var(--ink-3)">pres-by-CD, 2026 maps</span></td><td>2024 presidential result for every district under the new maps &mdash; the district prior</td><td>Free, manual CSV</td><td><span class="pill p-crit">Critical path</span> No substitute exists</td></tr>
+          <tr><td><strong>VoteHub</strong></td><td>Live race&#8209;level and generic&#8209;ballot polls</td><td>REST API</td><td><span class="pill p-warn">Verify</span> Returned 403 to an unauthenticated probe &mdash; confirm auth, limits, and terms first</td></tr>
+          <tr><td><strong>Silver Bulletin</strong></td><td>Generic&#8209;ballot average, pollster ratings</td><td>Partly paywalled</td><td><span class="pill p-warn">Cite, don&#8217;t scrape</span></td></tr>
+          <tr><td><strong>uspollingdata.com</strong></td><td>Meta&#8209;average across six aggregators</td><td>Free, daily</td><td><span class="pill p-mute">Cross&#8209;check only</span> Never an input &mdash; it would launder others&#8217; models into yours</td></tr>
+          <tr><td><strong>MEDSL / Harvard Dataverse</strong><br><span class="mono" style="font-size:11px;color:var(--ink-3)">10.7910/DVN/IG0UN2</span></td><td>House and Senate returns, 1976&ndash;2022</td><td>Free <code>.tab</code>, GitHub mirror</td><td><span class="pill p-ok">Stable</span> The backtesting spine</td></tr>
+          <tr><td><strong>538 GitHub archive</strong></td><td>Historical polls + legacy pollster ratings</td><td>Free, frozen at Mar 2025</td><td><span class="pill p-ok">Stable</span> Fine for backtests, useless for 2026</td></tr>
+          <tr><td><strong>Wikipedia race tables</strong></td><td>Coverage backstop for thinly&#8209;polled races</td><td>Scrape</td><td><span class="pill p-warn">Messy</span> Inconsistent HTML, needs review queue</td></tr>
+          <tr><td><strong>Ballotpedia / state SoS</strong></td><td>Candidates, filing, incumbency, retirements</td><td>Semi&#8209;manual</td><td><span class="pill p-warn">Churns</span> Especially retirements</td></tr>
+          <tr><td><strong>Cook / Sabato / DDHQ</strong></td><td>Race ratings</td><td>Manual entry</td><td><span class="pill p-mute">Sanity check</span> Display alongside, never blend in</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Licensing is a merge requirement, not a footnote</h3>
+    <p>Every adapter records the terms it operates under, checked before it is written rather than after it is running. Wikipedia is CC&nbsp;BY&#8209;SA and carries attribution obligations that propagate into anything public built on it; aggregator terms vary and some prohibit reuse outright. This costs an hour per source now and can invalidate a published product later.</p>
+
+    <h3>Normalized poll schema</h3>
+<pre>poll_id  source  pollster  sponsor  race_id  start_date  end_date
+population {LV|RV|A}  mode {live|IVR|online|mixed}  sample_n  moe
+dem_pct  gop_pct  other_pct  undecided_pct  margin
+partisan_sponsor {none|D|R}  url  fetched_at  superseded_by
+</pre>
+    <p>Everything else &mdash; weights, house&#8209;effect adjustments, decay &mdash; is computed downstream and never written back onto the poll row. Ingestion stays dumb and auditable.</p>
+  </div>
+</section>
+
+<!-- ============ DASHBOARD ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Dashboard</span>
+    <span class="note">Three levels. Every level answers a question the level above provokes.</span>
+  </div>
+  <div class="body-col">
+    <h2>Drill&#8209;down structure</h2>
+    <p class="lede">The information design goal: a visitor should be able to get a number in two seconds, understand where it came from in thirty, and interrogate it for an hour.</p>
+
+    <h3>L1 &mdash; Overview</h3>
+    <div class="wf">
+      <span class="wf-cap">Wireframe &middot; Landing</span>
+      <div class="wf-row" style="grid-template-columns:repeat(3,1fr);">
+        <div class="box"><span class="t">House &middot; 85% D</span><span class="s">control dial</span></div>
+        <div class="box"><span class="t">Senate &middot; 52% D</span><span class="s">control dial</span></div>
+        <div class="box"><span class="t">Governors &middot; 21 D</span><span class="s">median count</span></div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--rule);border-radius:2px;padding:16px 14px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <span style="font-family:Archivo,sans-serif;font-size:13.5px;font-weight:600;">Democratic House seats &mdash; distribution of 50,000 simulations</span>
+          <span class="chart-note">median 230 &middot; 80% range 214&ndash;247</span>
+        </div>
+        <svg viewBox="0 0 560 200" width="100%" role="img" aria-label="Histogram of simulated Democratic House seat counts, centered near 230, with a majority threshold at 218. Roughly 85 percent of the distribution lies at or above 218.">
+          <!-- bars below 218 -->
+          <g fill="var(--gop)">
+            <rect x="20.0"  y="162" width="17.2" height="8"   rx="3"></rect>
+            <rect x="39.3"  y="157" width="17.2" height="13"  rx="3"></rect>
+            <rect x="58.5"  y="150" width="17.2" height="20"  rx="3"></rect>
+            <rect x="77.8"  y="140" width="17.2" height="30"  rx="3"></rect>
+            <rect x="97.0"  y="128" width="17.2" height="42"  rx="3"></rect>
+            <rect x="116.3" y="114" width="17.2" height="56"  rx="3"></rect>
+          </g>
+          <!-- bars at/above 218 -->
+          <g fill="var(--dem)">
+            <rect x="135.6" y="97"  width="17.2" height="73"  rx="3"></rect>
+            <rect x="154.8" y="79"  width="17.2" height="91"  rx="3"></rect>
+            <rect x="174.1" y="61"  width="17.2" height="109" rx="3"></rect>
+            <rect x="193.3" y="45"  width="17.2" height="125" rx="3"></rect>
+            <rect x="212.6" y="32"  width="17.2" height="138" rx="3"></rect>
+            <rect x="231.8" y="23"  width="17.2" height="147" rx="3"></rect>
+            <rect x="251.1" y="20"  width="17.2" height="150" rx="3"></rect>
+            <rect x="270.3" y="23"  width="17.2" height="147" rx="3"></rect>
+            <rect x="289.6" y="32"  width="17.2" height="138" rx="3"></rect>
+            <rect x="308.9" y="45"  width="17.2" height="125" rx="3"></rect>
+            <rect x="328.1" y="61"  width="17.2" height="109" rx="3"></rect>
+            <rect x="347.4" y="79"  width="17.2" height="91"  rx="3"></rect>
+            <rect x="366.6" y="97"  width="17.2" height="73"  rx="3"></rect>
+            <rect x="385.9" y="114" width="17.2" height="56"  rx="3"></rect>
+            <rect x="405.1" y="128" width="17.2" height="42"  rx="3"></rect>
+            <rect x="424.4" y="140" width="17.2" height="30"  rx="3"></rect>
+            <rect x="443.6" y="150" width="17.2" height="20"  rx="3"></rect>
+            <rect x="462.9" y="157" width="17.2" height="13"  rx="3"></rect>
+            <rect x="482.1" y="162" width="17.2" height="8"   rx="3"></rect>
+            <rect x="501.4" y="165" width="17.2" height="5"   rx="3"></rect>
+            <rect x="520.6" y="167" width="17.2" height="3"   rx="3"></rect>
+          </g>
+          <!-- majority threshold -->
+          <line x1="133.2" y1="14" x2="133.2" y2="176" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="4 3"></line>
+          <text x="129" y="11" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" fill="var(--ink)">218 &middot; majority</text>
+          <!-- baseline -->
+          <line x1="20" y1="170.5" x2="538" y2="170.5" stroke="var(--rule)" stroke-width="1"></line>
+          <!-- axis -->
+          <g font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-3)">
+            <text x="28" y="187">206</text>
+            <text x="259" y="187" text-anchor="middle">230</text>
+            <text x="530" y="187" text-anchor="end">258</text>
+          </g>
+          <!-- direct label on median -->
+          <text x="259.7" y="14" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" font-weight="600" fill="var(--ink-2)">median 230</text>
+        </svg>
+        <p class="chart-note" style="margin-top:6px;">Sketch of the hero view, drawn on the early&#8209;August consensus. Party color is reinforced by position relative to the threshold line, so identity never rests on color alone.</p>
+      </div>
+
+      <div class="wf-row" style="grid-template-columns:1fr 1fr;">
+        <div class="box"><span class="t">National environment</span><span class="s">generic ballot trend &middot; sparkline &middot; approval</span></div>
+        <div class="box"><span class="t">What changed today</span><span class="s">probability deltas, new polls, biggest movers</span></div>
+      </div>
+    </div>
+
+    <h3>L2 &mdash; Chamber</h3>
+    <div class="wf">
+      <span class="wf-cap">Wireframe &middot; House view</span>
+      <div class="wf-row" style="grid-template-columns:1.15fr 1fr;">
+        <div class="box" style="min-height:120px;"><span class="t">Hex cartogram &mdash; 435 districts</span><span class="s">equal-area tiles, one per district<br>shaded by win probability<br>geographic area &ne; importance, so a<br>true map would be actively misleading</span></div>
+        <div class="box" style="min-height:120px;"><span class="t">Path to the majority</span><span class="s">races sorted by forecast margin<br>cumulative seat count<br>tipping-point race marked<br>&ldquo;the 218th seat is IA-03&rdquo;</span></div>
+      </div>
+      <div class="box"><span class="t">Race table</span><span class="s">win prob &middot; forecast margin &middot; rating &middot; 7-day movement &middot; poll count &middot; last poll date &mdash; sortable, filterable, links to L3</span></div>
+    </div>
+
+    <h3>L3 &mdash; Single race</h3>
+    <div class="wf">
+      <span class="wf-cap">Wireframe &middot; Race detail</span>
+      <div class="box" style="min-height:96px;"><span class="t">Forecast margin over time</span><span class="s">fan chart with 50/80/95% bands &middot; individual poll dots sized by sample, opacity by recency &middot; hover for pollster</span></div>
+      <div class="wf-row" style="grid-template-columns:1fr 1fr;">
+        <div class="box"><span class="t">Polls in this race</span><span class="s">pollster &middot; rating &middot; raw margin &middot; house-effect adjustment &middot; final weight &mdash; the adjustment shown, not hidden</span></div>
+        <div class="box"><span class="t">Where the number comes from</span><span class="s">prior / fundamentals / polls decomposition &mdash; how much of this forecast is actually data</span></div>
+      </div>
+      <div class="wf-row" style="grid-template-columns:1fr 1fr;">
+        <div class="box"><span class="t">Importance</span><span class="s">how often this race is the tipping point across sims</span></div>
+        <div class="box"><span class="t">Conditional</span><span class="s">&ldquo;if this flips, control probability becomes X&rdquo;</span></div>
+      </div>
+    </div>
+
+    <h3>Cross&#8209;cutting: scenario explorer and diagnostics</h3>
+    <ul class="clean">
+      <li><strong>Scenario explorer.</strong> Pin outcomes for any subset of races; every other probability recomputes by filtering the simulation matrix. Effectively free once the matrix is persisted, and the single most&#8209;used feature on forecasts that have it.</li>
+      <li><strong>Correlation view.</strong> Which races move together, read straight off the matrix &mdash; makes the model&#8217;s error structure legible instead of a black box.</li>
+      <li><strong>Model diagnostics page.</strong> Calibration curve, house&#8209;effect table, backtest results, methodology writeup. If this is ever public, this page is what makes it defensible.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ API ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Interface</span>
+    <span class="note">Static where possible. Compute only for conditionals.</span>
+  </div>
+  <div class="body-col">
+    <h2>API contract</h2>
+<pre>GET  /runs                          <span class="c">→ available run dates</span>
+GET  /runs/{date}/summary           <span class="c">→ topline probs, seat medians + intervals</span>
+GET  /runs/{date}/races             <span class="c">→ per-race table (L2)</span>
+GET  /runs/{date}/races/{race_id}   <span class="c">→ detail: history, polls, decomposition (L3)</span>
+GET  /runs/{date}/trend             <span class="c">→ daily topline history for the fan charts</span>
+GET  /runs/{date}/matrix.parquet    <span class="c">→ raw draws, for offline analysis</span>
+
+POST /runs/{date}/conditional
+     {"given": {"GA-SEN": "D", "NC-SEN": "R"}, "ask": ["senate_control"]}
+     <span class="c">→ boolean-mask the matrix, reduce, return</span>
+</pre>
+    <p>The first five are files on disk, generated at run time and cacheable indefinitely &mdash; a run is immutable once written. Only <code>/conditional</code> needs a live process, and it is a masked mean over a memory&#8209;mapped array: single&#8209;digit milliseconds.</p>
+  </div>
+</section>
+
+<!-- ============ BACKTEST ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Quality Gate</span>
+    <span class="note">Not optional, and not last. It is how the variance parameters get set.</span>
+  </div>
+  <div class="body-col">
+    <h2>Backtesting and calibration</h2>
+    <p class="lede">The <code>&sigma;</code> values in the v0 spec are guesses. The only honest way to set them is to replay past cycles with data frozen at each date and check whether the resulting intervals were the right width.</p>
+    <p>Replay <strong>2018</strong> and <strong>2022</strong> &mdash; both midterms, both with a president of a known party, one a wave and one emphatically not. Freeze the poll corpus at each historical date, run the full pipeline, and score:</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Metric</th><th>Question it answers</th><th>Pass condition</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Calibration curve</strong></td><td>Do 70% favorites actually win about 70% of the time?</td><td class="m">Within sampling error across buckets</td></tr>
+          <tr><td><strong>Interval coverage</strong></td><td>Do 80% margin intervals contain the result 80% of the time?</td><td class="m">78&ndash;82% empirical</td></tr>
+          <tr><td><strong>Seat&#8209;count MAE</strong></td><td>How far off is the median seat forecast?</td><td class="m">Beats uniform&#8209;swing baseline</td></tr>
+          <tr><td><strong>Brier score</strong></td><td>Overall probabilistic accuracy, per race</td><td class="m">Beats uniform&#8209;swing baseline</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The baseline to beat is deliberately unglamorous: <em>uniform national swing applied to the previous result in each seat.</em> It is surprisingly hard to beat, and a model that cannot beat it is adding complexity rather than information. <strong>Nothing ships past Phase 2 until it does.</strong></p>
+    <p>Watch specifically for over&#8209;confidence at the topline: if coverage looks fine per race but the seat&#8209;count distribution is too narrow, <code>&sigma;_nat</code> is too small. That failure mode is exactly what produced the famous forecast misses, and it is invisible unless you score the aggregate rather than the races.</p>
+
+    <h3>Score the competitive races, not all 435</h3>
+    <p>A Brier score computed over every House seat is dominated by the roughly 370 districts that any model calls correctly at 99%. The engine and the baseline both score near&#8209;perfect there, and the aggregate cannot tell them apart &mdash; a model could be badly wrong in every genuinely contested race and still post a fine overall number. <strong>Gate on the subset where the baseline gives between 5% and 95%.</strong> Report the full score too, but do not decide anything with it.</p>
+
+    <h3>Two cycles cannot estimate a variance</h3>
+    <p>This is the hardest limit on the whole plan and it deserves stating plainly. <code>&sigma;_nat</code> is the parameter that most determines the topline, and replaying 2018 and 2022 supplies exactly <em>two</em> draws of the national error to fit it against. Fitting a variance to two observations is not estimation. So: take <code>&sigma;_nat</code> from published polling&#8209;error research as an informative prior, use the backtest to <em>check that it is not too narrow</em>, and never to shrink it. Add 2010 and 2014 for two more midterm draws if the data assembly is affordable. Where the backtest and the prior disagree, widen.</p>
+  </div>
+</section>
+
+<!-- ============ PHASES ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Schedule</span>
+    <span class="note">Each phase ends on a demonstrable gate, not a date.</span>
+  </div>
+  <div class="body-col">
+    <h2>Phase plan</h2>
+    <div class="phases">
+
+      <div class="phase">
+        <div><span class="pid">P0</span></div>
+        <div>
+          <h4>Data spine and walking skeleton</h4>
+          <p>Race registry for all 506 races with ids, incumbents and map version. Downballot pres&#8209;by&#8209;CD loaded as district priors. One poll adapter working. v0 simulation running. One deliberately ugly HTML page printing a House probability.</p>
+          <div class="gate">GATE &nbsp;A number comes out end to end, from raw poll to rendered page.</div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><span class="pid">P1</span></div>
+        <div>
+          <h4>Naive model complete, dashboard L1 and L2</h4>
+          <p>All three chambers simulating. Run artifacts persisted daily on a cron. React dashboard with control dials, seat histogram, hex cartogram, path&#8209;to&#8209;majority, and the sortable race table. Staleness alerting from day one &mdash; a source that quietly starts returning zero rows must page someone, not sit there while the model runs on last week&#8217;s polls. Backtest data assembly starts here, in parallel. The forecast runs in <strong>shadow</strong> throughout, so that whenever it is first shown it already has a trend line behind it.</p>
+          <div class="gate">GATE &nbsp;Reproduction test, not a consensus test. Feed the engine the actual 2024 national House margin under the 2024 maps and confirm it reproduces the actual 2024 seat split; then swap in the post&#8209;redistricting maps and confirm the median district lands near R+3.4. This validates the priors and the seats&#8209;votes curve against reality, offline, referencing nobody else&#8217;s model.</div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><span class="pid">P2</span></div>
+        <div>
+          <h4>The real model</h4>
+          <p>House effects, pollster ratings, fundamentals blend, demographic covariance matrix, district elasticity. Backtest harness on 2018 and 2022, and the variance parameters tuned on it rather than assumed.</p>
+          <div class="gate">GATE &nbsp;Beats the uniform&#8209;swing baseline on Brier score and seat MAE, with 80% coverage in the 78&ndash;82 band.</div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><span class="pid">P3</span></div>
+        <div>
+          <h4>Drill&#8209;down depth</h4>
+          <p>L3 race pages with fan charts and poll decomposition. Scenario explorer and conditional endpoint. Tipping&#8209;point statistics. Correlation view. Model diagnostics page. Special voting systems: RCV, top&#8209;two, Louisiana.</p>
+          <div class="gate">GATE &nbsp;&ldquo;If Democrats win the Maine Senate race, what happens to Senate control?&rdquo; is answerable in the UI in under five seconds.</div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><span class="pid">P4</span></div>
+        <div>
+          <h4>Freeze and operate</h4>
+          <p>No structural model changes after roughly 20 October. Polls in, run daily, monitor for ingestion failures, publish the methodology page. Late&#8209;cycle model changes are how forecasts embarrass themselves &mdash; if a flaw is found in the last fortnight, document it rather than patch it live.</p>
+          <div class="gate">GATE &nbsp;A missed daily run is detected and alerted, not discovered.</div>
+        </div>
+      </div>
+
+      <div class="phase out">
+        <div><span class="pid" style="color:var(--ink-3);">&mdash;</span></div>
+        <div>
+          <h4>Election night &mdash; explicitly out of scope</h4>
+          <p>A live results and race&#8209;calling model is a separate build with its own data contracts, its own costs, and a precinct&#8209;level swing model that shares almost nothing with this one. It is not a stretch goal on this plan. <strong>Decide by 1 October</strong> whether to buy a results feed, build one, or simply go dark on election night.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <h3>The effort assumption, stated so it can be wrong</h3>
+    <p>The sequence above assumes <strong>one engineer at close to full time</strong>, already fluent in Python numerics and React, with no other commitments. At half time, or split across other work, it does not fit &mdash; and the honest response is to cut scope against the ladder below rather than triage in the last fortnight. The phase and workstream dates this assumption was originally attached to have been removed: they forecast one particular pace, and the first three workstreams beat them by enough that the calendar had become misleading rather than useful. What still binds is the ordering, the gates, and the freeze.</p>
+
+    <h3>Cut ladder &mdash; drop in this order</h3>
+    <div class="ladder">
+      <div class="rung"><span class="r">1</span><span class="x">Governors &mdash; all 36 races <em>&mdash; no control stake, weakest correlation structure, cleanest amputation</em></span></div>
+      <div class="rung"><span class="r">2</span><span class="x">Hex cartogram &rarr; sortable table only <em>&mdash; the table carries the information; the map carries the pleasure</em></span></div>
+      <div class="rung"><span class="r">3</span><span class="x">Scenario explorer UI <em>&mdash; keep the conditional endpoint, which is nearly free once the matrix exists; drop only the interface</em></span></div>
+      <div class="rung"><span class="r">4</span><span class="x">Candidate quality signals <em>&mdash; real but modest, mostly confined to open seats</em></span></div>
+      <div class="rung"><span class="r">5</span><span class="x">District elasticity <em>&mdash; reverts to a fixed 1.0, which is wrong but unbiased</em></span></div>
+      <div class="rung"><span class="r">6</span><span class="x">Special voting systems &rarr; label ME, AK, LA and top&#8209;two races &ldquo;not forecast&rdquo; <em>&mdash; an honest gap beats a confident impossibility</em></span></div>
+      <div class="rung"><span class="r">7</span><span class="x">Model diagnostics page <em>&mdash; only if this stays internal. If it is ever published, this rung is not cuttable.</em></span></div>
+    </div>
+
+    <div class="core">
+      <span class="h">Irreducible core &mdash; below this line, do not ship a forecast</span>
+      <p>Race registry &middot; district priors &middot; one working poll source &middot; <strong>house effects</strong> &middot; correlated simulation &middot; the backtest gate &middot; L1 and L2 views.</p>
+      <p style="font-size:15px;color:var(--ink-2);">House effects are promoted out of Phase 2 into the core deliberately. &ldquo;Naive baseline first&rdquo; is the right way to get the skeleton standing, but an unadjusted poll average is the single most likely thing to be <em>visibly</em> wrong to anyone who knows the polls &mdash; and it is the cheapest serious upgrade on the list. Build naive; do not show anyone naive.</p>
+    </div>
+
+    <h3>If the gate has not passed by the freeze</h3>
+    <p>Decide the rule now, in August, not under pressure in late October. If the backtest gate has not passed by <strong>20 October</strong>, the forecast is either labelled experimental with prominent uncertainty, or it is not published at all. Both are defensible. Publishing a forecast that failed its own quality gate, quietly, is not.</p>
+  </div>
+</section>
+
+<!-- ============ REPO ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Layout</span>
+    <span class="note">Engine, API, and web are separately runnable. The engine never imports from the API.</span>
+  </div>
+  <div class="body-col">
+    <h2>Repository shape</h2>
+<div class="tree">election_predictor/
+├─ engine/
+│  ├─ ingest/        <span class="cm">votehub.py  wikipedia.py  manual_csv.py  base.py</span>
+│  ├─ registry/      <span class="cm">races.yaml  incumbents.csv  districts_2026.csv</span>
+│  ├─ priors/        <span class="cm">pres_by_cd.py  elasticity.py  fundamentals.py</span>
+│  ├─ estimate/      <span class="cm">generic_ballot.py  house_effects.py  posterior.py</span>
+│  ├─ simulate/      <span class="cm">covariance.py  draw.py  tabulate.py</span>
+│  ├─ backtest/      <span class="cm">harness.py  metrics.py  cycles/{2018,2022}/</span>
+│  └─ runs/          <span class="cm">{YYYY-MM-DD}/{summary.json,races.json,matrix.parquet}</span>
+├─ api/              <span class="cm">FastAPI — routes.py  conditional.py</span>
+└─ web/              <span class="cm">Vite + React + TS</span>
+   └─ components/    <span class="cm">Dial  SeatHistogram  HexMap  SnakeChart  FanChart  RaceTable</span>
+</div>
+    <p>Polars over pandas for the poll and matrix work &mdash; the group&#8209;bys and the Parquet round&#8209;trips are the hot path, and it matters more than it usually would at this data size because you will re&#8209;run the backtest harness hundreds of times.</p>
+  </div>
+</section>
+
+<!-- ============ DECISIONS ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Open Decisions</span>
+    <span class="note">Answers change the plan. Everything else I can decide as I build.</span>
+  </div>
+  <div class="body-col">
+    <h2>What I need from you</h2>
+    <ol class="dec">
+      <li><strong>Who is building this, and at what capacity?</strong> Every date in the phase plan rests on one full&#8209;time engineer fluent in the stack. This is the answer that most changes the plan, and it is the one I do not have.</li>
+      <li><strong>Public or internal?</strong> A published forecast needs the methodology page, the calibration disclosures, and a much higher bar on house&#8209;effect defensibility. An internal analysis tool does not.</li>
+      <li><strong>Any budget for paid data?</strong> Free&#8209;only is entirely viable but slower to build and gappier in under&#8209;polled House races. A paid feed mostly buys back ingestion time, which is the scarcest thing on this schedule.</li>
+      <li><strong>Governors in v1, or defer?</strong> 36 races, weakest correlation structure, no control stake. It is the cheapest thing to cut if the calendar tightens, and cutting it early is better than cutting it in October.</li>
+      <li><strong>Election night: build, buy, or skip?</strong> Needs deciding by 1 October, because building it means starting in P3.</li>
+      <li><strong>How many simulations?</strong> 50,000 is the assumption above. 10,000 is enough for toplines and cuts run time by 5&times;; conditional queries on rare scenarios get noisy below about 40,000.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ BUILD LOG ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Build Log</span>
+    <span class="note">P0 shipped 22 Aug. What the code taught us that the plan could not.</span>
+  </div>
+  <div class="body-col">
+    <h2>What shipped, and what it corrected</h2>
+    <p class="lede">The pipeline runs end to end on real data. Five of the plan&#8217;s assumptions survived contact; five did not, and four of the failures were only visible once real polls were flowing.</p>
+
+    <div class="callout">
+      <span class="h">The reproduction gate worked, and validated independently</span>
+      <p>The engine measures the median district at <strong>&minus;3.10</strong> &mdash; the published figure for the pre&#8209;redistricting maps is Trump&nbsp;+3.1 &mdash; and <strong>205 of 435 districts carried by Harris</strong>, the widely reported count. Neither was fed in. Replacing the consensus gate with a mechanical one (Stress Test #02) paid for itself on the first run.</p>
+    </div>
+
+    <h3>Candidate-level, not generic ballot</h3>
+    <p>The forecast is now driven by actual candidate matchup polling, with the generic ballot demoted to a fallback prior for the ~465 races that have none. Candidates come from the FEC bulk candidate master, which is authoritative for federal races. The effect was not marginal:</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Measure</th><th class="m">Generic-ballot model</th><th class="m">Candidate-level</th></tr></thead>
+        <tbody>
+          <tr><td>Senate control</td><td class="m">13.9% D &middot; range 49&ndash;51</td><td class="m"><strong>51.2% D &middot; range 48&ndash;53</strong></td></tr>
+          <tr><td>House control</td><td class="m">87.5% D &middot; median 233</td><td class="m"><strong>86.9% D &middot; median 229</strong></td></tr>
+          <tr><td>Senate poll coverage</td><td class="m">0 of 35 races</td><td class="m"><strong>17 of 35 races</strong></td></tr>
+          <tr><td>House incumbency</td><td class="m">all UNK</td><td class="m"><strong>208 D / 211 R / 16 open</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Five findings the plan did not anticipate</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Finding</th><th>What it broke</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td><strong>A 14&#8209;day half&#8209;life discards nearly all the data</strong></td><td>OH&#8209;SEN&#8209;SP had an <em>effective n of 2.11 across 15 polls</em>. The state forecast rested on two August releases; an NYT/Siena poll at &minus;3 carried weight 0.0197. A state Trump won by 11 came out at 78.8% D.</td><td>30&#8209;day half&#8209;life; shrinkage now uses <strong>effective n</strong>, never raw poll count. Ohio &rarr; 42.2%.</td></tr>
+          <tr><td><strong>Distinct matchups were averaged together</strong></td><td>TX&#8209;SEN carried 25 polls of Talarico&#8209;v&#8209;Paxton (+1.6&nbsp;D) and 8 of Talarico&#8209;v&#8209;Cornyn (&minus;1.0&nbsp;D) &mdash; different races contingent on a primary. Their average describes neither.</td><td>Drop matchups &gt;45d behind the race&#8217;s newest poll. Fired on 10 races. TX&#8209;SEN 57.7% &rarr; 42.2%.</td></tr>
+          <tr><td><strong>The <code>partisan</code> flag was in the data and ignored</strong></td><td>Change Research polls flagged PARTISAN:DEM counted at full weight.</td><td>0.35 multiplier on partisan and internal polls.</td></tr>
+          <tr><td><strong>FEC <code>CAND_ICI</code> means &ldquo;holds the seat&rdquo;</strong></td><td>It validated Senate incumbent <em>party</em> 34/35, but called all 8 flagged retirements &ldquo;incumbent&rdquo; &mdash; a retiring member still files as I.</td><td>FEC overrides incumbent party only, never who is on the ballot.</td></tr>
+          <tr><td><strong>Governors are not federal</strong></td><td>All 226 governor polls resolve to <code>no_roster</code>; the FEC has no state coverage. Governor forecasts are prior&#8209;only.</td><td>Needs a non&#8209;federal candidate source, or governors take cut&#8209;ladder rung 1.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Two plan assumptions that were simply wrong</h3>
+    <ul class="clean">
+      <li><strong>&ldquo;The 538 archive is gone&rdquo; was itself wrong &mdash; corrected.</strong> The repo is live (last pushed Feb&nbsp;2025); the 404s were bad paths, not a deleted repo. <code>pollster-ratings/raw_polls.csv</code> holds <strong>7,963 congressional general&#8209;election polls with actual results attached</strong>. That single file unlocks house effects, our own pollster ratings, the empirical variance curve, and the backtest spine. Recording the correction because the wrong version briefly shaped the plan.</li>
+      <li><strong>The generic ballot feed is 53 days stale at source.</strong> VoteHub&#8217;s newest generic&#8209;ballot poll is 2026&#8209;06&#8209;30 while its approval polls run to 2026&#8209;08&#8209;18. Verified not to be an adapter bug. The staleness alarm from Stress Test #05 fired on day one, which is the only reason it was caught.</li>
+    </ul>
+
+    <div class="core">
+      <span class="h">Known overconfidence &mdash; since fixed</span>
+      <p><strong>Sigma did not widen with time to election, and it does now.</strong> Both remaining core items shipped: the error curve is fitted on 11,359 polls across 25 cycles, and every poll is de&#8209;biased by its pollster. NC&#8209;SEN went from 95.9% to the high 80s on unchanged evidence, and the whole model from a flat sigma of 4.18 to a fitted 5&ndash;13 per race. What replaced it as the leveraged number is the <strong>generic ballot&#8217;s own +2.74 point Democratic bias</strong>, worth about 13 points of House control per point on the current run &mdash; a figure that moves with the forecast rather than a constant, and one the dashboard now recomputes from the sweep on every run instead of quoting.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ROAD TO PARITY ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Committed Plan</span>
+    <span class="note">House and Senate only &mdash; governors cut at rung 1. <strong>All seven workstreams closed.</strong></span>
+  </div>
+  <div class="body-col">
+    <h2>Road to parity</h2>
+    <p class="lede">Calibration before coverage. The model&#8217;s biggest defect was not missing signal &mdash; it was overconfidence in the signal it already had. <strong>All seven workstreams are now closed</strong>, and the ordering paid for itself twice: the backtest&#8217;s own headline finding turned out to be an artefact of its stand&#8209;in prior, and one workstream&#8217;s scoped mechanism was rejected on measurement rather than argued about.</p>
+    <div class="callout">
+      <span class="h">Where it ended up</span>
+      <p>Per&#8209;district calibration sd(z) <strong>0.85&ndash;1.08</strong> on three replayed elections, against <strong>1.74&ndash;2.03</strong> for the flat sigma the engine shipped with. Four things were tested and <em>cut</em> on evidence: fundraising, candidate quality, demographic covariance and inverse&#8209;variance poll weighting. An end&#8209;to&#8209;end audit pass then closed nine findings and four more it turned up, three of them live defects. Live forecast <strong>House 67.1% D</strong>, <strong>Senate 21.4% D</strong> &mdash; the Senate having moved on a one&#8209;seat holdover correction that is decisive at a threshold of 51.</p>
+    </div>
+
+    <div class="callout">
+      <span class="h">The measurement that set the order &mdash; the original diagnosis, since confirmed</span>
+      <p>Across 7,963 congressional general&#8209;election polls with known results, poll error at <strong>50&ndash;75 days out is RMSE 8.69</strong> &mdash; Senate 7.95, House 9.95. The engine&#8217;s total sigma on a polled race is <code>sqrt(3.0&sup2; + 1.5&sup2; + 2.5&sup2;) = 4.18</code>. Averaging polls cancels noise but <em>not</em> house effects, which are systematic, so true forecast sigma at 73 days should be roughly 6&ndash;8. <strong>The model is about twice as confident as the data supports.</strong> That was the entire reason NC&#8209;SEN reported 98%. The diagnosis held: measured leave&#8209;one&#8209;cycle&#8209;out, the flat sigma&#8217;s sd(z) was 1.74&ndash;2.09, and its 80% intervals contained the truth 50&ndash;59% of the time.</p>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th class="m">Days to election</th><th class="m">n</th><th class="m">MAE</th><th class="m">RMSE</th></tr></thead>
+        <tbody>
+          <tr><td class="m">0&ndash;7</td><td class="m">1,007</td><td class="m">5.01</td><td class="m">6.42</td></tr>
+          <tr><td class="m">21&ndash;35</td><td class="m">1,787</td><td class="m">6.31</td><td class="m">8.09</td></tr>
+          <tr><td class="m">50&ndash;75</td><td class="m">894</td><td class="m">6.81</td><td class="m">8.69</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="phases">
+      <div class="phase"><div><span class="pid">A</span></div>
+        <div><h4>Recalibrate sigma from the error curve</h4>
+          <p>Fit sigma as a function of days&#8209;to&#8209;election and chamber on the 7,963&#8209;poll corpus, replacing three guessed constants with a measured curve.</p>
+          <div class="gate">DONE &nbsp;NC&#8209;SEN landed at 86.9% on unchanged evidence. Leave&#8209;one&#8209;cycle&#8209;out sd(z) 1.78&ndash;2.09 &rarr; 0.96&ndash;1.00.</div></div></div>
+
+      <div class="phase"><div><span class="pid">B</span></div>
+        <div><h4>House effects and our own pollster ratings</h4>
+          <p>31 pollsters have 60 or more congressional polls in the corpus, with signed bias spanning <strong>&minus;5.55 to +6.61</strong>. Every one is currently counted at face value.</p>
+          <div class="gate">DONE &nbsp;499 pollsters, true lean sd 3.10, shrunk by empirical Bayes. Ratings score accuracy against the RESULT &mdash; the first version scored agreement with the field, which was circular and rewarded herding.</div></div></div>
+
+      <div class="phase"><div><span class="pid">E</span></div>
+        <div><h4>Backtest harness</h4>
+          <p>Third, not last: without it, everything below is unfalsifiable. Replay 2018 and 2022 from the corpus, which carries poll date, poll margin, and actual margin together.</p>
+          <div class="gate">DONE &nbsp;2018, 2020 and 2022 replayed through the live engine with the calibration held out. Curve and coverage reported; outcomes taken from all 435 districts, not from the poll corpus.</div></div></div>
+
+      <div class="phase"><div><span class="pid">C</span></div>
+        <div><h4>Presidential&#8209;by&#8209;district under the 2026 maps &nbsp;<span class="pill p-warn">gated</span></h4>
+          <p>Clears the 113 <code>prior_stale</code> districts. Largest known House error: roughly two points of median&#8209;district margin. Depends on a source that may be manual or licence&#8209;restricted.</p>
+          <div class="gate">GATE TAKEN &nbsp;No public source carries 2024 presidential results under the 2026 lines. Nothing was guessed. C was PRICED instead on the 2022 redraw: a prior joined across a redraw scores Brier 0.102 against 0.036, so C is a large prize. Sigma widened 3.82&times; as the interim &mdash; both ends of that ratio fitted, after the audit found the stored multiplier had drifted away from its own base.</div></div></div>
+
+      <div class="phase"><div><span class="pid">D</span></div>
+        <div><h4>Fundamentals for the unpolled districts</h4>
+          <p>411 of 435 House districts have no candidate polling; their forecast is a prior wearing a probability. Adds fundraising (FEC data already in hand), candidate quality, and district elasticity.</p>
+          <div class="gate">DONE, PARTLY BY REJECTION &nbsp;Elasticity beats it and transfers across three cycles. Fundraising and candidate quality were CUT on measurement &mdash; neither transfers between cycles.</div></div></div>
+
+      <div class="phase"><div><span class="pid">F</span></div>
+        <div><h4>Demographic covariance matrix</h4>
+          <p>Correlated error from demographic similarity rather than a three&#8209;level regional hierarchy. Fixes topline calibration, not point estimates.</p>
+          <div class="gate">DONE; GATE NOT DECIDABLE &nbsp;Seat coverage is one observation per cycle and there are three, so it is reported rather than claimed: RMS seat miss 11.9 against a model seat sd of 14.4. The scoped mechanism was REJECTED &mdash; demographics add &plusmn;0.01 once state is removed; the missing layer was the STATE (sd 3.39, unmodelled).</div></div></div>
+
+      <div class="phase"><div><span class="pid">G</span></div>
+        <div><h4>Ranked&#8209;choice and top&#8209;two handling</h4>
+          <p>Correctness, not accuracy. AK&#8209;SEN sits in the competitive band today and is decided by sign&#8209;of&#8209;margin, which is simply the wrong rule for it. Also ME, LA, CA, WA.</p>
+          <div class="gate">DONE, one named exception &nbsp;RCV and runoffs turned out to be EQUIVALENT &mdash; the polls used in ME and AK are head&#8209;to&#8209;head finals, which is the RCV final round. Louisiana&#8217;s jungle primary had already ended. California&#8217;s eight same&#8209;party generals are enumerated. WA&#8209;05 is named and forecast anyway.</div></div></div>
+
+      </div>
+
+    <p>Then P3, the drill&#8209;down dashboard, and the freeze on 20 October, both unchanged.</p>
+  </div>
+</section>
+
+<!-- ============ STRESS TEST ============ -->
+<section>
+  <div class="rail">
+    <span class="eyebrow">Stress Test</span>
+    <span class="note">Adversarial pass over v0.1, 22 Aug. Findings folded back into the sections above.</span>
+  </div>
+  <div class="body-col">
+    <h2>Where the first draft broke</h2>
+    <p class="lede">Fourteen failure modes, ordered by damage. Three of them changed the plan structurally rather than cosmetically, and those are worth reading in full.</p>
+
+    <div class="callout">
+      <span class="h">Structural &middot; 01 &nbsp;The schedule had no slack for its own named top risk</span>
+      <p>v0.1 identified ingestion as the primary schedule risk, then scheduled Phase 2 at roughly eighteen days of enumerated effort inside a twenty&#8209;one day window, with no contingency anywhere in the plan. A plan that names a risk and then budgets as though it will not fire is not a plan, it is a forecast of the happy path. <strong>Added:</strong> an explicit effort assumption that can be checked against reality, a cut ladder that fixes the drop order in advance, and a stated rule for what happens if the quality gate has not passed by the freeze.</p>
+    </div>
+
+    <div class="callout">
+      <span class="h">Structural &middot; 02 &nbsp;The Phase 1 gate contradicted the Risks section</span>
+      <p>v0.1 gated Phase 1 on landing &ldquo;within a few points of published consensus,&rdquo; then warned four sections later against consensus&#8209;chasing. A gate written in terms of other people&#8217;s models trains exactly the behaviour the risk section forbids, however carefully it is hedged. <strong>Replaced</strong> with a mechanical reproduction test that references nobody: run the engine on the actual 2024 national margin under the 2024 maps and confirm it returns the actual 2024 seat split, then swap in the post&#8209;redistricting maps and confirm the median district lands near R+3.4. It tests priors and the seats&#8209;votes curve directly, it runs offline, and it can be executed the day the registry is loaded.</p>
+    </div>
+
+    <div class="callout">
+      <span class="h">Structural &middot; 03 &nbsp;Two midterms cannot estimate a variance</span>
+      <p>The parameter that most determines the topline is <code>&sigma;_nat</code>, and the backtest plan offered exactly two draws of the national error &mdash; 2018 and 2022 &mdash; to fit it against. Fitting a variance to two observations is not estimation, and the failure is silent: the model looks calibrated per&#8209;race while the seat distribution is far too narrow. <strong>Changed</strong> to a prior&#8209;first approach: take <code>&sigma;_nat</code> from published polling&#8209;error research, use the backtest only to check it is not too narrow, and widen rather than shrink where the two disagree. Source that prior properly during the build &mdash; do not inherit a number from this document.</p>
+    </div>
+
+    <h3>The other eleven</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Failure mode</th><th>Why it bites</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Brier over all 435 seats</strong></td><td>~370 districts are called correctly by any model; both engine and baseline score near&#8209;perfect there, so the aggregate cannot distinguish them. A model could be wrong in every contested race and still post a fine number.</td><td>Gate on races where the baseline gives 5&ndash;95%. Report the full score, decide nothing with it.</td></tr>
+          <tr><td><strong>Backtest scoped as a task, not a data project</strong></td><td>Replaying 2018 and 2022 needs two <em>more</em> registries &mdash; the 2011 and post&#8209;2020 maps, plus 2016 and 2020 presidential&#8209;by&#8209;district &mdash; and a reconstruction of what was known on each date given publication lag.</td><td>Promoted to a parallel workstream beginning in P1, not a P2 task.</td></tr>
+          <tr><td><strong>Race IDs collide across map versions</strong></td><td>TX&#8209;35 under the 2021 map is a different electorate from TX&#8209;35 under the 2025 map. A join on the district string blends them and produces a prior that looks perfectly reasonable.</td><td>Composite key <code>(cycle, map_version, district)</code>. Never a bare district string.</td></tr>
+          <tr><td><strong>Conditionals go noisy on rare scenarios</strong></td><td>Conditioning on a 5% event leaves 2,500 of 50,000 draws; two rare conditions leave dozens, and the UI will report them to one decimal place regardless.</td><td>Surface effective n and Monte Carlo error on every conditional; refuse to display below n&nbsp;=&nbsp;500.</td></tr>
+          <tr><td><strong>Ingestion fails silently</strong></td><td>A source that starts returning zero rows does not error. The model keeps running on stale polls and the numbers simply stop moving.</td><td>Staleness alerting from P1, not P4: page if a chamber&#8217;s newest poll exceeds its own 90th&#8209;percentile gap.</td></tr>
+          <tr><td><strong>Undecided allocation was implicit</strong></td><td>Working in margins silently allocates undecideds proportionally &mdash; fine in a clean two&#8209;way race, wrong wherever undecideds run high or a third party is real.</td><td>Made an explicit, configurable rule; third&#8209;party share carried as a field.</td></tr>
+          <tr><td><strong>No shadow period</strong></td><td>A forecast first shown in October has no trend line, and jumps visibly as the model settles &mdash; which reads as instability rather than as learning.</td><td>Runs in shadow from P1, so it opens with history behind it.</td></tr>
+          <tr><td><strong>Scraping terms never checked</strong></td><td>Wikipedia is CC&nbsp;BY&#8209;SA with attribution obligations that propagate into anything public; aggregator terms vary and some prohibit reuse outright.</td><td>Per&#8209;adapter licensing check as a merge requirement, recorded in the adapter file.</td></tr>
+          <tr><td><strong>P3 ended three days before the freeze</strong></td><td>A backtest failure surfacing late in P3 had nowhere to go except into the frozen window.</td><td>Freeze is a gate, not a date; the cut ladder absorbs overrun.</td></tr>
+          <tr><td><strong>Held&#8209;over Senate seats invited hardcoding</strong></td><td>47 Democratic&#8209;caucusing seats minus 12 up leaves 35 held over &mdash; until an appointment, vacancy, or party switch moves it, silently, mid&#8209;cycle.</td><td>Read from the registry each run; assert the chamber sums to 100.</td></tr>
+          <tr><td><strong>&ldquo;Beats uniform swing&rdquo; may be near&#8209;unreachable in the House</strong></td><td>With ~370 unpolled districts the engine <em>is</em> largely uniform swing plus incumbency, so the gate could fail on similarity rather than on quality.</td><td>Baseline specified exactly, scored on the competitive subset, and expected gains stated as modest rather than assumed large.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RISKS ============ -->
+<section style="border-bottom:none;">
+  <div class="rail">
+    <span class="eyebrow">Risks</span>
+  </div>
+  <div class="body-col">
+    <h2>Where this goes wrong</h2>
+    <ul class="clean">
+      <li><strong>Ingestion, not mathematics, is the schedule risk.</strong> The model in this document is a week of work. Getting clean, deduplicated, correctly&#8209;attributed polls for 506 races every day, from sources that did not exist to serve you, is the rest of it.</li>
+      <li><strong>Redistricting is still moving.</strong> Texas&#8217;s 2025 map is before the Supreme Court on appeal. Keep the map a versioned, dated input so a late ruling triggers a data change and a re&#8209;run &mdash; never a code change under deadline.</li>
+      <li><strong>Most House districts have no polls at all.</strong> The forecast for roughly 370 seats is a prior wearing a probability. Say so in the interface: show the poll count on every race, and let the decomposition panel make the ratio of prior to data visible rather than flattering.</li>
+      <li><strong>Correlated error is where forecasts actually fail.</strong> Under&#8209;specifying <code>&sigma;_nat</code> produces a topline that looks confident and precise and is neither. Tune it on backtests. Never on intuition.</li>
+      <li><strong>Consensus&#8209;chasing.</strong> If v0 disagrees with published forecasts, the overwhelmingly likely cause is a bug. But once the backtest gate is passed, resist tuning toward other people&#8217;s numbers &mdash; at that point you are fitting to their models, not to elections.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <p>Scope drafted 22 August 2026, hardened the same day against an adversarial pass &middot; 73 days to Election Day. Figures on the 2026 board, redistricting status, and data sources were verified against live sources at drafting; the redistricting picture in particular is still in litigation and should be re&#8209;checked before the registry is built.</p>
+</footer>
+
+</div>
