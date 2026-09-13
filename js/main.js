@@ -1180,109 +1180,73 @@ const RANK = {
   pres_source_margin_mismatch: 'data',
 };
 
-// The headline tier gets a sentence and, wherever the payload can supply one, a
-// magnitude. An alarm a reader cannot size is an alarm they can only either
-// ignore or panic about.
-// The caucus choice, for a seat where it decides the chamber.
-//
-// Two branches were never enough. "Does not caucus with Democrats" has been
-// standing in for two different futures, and in a Senate this close they are not
-// shades of one another: caucusing Republican hands the seat over, while
-// caucusing with nobody takes it out of both columns and can leave the chamber
-// with no majority at all — a state a seat count cannot express and a Vice
-// President cannot break.
-//
-// The ordinary 50-50 is separated out on purpose. It is present in every branch,
-// it is 14% of draws, and it is not a deadlock; attributing it to the
-// independent would overstate what the choice is worth by almost a factor of
-// three.
-function caucusBlock(nb, by) {
-  const sc = nb.caucus_scenarios || {};
-  const ids = Object.keys(sc);
-  if (!ids.length) return '';
-  return ids.map(rid => {
-    const s = sc[rid];
-    const who = (by[rid] && by[rid].name) || rid;
-    const row = (k, lab) => {
-      const v = s[k];
-      return `<tr><td>${lab}</td><td class="num">${fmtPct(v.d, 1)}</td>`
-           + `<td class="num">${fmtPct(v.r, 1)}</td>`
-           + `<td class="num">${fmtPct(v.none, 1)}</td></tr>`;
-    };
-    const unbreakable = s.caucus_neither.none - s.tie_baseline;
-    return `<div class="nd-caucus"><b>${who}</b> wins ${fmtPct(s.p_win, 0)} of the time, and `
-      + `which way ${who.split(' ').pop()} then caucuses is worth `
-      + `<b>${s.worth_pts.toFixed(1)} points</b> of Democratic control — more than any polling `
-      + `question left in this race.`
-      + `<table class="nd-tab"><thead><tr><th></th><th>D control</th><th>R control</th>`
-      + `<th>nobody at 51</th></tr></thead><tbody>`
-      + row('caucus_dem', 'Caucuses with Democrats')
-      + row('caucus_rep', 'Caucuses with Republicans')
-      + row('caucus_neither', 'Caucuses with neither')
-      + `</tbody></table>`
-      + `<span class="nd-foot">The bottom row is the one the forecast cannot represent. `
-      + `${fmtPct(s.tie_baseline, 1)} of that last column is the ordinary 50&ndash;50, which the `
-      + `Vice President breaks and which is there in all three rows. The other `
-      + `<b>${(unbreakable * 100).toFixed(1)} points</b> is a seat sitting in neither column, `
-      + `which nothing breaks. The published number is the top row.</span></div>`;
-  }).join('');
-}
-
 const HEADLINE_SAY = {
   senate_no_democrat_seats: (n, f) => {
     const nb = f.topline.senate && f.topline.senate.no_democrat_bound;
     if (!nb) return [`${n} Senate seats have no Democrat on the ballot.`,
       'The Senate probability assumes their independents lose.'];
-    const hi = nb.ladder[String(nb.n_seats)];
     const now = f.topline.senate.control_prob;
-
-    // SCOPED TO THE SENATE RACES THIS NOTE IS ABOUT. `priced` is engine-wide and
-    // includes AK-AL, which is a House seat; counting it here produced "2 of 3
-    // no-Democrat Senate seats" out of a set of three that does not contain it.
     const priced = nb.races.filter(r => (nb.priced || []).includes(r));
     const held = nb.races.filter(r => !priced.includes(r));
     const list = a => (a.length === 1 ? a[0]
                      : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
-    const show = m => `${m >= 0 ? 'D' : 'R'}+${Math.abs(m).toFixed(1)}`;
     const by = {};
     for (const q of (nb.polling || [])) by[q.race_id] = q;
-    const line = r => {
-      const q = by[r];
-      if (!q || q.margin == null) return `<b>${r}</b>`;
-      return `<b>${r}</b> ${q.name} ${show(q.margin)} across ${q.n_polls} `
-           + `poll${q.n_polls === 1 ? '' : 's'}`
-           + (q.spread != null ? ` spanning ${q.spread.toFixed(0)} points` : '');
-    };
+    const spread = r => (by[r] && by[r].spread != null
+      ? `${by[r].n_polls} polls spanning ${by[r].spread.toFixed(0)}` : 'too few polls');
 
-    const head = priced.length
-      ? `${priced.length} of ${nb.n_seats} no-Democrat Senate seats now priced from polling.`
-      : `The Senate number assumes ${nb.n_seats} independents lose.`;
+    // The caucus question is the headline of this note now, not an appendix to
+    // it. It was a 3x3 table and four sentences of its own underneath; the table
+    // said nothing the three figures do not, and the note was long enough that
+    // the thing it is actually about arrived last.
+    // Every figure below comes from the payload. The majority threshold too:
+    // it is 51 today and it is a property of the chamber, not of this sentence,
+    // and a note that hardcodes it is a note that lies quietly the first time a
+    // seat is added or a vacancy changes the arithmetic.
+    const maj = (f.sims && f.sims.majority && f.sims.majority.senate) || null;
+    const reach = maj ? `nobody reaches ${maj}` : 'nobody reaches a majority';
 
-    const body =
+    // Sorted by what each is worth rather than by key order, and all of them are
+    // rendered: the engine's own MATERIAL_PTS threshold already decided which
+    // races are consequential enough to be here, so taking only the first would
+    // silently drop a second seat that had cleared the same bar.
+    const sc = nb.caucus_scenarios || {};
+    const caucus = Object.entries(sc)
+      .sort((a, b) => b[1].worth_pts - a[1].worth_pts)
+      .map(([rid, s]) => {
+        const who = (by[rid] && by[rid].name) || rid;
+        const surname = who.split(' ').pop();
+        return ` <b>${who} wins ${fmtPct(s.p_win, 0)} of the time, and how ${surname} then `
+          + `caucuses is worth ${s.worth_pts.toFixed(1)} points</b> — Democratic control is `
+          + `<b>${fmtPct(s.caucus_dem.d, 1)}</b> caucusing with Democrats, `
+          + `${fmtPct(s.caucus_rep.d, 1)} with Republicans, and ${fmtPct(s.caucus_neither.d, 1)} `
+          + `with neither, where the chance ${reach} rises from `
+          + `${fmtPct(s.tie_baseline, 1)} to ${fmtPct(s.caucus_neither.none, 1)} — a seat in `
+          + `neither column, which no Vice President breaks.`;
+      }).join('')
+      + (Object.keys(sc).length
+          ? ` The published figure takes the first of those, which is the ballot feed's claim `
+            + `carried through as stated.`
+          : '');
+
+    return [
+      priced.length
+        ? `${priced.length} of ${nb.n_seats} no-Democrat Senate seats priced from polling.`
+        : `The Senate number assumes ${nb.n_seats} independents lose.`,
       `${nb.races.join(', ')} have no Democrat on the ballot and a named independent running. `
-      + `All three are polled, and the model reads the polling only where it agrees with itself: `
-      + `a spread of six points across four polls is a measurement, and a spread of thirty-nine `
-      + `is an average of disagreement. `
+      + `The model uses that polling only where it agrees with itself: `
       + (priced.length
-          ? `${list(priced.map(line))} — ${priced.length === 1 ? 'that one is' : 'those are'} `
-            + `priced from ${priced.length === 1 ? 'it' : 'them'} directly, carrying extra `
-            + `uncertainty because no fitted error curve in this model covers a contest with one `
-            + `major party missing. `
+          ? `${list(priced.map(r => `<b>${r}</b> (${spread(r)} points)`))} `
+            + `${priced.length === 1 ? 'is' : 'are'} priced from it. `
           : '')
       + (held.length
-          ? `${list(held.map(line))} — ${held.length === 1 ? 'that one is' : 'those are'} still `
-            + `forecast from how the state voted for president, which describes a Democrat who is `
-            + `not on the ballot, because ${held.length === 1 ? 'its' : 'their'} polling does not `
-            + `hold together well enough to replace it. `
+          ? `${list(held.map(r => `${r} (${spread(r)})`))} still run on how the state voted for `
+            + `president — a Democrat who is not on the ballot — because ${held.length === 1
+              ? 'its polling does' : 'their polling does'} not hold together.`
           : '')
-      + `If every one of these independents won and caucused with Democrats, Democratic control `
-      + `of the Senate would be <b>${fmtPct(hi)}</b> rather than <b>${fmtPct(now)}</b>, so it `
-      + `remains the largest single assumption on this page. That they would caucus with `
-      + `Democrats is the ballot feed's claim, carried through as stated. Open any of these `
-      + `races for the polling itself.`
-      + caucusBlock(nb, by);
-
-    return [head, body];
+      + caucus
+      + ` Open any of these races for the polling itself.`,
+    ];
   },
   governor_zero_poll_coverage: (n, f) => [
     'No governor race has usable polling.',

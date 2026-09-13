@@ -55,8 +55,12 @@ const ALARM = {
     // than written down, because the answer changes every run: the alarm counted
     // 69 on the run this sentence was written for, and the decisive ones were the
     // thin ones.
+    // From the payload, not a second copy of the constant: this filter has to
+    // select exactly the races the alarm counted, or the sentence reports a
+    // different total from the number beside it.
+    const thin = (f.coverage && f.coverage.min_effective_n) || 1.5;
     const races = (f.races || []).filter(r =>
-      r.effective_n > 0.01 && r.effective_n <= 1.5);
+      r.effective_n > 0.01 && r.effective_n <= thin);
     const live = races.filter(r => r.win_prob > 0.05 && r.win_prob < 0.95);
     // `tipping` is keyed by chamber and each chamber holds a `distribution`, not
     // a bare array. Flattened across chambers because this note is about the

@@ -965,20 +965,23 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
 @media (max-width: 560px) {
   .dt-pollsters { font-size: .72rem; }
   .dt-pollsters td.num { font-size: .68rem; }
+
+  /* `table.plain` carries 1.1rem of padding a side, which is ~140px of pure
+     gutter across four columns and pushed the Method tab to 389px on a 320px
+     screen. The cells are short -- a label and a number -- so the padding is
+     what does not fit, not the content. It scrolls as a last resort rather than
+     clipping, but at these widths it no longer needs to. */
+  /* Below this the numbers themselves stop fitting, and a number that wraps is
+     worse than one you scroll to. The table becomes its own scroll container --
+     the same treatment the race table and every wide chart already get, and the
+     one case my own rule allows a horizontal scroll: a table inside its own box,
+     never the page. */
+  table.plain { font-size: .8rem; display: block; overflow-x: auto;
+                overscroll-behavior-x: contain; max-width: 100%; }
+  table.plain th, table.plain td { padding: .4rem .45rem; }
+  table.plain th:first-child, table.plain td:first-child { padding-left: 0; }
+  table.plain th:last-child, table.plain td:last-child { padding-right: 0; }
+  table.plain td.num, table.plain th.num { font-size: .74rem; }
+  .scroll-x, .table-wrap { overscroll-behavior-x: contain; }
 }
 
-/* ---- the caucus scenarios ------------------------------------------------ */
-.nd-caucus { margin: .9rem 0 .2rem; }
-.nd-tab { width: 100%; border-collapse: collapse; margin: .6rem 0 .5rem; font-size: .8rem; }
-.nd-tab th { text-align: right; font: 500 .66rem/1.3 var(--sans); letter-spacing: .07em;
-             text-transform: uppercase; color: var(--muted); padding: 0 0 .35rem .6rem;
-             border-bottom: 1px solid var(--line); }
-.nd-tab th:first-child { text-align: left; }
-.nd-tab td { padding: .35rem 0 .35rem .6rem; border-bottom: 1px solid var(--line-soft);
-             color: var(--ink-dim); }
-.nd-tab td.num { text-align: right; font-variant-numeric: tabular-nums;
-                 font-family: var(--mono); font-size: .76rem; }
-/* The row the model cannot express gets the accent, not the winning number. */
-.nd-tab tbody tr:last-child td { color: var(--ink); }
-.nd-tab tbody tr:last-child td:last-child { color: var(--accent); font-weight: 600; }
-.nd-foot { display: block; font-size: .76rem; line-height: 1.5; color: var(--muted); }
