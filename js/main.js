@@ -1220,8 +1220,10 @@ function renderCaveats(s) {
     governor_zero_poll_coverage: () => 'Governor races have no usable polls',
     pres_source_margin_mismatch: n => `${n} district${n === '1' ? '' : 's'} where the presidential `
       + `source's published margin contradicts its own vote counts \u2014 the counts are used`,
-    incumbency_hand_list_stale: n => `${n} race${n === '1' ? '' : 's'} where the hand-kept `
-      + `incumbency list disagrees with the feed \u2014 the feed is used`,
+    // This reads as a data fault and is the opposite: the list is kept precisely
+    // so that it can be contradicted, and here it was.
+    incumbency_hand_list_stale: n => `${n} race${n === '1' ? '' : 's'} where the ballot feed `
+      + `overruled the hand-kept incumbency list \u2014 the cross-check working`,
     unresolved_polls: n => `${n} polls could not be resolved to a two-party margin`,
     thin_poll_average: n => `${n} races rest on roughly one poll`,
     stale_priors: n => `${n} districts carry priors from superseded maps`,
@@ -1233,8 +1235,14 @@ function renderCaveats(s) {
       + `the Senate probability assumes their independents lose`,
     independent_candidate_races: n => `${n} race${n === '1' ? '' : 's'} where the contest is `
       + `Republican vs independent, which a two-party margin does not describe`,
-    cross_feed_duplicate: n => `${n} poll${n === '1' ? '' : 's'} may be counted twice across `
-      + `the two race feeds`,
+    // "May be counted twice" asserted more than the check found. What it found is
+    // a shared race and fieldwork date under two pollster spellings, which is one
+    // shop named twice about as often as it is two shops finishing on the same
+    // day -- and the engine already merges the pairs the poll itself identifies,
+    // by margin and sample size. What is left is the judgement, so the sentence
+    // has to be the judgement rather than the conclusion.
+    cross_feed_duplicate: n => `${n} poll${n === '1' ? '' : 's'} share a race and fieldwork `
+      + `date with a poll from the other feed under a different pollster name`,
   };
 
   const bucket = { headline: [], races: [], data: [] };

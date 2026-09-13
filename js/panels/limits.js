@@ -41,22 +41,46 @@ const ALARM = {
   }),
   unresolved_polls: n => ({
     title: `${n} polls could not be resolved to a two-party margin`,
-    body: `A poll is only usable once both names in it are matched to a party. Most of these are
-           governor polls arriving through the feed that looks candidates up in the federal filing
-           record, which holds no state offices — so the lookup fails. Those races are not missing
-           from the forecast: a second feed names the same candidates directly and the same races
-           are polled through it. The rest are hypothetical matchups naming three or more
-           candidates, and same-party contests where both finalists share a party. Neither has a
-           two-party margin to extract, so both are dropped rather than guessed at.`,
+    body: `A poll is only usable once both names in it are matched to a party. Almost all of these
+           are hypothetical matchups — one poll testing several possible nominees against the same
+           opponent, which has no single two-party margin to extract. The rest are polls the feed
+           supplied without candidate names, same-party contests where both finalists share a
+           party, and polls of the handful of races where one major party has nobody on the ballot
+           at all, so a Democrat-versus-Republican number there is a reading of a contest that is
+           not being held. All are dropped rather than guessed at.`,
   }),
-  thin_poll_average: n => ({
-    title: `${n} races rest on roughly one poll`,
-    body: `After weighting for age, pollster lean and pollster accuracy, each of these races is
-           worth fewer than one and a half independent readings — so a single new poll can move any
-           of them noticeably. The model already widens their error bars for exactly
-           this reason, which is the honest response to it. It is not a substitute for having more
-           polls.`,
-  }),
+  thin_poll_average: (n, f) => {
+    // Which races these are matters more than how many. Computed here rather
+    // than written down, because the answer changes every run: the alarm counted
+    // 69 on the run this sentence was written for, and the decisive ones were the
+    // thin ones.
+    const races = (f.races || []).filter(r =>
+      r.effective_n > 0.01 && r.effective_n <= 1.5);
+    const live = races.filter(r => r.win_prob > 0.05 && r.win_prob < 0.95);
+    // `tipping` is keyed by chamber and each chamber holds a `distribution`, not
+    // a bare array. Flattened across chambers because this note is about the
+    // whole board: the Senate's decisive seats are as much the point as the
+    // House's.
+    const share = new Map(Object.values(f.tipping || {})
+      .flatMap(c => (c && c.distribution) || [])
+      .map(t => [t.race_id, t.share]));
+    const top = live.filter(r => share.has(r.race_id))
+                    .sort((a, b) => share.get(b.race_id) - share.get(a.race_id))
+                    .slice(0, 3);
+    return {
+      title: `${n} races rest on roughly one poll`,
+      body: `After weighting for age, pollster lean and pollster accuracy, each of these races is
+             worth fewer than one and a half independent readings — so a single new poll can move
+             any of them noticeably. The model already widens their error bars for exactly this
+             reason, and holds a single poll to about a quarter of the weight, with the seat's own
+             history carrying the rest. That is the honest response to thin polling and it is not a
+             substitute for having more of it.
+             <b>${live.length} of these ${n} are still competitive</b>${top.length ? `, and they
+             include some of the races most likely to be the one that decides control:
+             ${top.map(r => `<b>${r.race_id}</b>`).join(', ')}` : ''}. Where this model is least
+             certain and where it matters most are not independent of each other.`,
+    };
+  },
   third_party_share: (n, f) => ({
     title: `${n} polled race${n === '1' ? '' : 's'} where a third candidate takes a large share`,
     body: `The model decides every race on the margin between the Democrat and the Republican. In
@@ -64,6 +88,27 @@ const ALARM = {
            is still the best estimate available but is no longer a description of the whole
            contest: ${(f.freshness.third_party_races || [])
              .map(r => `<b>${r.race_id}</b> ${r.third_pct.toFixed(0)}%`).join(', ')}.`,
+  }),
+  cross_feed_duplicate: n => ({
+    title: `${n} polls share a race and fieldwork date with a poll from the other feed`,
+    body: `Two feeds supply race polls and they spell pollsters differently. Where the poll itself
+           settles the question — same race, same day, same margin, same sample size, and a name
+           that contains the other — the two are merged and counted once. These are the ones left
+           over, where the evidence is only the name and the date. Some are one shop written two
+           ways; others are genuinely two pollsters who finished fieldwork on the same day and
+           disagree about the result, which is not double counting at all. Guessing between them
+           would be worse than naming them, so the run names them.`,
+  }),
+  incumbency_hand_list_stale: n => ({
+    title: `${n} races where the ballot feed overruled the hand-kept incumbency list`,
+    body: `The federal filing record says who holds a seat and not whether they are running for it
+           — a retiring senator still files. That fact has to come from somewhere else, and it used
+           to come from a list kept by hand. A hand-kept list is not wrong when it is written; it
+           rots. So the ballot feed is authoritative and the list is kept only to be checked
+           against it, which is how six Republican-held Senate seats were caught being credited an
+           incumbency bonus for a senator who is not on the ballot. These are the remaining
+           disagreements. The feed wins every one of them, so nothing here changes a number — it
+           records that the older source has drifted.`,
   }),
   governor_zero_poll_coverage: () => ({
     title: 'Governor races have no usable polls',
