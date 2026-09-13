@@ -1091,3 +1091,20 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
 @media (max-width: 560px) {
   .cheap-row { grid-template-columns: 4.4rem minmax(0, 1fr) 2.6rem; gap: .55rem; }
 }
+
+/* ---- small multiples: which races moved ---------------------------------- */
+.mv-grid { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(min(168px, 100%), 1fr)); }
+.mv-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 3px;
+  padding: .5rem .55rem .45rem; cursor: pointer; font: inherit; text-align: left;
+  color: var(--ink-dim); display: block; width: 100%;
+}
+.mv-card:hover { background: var(--surface-2); border-color: var(--faint); }
+.mv-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mv-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
+.mv-rid { font: 600 .82rem/1 var(--sans); color: var(--ink); font-variant-numeric: tabular-nums; }
+.mv-now { font: 500 .8rem/1 var(--sans); font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+.mv-foot-row { display: flex; justify-content: space-between; gap: .5rem;
+               font-size: .7rem; color: var(--faint); margin-top: .1rem; }
+.mv-move.d { color: var(--dem); }
+.mv-move.r { color: var(--rep); }

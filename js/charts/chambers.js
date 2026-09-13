@@ -49,12 +49,17 @@ export function jointChambers(host, { sims, forecast, idx = null }) {
   const quad = (x0, x1, y0, y1, col, op) =>
     g.append('rect').attr('x', x0).attr('y', y1).attr('width', Math.max(0, x1 - x0))
       .attr('height', Math.max(0, y0 - y1)).attr('fill', col).attr('opacity', op);
-  // `quad(x0, x1, yBottom, yTop, ...)`. Getting these the wrong way round put the
-  // blue wash over "House only" and the red over "Senate only" -- the two
-  // quadrants they are not about -- which is a background asserting the opposite
-  // of the figure printed in the corner of it.
-  quad(x(majH), W - M.r, y(majS), M.t, C.dem, .10);       // both: right of majH, above majS
-  quad(M.l, x(majH), H - M.b, y(majS), C.rep, .10);       // neither: left of majH, below majS
+  // THE BOUNDARY IS A CELL EDGE, NOT A CELL CENTRE, and the first version put it
+  // at the centre. Every mark is drawn centred on its value, so the row for 51
+  // Senate seats spans y(51) +/- half a cell -- and control means *at least* 51,
+  // so the whole of that row belongs to the winning side. A line at y(51) cuts
+  // through the middle of the 51 row, leaving blue marks visibly below the line
+  // that is supposed to bound them. Same for the House: the 218 column is
+  // entirely inside the majority, so the divider sits at its left edge.
+  const yCut = y(majS) + chh / 2;
+  const xCut = x(majH) - cw / 2;
+  quad(xCut, W - M.r, yCut, M.t, C.dem, .10);             // both
+  quad(M.l, xCut, H - M.b, yCut, C.rep, .10);             // neither
 
   // One mark per distinct outcome, opacity by how often it came up. Not a
   // smoothed density: the underlying quantity is a pair of integers, and
@@ -71,15 +76,13 @@ export function jointChambers(host, { sims, forecast, idx = null }) {
     d => `<b>${d.h}</b> House · <b>${d.s}</b> Senate<br>`
        + `${fmtPct(d.c / n, 2)} of draws`);
 
-  for (const [xv, lab] of [[majH, `${majH} for the House`]]) {
-    g.append('line').attr('x1', x(xv)).attr('x2', x(xv)).attr('y1', M.t).attr('y2', H - M.b)
-      .attr('stroke', C.faint).attr('stroke-dasharray', '3,3');
-    g.append('text').attr('x', x(xv)).attr('y', H - M.b + 30).attr('text-anchor', 'middle')
-      .attr('font-size', 9.5).attr('fill', C.faint).text(lab);
-  }
-  g.append('line').attr('x1', M.l).attr('x2', W - M.r).attr('y1', y(majS)).attr('y2', y(majS))
+  g.append('line').attr('x1', xCut).attr('x2', xCut).attr('y1', M.t).attr('y2', H - M.b)
     .attr('stroke', C.faint).attr('stroke-dasharray', '3,3');
-  g.append('text').attr('x', W - M.r + 5).attr('y', y(majS) + 3)
+  g.append('text').attr('x', xCut).attr('y', H - M.b + 30).attr('text-anchor', 'middle')
+    .attr('font-size', 9.5).attr('fill', C.faint).text(`${majH} for the House`);
+  g.append('line').attr('x1', M.l).attr('x2', W - M.r).attr('y1', yCut).attr('y2', yCut)
+    .attr('stroke', C.faint).attr('stroke-dasharray', '3,3');
+  g.append('text').attr('x', W - M.r + 5).attr('y', yCut + 3)
     .attr('font-size', 9.5).attr('fill', C.faint).text(`${majS} Senate`);
 
   const ax = g.append('g').attr('transform', `translate(0,${H - M.b})`)

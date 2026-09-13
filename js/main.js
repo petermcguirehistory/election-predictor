@@ -11,6 +11,8 @@ import { iconArray } from './charts/iconarray.js';
 import { dotplot } from './charts/dotplot.js';
 import { seatCurve } from './charts/seatcurve.js';
 import { jointChambers, cheapestPath } from './charts/chambers.js';
+import { movers as moversChart } from './charts/movers.js';
+import { ahead } from './charts/ahead.js';
 import { snake } from './charts/snake.js';
 import { tippingChart } from './charts/tipping.js';
 import { cartogram, choropleth, stateCartogram, stateChoropleth,
@@ -173,6 +175,10 @@ const SECTION_SCOPE = {
     label: 'All three chambers',
     why: 'The card row is the whole board and always shows all three. The array beside it follows the scope.' },
   's-movement': { kind: 'follows', can: ['house', 'senate', 'governor'] },
+  's-movers': { kind: 'pooled' },
+  's-ahead': { kind: 'fixed', can: ['house', 'senate', 'governor'],
+    label: 'All three chambers',
+    why: 'The feeds supply every chamber, so what is still to arrive is not a per-chamber fact.' },
   's-seats': { kind: 'follows', can: ['house', 'senate', 'governor'] },
   's-together': { kind: 'fixed', can: ['house', 'senate'],
     label: 'House · Senate',
@@ -1661,6 +1667,55 @@ function renderAll(s, changed) {
   if (t('pins', 'scope')) {
     paint('s-headline', () => renderHeadline(s));
     paint('s-movement', () => renderMovement(s));
+    paint('s-movers', () => {
+      const host = $('#movers');
+      const d = s.data.forecast.movers;
+      if (!d || !d.races || !d.races.length) {
+        host.replaceChildren(el('p', 'chart-note',
+          'Not enough runs yet to show how these races have moved.'));
+        return;
+      }
+      moversChart(host, { movers: d, onPick: rid => {
+        const race = s.data.forecast.races.find(r => r.race_id === rid);
+        if (race) open(race);
+      } });
+      host.append(el('p', 'chart-note',
+        `The ${d.races.length} seats most often the deciding one, over `
+        + `${d.runs.length} runs, ordered by how far each has travelled. Every card uses the same `
+        + `vertical scale — scaling each to its own range would make a half-point wobble look like `
+        + `a six-point swing. Click any of them.`));
+    });
+    paint('s-ahead', () => {
+      const f = s.data.forecast;
+      const host = $('#ahead');
+      const r = ahead(host, { asof: f.meta.asof, cadence: f.freshness.feed_cadence,
+                              sigma: f.sigma });
+      if (!r) {
+        host.replaceChildren(el('p', 'chart-note', 'No cadence measurement available.'));
+        return;
+      }
+      const gb = f.sigma;
+      const note = el('p', 'chart-note');
+      note.innerHTML =
+        `<b>${r.days} days left.</b> Each tick is an expected reading, from how often that feed has `
+        + `actually published this cycle. The red mark is how long silence would have to run `
+        + `before the model calls the feed dead — not a forecast, a deadline.`
+        // TWO DIFFERENT AGES, and saying "the generic ballot is 35 days old" while
+        // the feed publishes daily reads as a contradiction. The newest poll is
+        // days old; the WEIGHTED age of the average is what the model charges
+        // for, because the average spans a decaying window rather than the last
+        // reading. The distinction is the point of the sentence.
+        + (gb && gb.nat_fitted && gb.nat_gb_age_days != null
+            ? `<br><br>Both feeds are current — the newest ${term('generic-ballot')} poll is `
+              + `<b>${f.freshness.generic_ballot_age_days} days</b> old. But the average those `
+              + `polls form has a weighted age of <b>${gb.nat_gb_age_days.toFixed(0)} days</b>, `
+              + `because it spans a decaying window rather than the last reading, and the model `
+              + `charges for that: the national error bar widens from ${gb.nat_fitted.toFixed(2)} `
+              + `to <b>${gb.nat.toFixed(2)}</b> points. More national polling narrows this `
+              + `forecast faster than anything else on the schedule above.`
+            : '');
+      host.append(note);
+    });
     paint('s-seats', () => renderSeats(s));
     paint('s-together', () => renderTogether(s));
     paint('s-watch', () => renderWatch(s));
