@@ -1064,3 +1064,30 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
   .fx th { padding: .45rem 0 .05rem; border-bottom: 0; }
   .fx td { padding: 0 0 .45rem; }
 }
+
+/* ---- seat-total reading modes -------------------------------------------- */
+.seat-modes { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+              margin: .2rem 0 1rem; }
+.seat-mode-note { font-size: .8rem; color: var(--muted); margin: 0; max-width: 46ch; }
+
+/* ---- what the trailing side needs ---------------------------------------- */
+.cheap { display: grid; gap: 1px; margin: .6rem 0 0; }
+.cheap-row {
+  display: grid; grid-template-columns: 5rem minmax(0, 1fr) 3rem; align-items: center;
+  gap: .8rem; width: 100%; text-align: left; cursor: pointer; font: inherit;
+  background: var(--surface); border: 0; border-top: 1px solid var(--line-soft);
+  padding: .5rem .7rem; color: var(--ink-dim);
+}
+.cheap-row:first-child { border-top: 0; }
+.cheap-row:hover { background: var(--surface-2); }
+.cheap-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cheap-id { font: 600 .84rem/1 var(--sans); color: var(--ink); font-variant-numeric: tabular-nums; }
+.cheap-bar { position: relative; display: block; height: 7px; background: var(--line-soft);
+             border-radius: 1px; }
+.cheap-bar i { display: block; height: 100%; background: var(--dem-deep); opacity: .75;
+               border-radius: 1px; }
+.cheap-p { font: 600 .84rem/1 var(--sans); text-align: right;
+           font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .cheap-row { grid-template-columns: 4.4rem minmax(0, 1fr) 2.6rem; gap: .55rem; }
+}

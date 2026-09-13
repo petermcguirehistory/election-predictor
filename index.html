@@ -88,16 +88,32 @@
         <section id="s-seats">
           <h2>Seat totals</h2>
           <p class="q">How many seats, and not just who wins?</p>
-          <p>The same simulations, counted a different way. Every run ends with a seat total, and
-             the dots below are those totals sorted into a hundred equal groups — one dot per
-             percentile. How far the dots spread is how uncertain the model is; the line is the
-             number needed for control, so the dots past it are the runs that were won.</p>
+          <p>The same simulations, counted a different way. Every run ends with a seat total.</p>
+          <div class="seat-modes" id="seat-modes" role="group" aria-label="How to show the seat total">
+            <div class="toggle">
+              <button type="button" data-mode="dots" class="on">Count the outcomes</button>
+              <button type="button" data-mode="curve">Chance of at least</button>
+            </div>
+            <p class="seat-mode-note" id="seat-mode-note"></p>
+          </div>
           <div id="dotplot"></div>
         </section>
 
         <!-- The only route from this page to a single race used to be the snake
              chart. This is the list a reader actually arrives wanting, and every
              row opens that race's full working. -->
+        <!-- The joint outcome. Every other view here is a marginal, and the draws
+             already hold the pair; a reader multiplying the two card numbers
+             together is out by fourteen points because the chambers move together. -->
+        <section id="s-together">
+          <h2>Both chambers at once</h2>
+          <p class="q">Can one party take both?</p>
+          <p>Each simulation ends with a House total and a Senate total. Plotted against each
+             other, the four quadrants are the four ways election night can end.</p>
+          <div id="together"></div>
+          <div id="cheapest"></div>
+        </section>
+
         <section id="s-watch">
           <h2>What to watch</h2>
           <p class="q">Which races is this resting on?</p>

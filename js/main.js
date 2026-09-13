@@ -9,6 +9,8 @@ import { C, fmtPct, fmtMargin, chamberName, SCOPES, scopeName, chambersFor,
          contestedThreshold } from './charts/util.js';
 import { iconArray } from './charts/iconarray.js';
 import { dotplot } from './charts/dotplot.js';
+import { seatCurve } from './charts/seatcurve.js';
+import { jointChambers, cheapestPath } from './charts/chambers.js';
 import { snake } from './charts/snake.js';
 import { tippingChart } from './charts/tipping.js';
 import { cartogram, choropleth, stateCartogram, stateChoropleth,
@@ -172,6 +174,10 @@ const SECTION_SCOPE = {
     why: 'The card row is the whole board and always shows all three. The array beside it follows the scope.' },
   's-movement': { kind: 'follows', can: ['house', 'senate', 'governor'] },
   's-seats': { kind: 'follows', can: ['house', 'senate', 'governor'] },
+  's-together': { kind: 'fixed', can: ['house', 'senate'],
+    label: 'House · Senate',
+    why: 'This is about the two chambers as a pair, so it shows both whatever the scope says. '
+       + 'Governors confer no majority and have no threshold to be on either side of.' },
   's-watch': { kind: 'follows', can: ['house', 'senate', 'governor'] },
   's-path': { kind: 'follows', can: ['house', 'senate', 'governor'] },
   's-map': { kind: 'follows', can: ['house', 'senate', 'governor'] },
@@ -635,6 +641,98 @@ function renderMovement(s) {
     }));
 }
 
+// Which reading of the seat distribution is on screen. Per-reader and
+// remembered, like the drawer width: it is a preference about how someone likes
+// to read a chart, not a fact about the forecast, so it does not belong in a
+// link.
+let _seatMode = null;
+function seatMode() {
+  if (_seatMode === null) {
+    try { _seatMode = localStorage.getItem('seat-mode') || 'dots'; } catch { _seatMode = 'dots'; }
+  }
+  return _seatMode;
+}
+function mountSeatModes(onChange) {
+  const box = $('#seat-modes');
+  if (!box) return;
+  const note = $('#seat-mode-note');
+  const paint = () => {
+    for (const b of box.querySelectorAll('button')) {
+      b.classList.toggle('on', b.dataset.mode === seatMode());
+    }
+    if (note) {
+      note.textContent = seatMode() === 'curve'
+        ? 'Every height is a probability. Read across from any seat number.'
+        : 'One dot per percentile of the simulations. Count the dots past the line.';
+    }
+  };
+  box.addEventListener('click', e => {
+    const b = e.target.closest('button[data-mode]');
+    if (!b || b.dataset.mode === seatMode()) return;
+    _seatMode = b.dataset.mode;
+    try { localStorage.setItem('seat-mode', _seatMode); } catch { /* ignore */ }
+    paint();
+    onChange();
+  });
+  paint();
+}
+
+function renderTogether(s) {
+  const { forecast, sims } = s.data;
+  const c = s.condition;
+  const host = $('#together');
+  host.replaceChildren();
+  const q = jointChambers(host, { sims, forecast, idx: c.ok ? c.idx : null });
+  if (!q) return;
+
+  // The independence comparison is the reason this chart is here, so it is the
+  // sentence under it rather than a note somewhere else.
+  const ph = forecast.topline.house.control_prob;
+  const ps = forecast.topline.senate.control_prob;
+  const naive = ph * ps;
+  const note = el('p', 'chart-note');
+  note.innerHTML =
+    `Multiplying the two headline numbers together gives <b>${fmtPct(naive, 1)}</b> for both `
+    + `chambers. The draws say <b>${fmtPct(q.both, 1)}</b>. The difference is that a national `
+    + `polling miss moves both chambers the same way, so these are not independent events — `
+    + `which is why the model draws all 506 races together rather than one at a time.`
+    // `ok` is true whenever there are enough draws, which is true of every run
+    // with nothing pinned at all. `pinned` is the question being asked here.
+    + (c.pinned && c.ok ? `<br><br><b>Counted over your pinned draws.</b>` : '');
+  host.append(note);
+
+  // What the trailing side needs, in the chamber that is actually in doubt.
+  const cheap = $('#cheapest');
+  cheap.replaceChildren();
+  const tight = ['senate', 'house']
+    .map(ch => ({ ch, d: Math.abs((forecast.topline[ch].control_prob ?? 0.5) - 0.5) }))
+    .sort((a, b) => a.d - b.d)[0].ch;
+  const path = cheapestPath(cheap, { sims, forecast, races: forecast.races, chamber: tight });
+  if (!path) return;
+  const who = path.behind === 'D' ? 'Democrats' : 'Republicans';
+  const name = tight === 'house' ? 'the House' : 'the Senate';
+  const h4 = el('h4', 'dt-h', `What ${who} still need in ${name}`);
+  const list = el('div', 'cheap');
+  list.innerHTML = path.pool.map(r => {
+    const w = Math.max(2, r.p * 100);
+    return `<button class="cheap-row" data-race="${r.race_id}">`
+      + `<span class="cheap-id">${r.race_id}</span>`
+      + `<span class="cheap-bar"><i style="width:${w.toFixed(1)}%"></i></span>`
+      + `<span class="cheap-p">${fmtPct(r.p, 0)}</span></button>`;
+  }).join('');
+  list.addEventListener('click', e => {
+    const b = e.target.closest('[data-race]');
+    if (!b) return;
+    const race = forecast.races.find(r => r.race_id === b.dataset.race);
+    if (race) open(race);
+  });
+  const foot = el('p', 'chart-note');
+  foot.innerHTML = `${who} sit at a median of <b>${path.median}</b> and need <b>${path.need}</b> `
+    + `more. These are the seats in ${name} they do not currently favour, closest first, with each `
+    + `one's own chance of going their way. Click any of them.`;
+  cheap.append(h4, list, foot);
+}
+
 function renderSeats(s) {
   const { forecast, sims } = s.data;
   const c = s.condition;
@@ -647,9 +745,24 @@ function renderSeats(s) {
   // majority line and one for a chamber without -- and under `all` the first
   // version was printed twice, word for word. Each version is shown once.
   const told = new Set();
+  // TWO READINGS OF THE SAME DISTRIBUTION, and the dotplot stays the default.
+  // It is countable on purpose: Kay et al. (CHI 2018) found discrete outcomes
+  // beat density displays for a threshold decision, which is what a majority
+  // line is. The curve answers what the dots cannot — the chance of AT LEAST any
+  // number, not only the one that wins — so it is offered rather than swapped in.
+  const mode = seatMode();
   perChamber($('#dotplot'), chambersFor(s.scope, forecast.meta.chambers), (host, ch) => {
     const live = c.ok ? sims.summary(ch, c.idx) : null;
     const kind = forecast.topline[ch].threshold == null ? 'no-line' : 'line';
+    if (mode === 'curve') {
+      seatCurve(host, {
+        hist: live ? live.hist : forecast.seats[ch],
+        threshold: forecast.topline[ch].threshold ?? null,
+        n: live ? live.n : forecast.meta.n_sims,
+        chamber: ch, unit: UNIT[ch] || 'Democratic seats',
+      });
+      return;
+    }
     dotplot(host, {
       hist: live ? live.hist : forecast.seats[ch],
       // Undefined for governors, and the chart draws no line rather than inventing
@@ -1549,6 +1662,7 @@ function renderAll(s, changed) {
     paint('s-headline', () => renderHeadline(s));
     paint('s-movement', () => renderMovement(s));
     paint('s-seats', () => renderSeats(s));
+    paint('s-together', () => renderTogether(s));
     paint('s-watch', () => renderWatch(s));
     paint('s-path', () => renderPath(s));
     paint('s-correlation', () => renderCorrelation(s));
@@ -1587,6 +1701,7 @@ async function boot() {
     mountScopeSlots();
     applyAvailability(store);
     mountGlossary();
+    mountSeatModes(() => renderSeats(store));
     tabs = mountTabs({ list: $('#tablist'), onSelect: id => store.set({ tab: id }) });
     tabs.prune();
     tabs.show(store.tab);
