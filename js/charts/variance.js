@@ -69,8 +69,8 @@ export function varianceBar(host, { sigma, race }) {
 
   s.append('text').attr('x', M.l).attr('y', H - 10)
     .attr('font-size', 10).attr('fill', C.faint)
-    .text(`combining to ±${total.toFixed(2)} points — not ${
-      d3.sum(parts, p => p.v).toFixed(2)}, because independent errors add as squares`);
+    .text(`√(sum of squares) = ±${total.toFixed(2)} points, not ${
+      d3.sum(parts, p => p.v).toFixed(2)}: independent errors add in quadrature`);
 
   return s;
 }

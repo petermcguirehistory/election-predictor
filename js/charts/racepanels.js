@@ -126,12 +126,17 @@ export function conditionalReadout(host, { race, sims, forecast }) {
           + `<span class="dt-cond-n">D control of ${name} &middot; ${o.n.toLocaleString()} draws `
           + `&middot; median ${o.median} seats</span></div>`;
       }).join('')
-    + `<p class="dt-cond-note">Counted from the ${forecast.meta.n_sims.toLocaleString()} `
-    + `simulations themselves &mdash; the draws where this race went that way, and what happened `
-    + `in the rest of each of them. Not a formula, and not independent of the other races: the `
-    + `draws already carry the national and regional error they share. Unconditionally the `
-    + `figure is <b>${fmtPct(base.control_prob, 1)}</b>. The &plusmn; is Monte Carlo error from `
-    + `counting a subset of the draws, not model uncertainty.</p>`;
+    + `<div class="dt-cond-note">Unconditionally the figure is `
+    + `<b>${fmtPct(base.control_prob, 1)}</b>.`
+    + `<ul class="pts">`
+    + `<li><b>Source</b> — the draws themselves, out of `
+    + `${forecast.meta.n_sims.toLocaleString()}: those where this race went that way, and what `
+    + `happened in the rest of each. No formula.</li>`
+    + `<li><b>Not independent</b> — the draws already carry the national and regional error these `
+    + `races share.</li>`
+    + `<li><b>The &plusmn;</b> — Monte Carlo error from counting a subset of the draws, not model `
+    + `uncertainty.</li>`
+    + `</ul></div>`;
   host.append(d);
   return d;
 }

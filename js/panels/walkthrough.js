@@ -26,28 +26,26 @@ const FIELD = { house: 'House', senate: 'Senate', governor: 'governor' };
 
 const STEPS = [
   { key: 'lean', title: 'Start with the seat',
-    text: r => `${r.race_id} is ${WHAT[r.chamber] || 'a race'}, and in the 2024 presidential
-                election it voted <b>${fmtMargin(r.lean)}</b> compared with the country as a whole.
-                Every race starts here: no polls yet, no candidates, just how this electorate
-                has voted when the same choice was put to everyone.` },
+    text: r => `${r.race_id} is ${WHAT[r.chamber] || 'a race'}. In the 2024 presidential election it
+                voted <b>${fmtMargin(r.lean)}</b> against the country as a whole. Every race starts
+                here: no polls, no candidates, one number for how this electorate voted when the
+                same choice was put to everyone.` },
   { key: 'env', title: 'Add the national environment',
-    text: (r, env, f) => `Polling of the country as a whole puts this year at
+    text: (r, env, f) => `National polling puts this year at
                 <b>D${env >= 0 ? '+' : ''}${env.toFixed(2)}</b>, after subtracting the
                 ${f.environment.instrument_bias} points by which the generic ballot has historically
-                flattered Democrats. A national swing does not land evenly: competitive seats move
-                more than safe ones, because a safe seat has fewer voters left to change their
-                minds. This ${noun(r)} takes <b>${r.elasticity.toFixed(2)}×</b> the national
-                swing, which comes to
-                ${(r.elasticity * env >= 0 ? '+' : '')}${(r.elasticity * env).toFixed(2)}.` },
+                flattered Democrats. A national swing does not land evenly — a safe seat has fewer
+                voters left to change their minds — so each seat carries an elasticity:
+                <code>${r.elasticity.toFixed(2)} × ${env.toFixed(2)} =
+                ${(r.elasticity * env >= 0 ? '+' : '')}${(r.elasticity * env).toFixed(2)}</code>.` },
   { key: 'inc', title: 'Add incumbency',
     text: r => r.inc_adj
-      ? `The sitting member is defending this ${noun(r)}, which is worth
-         <b>${Math.abs(r.inc_adj).toFixed(1)} points</b> to the
-         ${r.inc_adj >= 0 ? 'Democrats' : 'Republicans'} — the measured advantage of being the
-         name voters already know. It is the same figure in every race: the model does not claim
-         to know which incumbents are unusually strong.`
-      : `Nobody on this ballot holds the seat, so nothing is added. The advantage belongs to the
-         incumbent as a person, not to the party that holds the seat, so an open seat gets none of
+      ? `The sitting member is defending this ${noun(r)}: <b>${r.inc_adj >= 0 ? '+' : '−'}${Math.abs(r.inc_adj).toFixed(1)}</b>
+         to the ${r.inc_adj >= 0 ? 'Democrats' : 'Republicans'}, the measured advantage of being the
+         name voters already know. The same figure in every race — the model makes no claim about
+         which incumbents are unusually strong.`
+      : `No candidate on this ballot holds the seat, so nothing is added. The advantage belongs to
+         the incumbent as a person, not to the party holding the seat, so an open seat gets none of
          it however safe it looks.` },
   { key: 'prior', title: 'That is the prior',
     text: (r, env, f) => {
@@ -55,47 +53,45 @@ const STEPS = [
       // districts under a Senate race would be a true number about the wrong set.
       const unpolled = f.coverage.prior_only[r.chamber];
       const polled = f.coverage.poll_driven[r.chamber];
-      return `Those three together give <b>${fmtMargin(r.prior_mu)}</b> — the estimate before a
-              single poll of this ${noun(r)} is looked at. For ${unpolled} of the
-              ${unpolled + polled} ${FIELD[r.chamber] || 'these'} races this cycle it is also
-              where the working ends, because nobody polls
-              them${r.n_polls ? '' : ', and this is one of them'}.`;
+      return `<code>lean + swing + incumbency = ${fmtMargin(r.prior_mu)}</code> — the estimate
+              before a single poll of this ${noun(r)} is looked at. For <b>${unpolled}</b> of the
+              ${unpolled + polled} ${FIELD[r.chamber] || 'these'} races this cycle the working ends
+              here, because no one polls them${r.n_polls ? '' : ', and this is one of them'}.`;
     } },
   { key: 'poll', title: 'Now the polls',
     text: r => r.n_polls
-      ? `${r.n_polls} poll${r.n_polls > 1 ? 's' : ''} average${r.n_polls > 1 ? '' : 's'} to <b>${fmtMargin(r.poll_margin)}</b>.
-         Older polls count for less — a poll 30 days old carries half the weight of today's — and
-         each one is first corrected for its own pollster's measured lean, then weighted by that
-         pollster's measured accuracy. After all of that the ${r.n_polls} ${r.n_polls > 1 ? 'polls are' : 'poll is'}
-         worth about <b>${r.effective_n.toFixed(1)}</b> ${r.effective_n < 1.5 ? 'independent reading' : 'independent readings'},
-         spread across ${r.effective_pollsters.toFixed(1)} ${r.effective_pollsters < 1.5 ? 'pollster' : 'distinct pollsters'}.` 
+      ? `${r.n_polls} poll${r.n_polls > 1 ? 's' : ''} average${r.n_polls > 1 ? '' : 's'} to
+         <b>${fmtMargin(r.poll_margin)}</b>. Each is corrected for its own pollster's measured lean,
+         then weighted by that pollster's measured accuracy and by age — a poll 30 days old carries
+         half the weight of today's. Net of all of it:
+         <code>effective n = ${r.effective_n.toFixed(1)}</code> across
+         ${r.effective_pollsters.toFixed(1)} ${r.effective_pollsters < 1.5 ? 'pollster' : 'distinct pollsters'}.`
       : `There are none, which is the normal case. The prior is the answer.` },
   { key: 'mu', title: 'Blend them',
     text: r => r.n_polls
-      ? `The polls get weight <b>n/(n+3)</b>, where n is that effective count — here
-         ${r.effective_n.toFixed(1)}/(${r.effective_n.toFixed(1)}+3) =
-         <b>${r.poll_weight.toFixed(3)}</b> — and the prior gets the rest. The 3 is the prior's
-         strength in the same units: it is worth about three polls, so a race with three polls
-         lands halfway between the two. The textbook alternative — weighting each source by how precise it claims
-         to be — was tried and did worse on past elections, because it assumes polls are unbiased
-         and independent of each other, and they are neither.
-         Result: <b>${fmtMargin(r.mu)}</b>.`
-      : `With no polls there is nothing to blend, so the estimate stays at
-         <b>${fmtMargin(r.mu)}</b>.` },
+      ? `<code>w = n/(n+3) = ${r.effective_n.toFixed(1)}/(${r.effective_n.toFixed(1)}+3) =
+         ${r.poll_weight.toFixed(3)}</code> on the polls, and <code>1−w</code> on the prior. The 3
+         is the prior's strength in the same units — worth about three polls, so a race with three
+         polls lands halfway. The textbook alternative, weighting each source by its claimed
+         precision, was tried and did worse on past elections: it assumes polls are unbiased and
+         independent of each other, and they are neither.
+         <code>μ = ${fmtMargin(r.mu)}</code>.`
+      : `Nothing to blend, so the estimate stays at <code>μ = ${fmtMargin(r.mu)}</code>.` },
   // Every calibration quoted here comes out of the payload. Retyping them into
   // prose is how a page ends up confidently quoting a sigma the engine no longer
   // ships -- the numbers moved under exactly these sentences once already.
   { key: 'sigma', title: 'Spread it',
-    text: (r, env, f) => `An estimate is not a forecast until it has a width. This one is
-                <b>±${r.sigma_total.toFixed(2)}</b> points, built from four separate errors rather
-                than one: <b>${f.sigma.nat.toFixed(2)}</b> shared by every race in the country,
-                <b>${f.sigma.reg.toFixed(2)}</b> shared across the ${r.region},
-                <b>${f.sigma.state.toFixed(2)}</b> shared across ${r.state}, and <b>${r.sigma_idio.toFixed(2)}</b> belonging to this race
-                alone${r.prior_stale ? ` — widened ×${f.calibration.prior.stale_multiplier.toFixed(2)}
-                because its prior was carried across a redraw` : ''}. Keeping the first three
-                shared is what makes this a forecast of an election rather than of 506 unrelated
-                contests. Drawing all of it ${f.meta.n_sims.toLocaleString()} times gives the
-                Democrat <b>${fmtPct(r.win_prob)}</b>.` },
+    text: (r, env, f) => `An estimate is not a forecast until it has a width. Four independent
+                errors, added in quadrature:
+                <code>√(${f.sigma.nat.toFixed(2)}² + ${f.sigma.reg.toFixed(2)}² +
+                ${f.sigma.state.toFixed(2)}² + ${r.sigma_idio.toFixed(2)}²) =
+                ±${r.sigma_total.toFixed(2)}</code> — national, then ${r.region}, then ${r.state},
+                then this race
+                alone${r.prior_stale ? `, the last widened ×${f.calibration.prior.stale_multiplier.toFixed(2)}
+                for a prior carried across a redraw` : ''}. The first three are <em>shared</em>,
+                which is what makes this a forecast of an election and not of 506 unrelated
+                contests. Drawing it ${f.meta.n_sims.toLocaleString()} times gives the Democrat
+                <b>${fmtPct(r.win_prob)}</b>.` },
 ];
 
 export function walkthrough(host, { races, environment, initial, forecast,

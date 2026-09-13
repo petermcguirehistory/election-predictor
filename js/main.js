@@ -194,9 +194,8 @@ const SECTION_SCOPE = {
     why: 'The sweep re-simulates every chamber at every stop.' },
   's-field': { kind: 'fixed', can: ['house'],
     why: 'Only the House has districts, so only the House has a districting tilt to measure. The '
-       + 'Senate and governors have their own version in the next section — kept separate because '
-       + 'a line somebody drew and a border nobody drew are different kinds of fact, not the same '
-       + 'measurement on a different unit.' },
+       + 'Senate and governors have their own version in the next section, kept separate: district '
+       + 'lines are drawn and redrawn, state borders are not.' },
   's-statewide': { kind: 'fixed', can: ['senate', 'governor'],
     label: 'Senate · Governors',
     why: 'This measures the state borders, which decide the Senate and the governorships and have '
@@ -450,8 +449,8 @@ function renderHeadline(s) {
         unit: 'governorships won by Democrats at the median',
         label: `Of the <b>${of}</b> governorships on the ballot, Democrats win <b>${st.median}</b> ` +
                `at the median; 80% of simulations land between <b>${st.p10}</b> and <b>${st.p90}</b>. ` +
-               `There is no probability of control because there is no control: ` +
-               `36 governorships confer no collective majority.${cond}${why}`,
+               `No probability of control: ${of} governorships confer no collective ` +
+               `majority.${cond}${why}`,
       });
     } else {
       const p = st.control_prob;
@@ -540,13 +539,13 @@ function renderHeadline(s) {
         // The bound is the point. "Asserted" alone invites a reader to imagine the
         // worst; the sweep says what the worst actually is, and it is nothing.
         const b = pa.bound;
-        warn.innerHTML = `<b>\u00b1${pa.sigma.toFixed(2)} assumed</b> \u2014 how uncertain a governor race ` +
-          `is before polling is the one quantity here that was never measured against results. ` +
+        warn.innerHTML = `<b>\u00b1${pa.sigma.toFixed(2)} assumed</b> \u2014 the one uncertainty here ` +
+          `never measured against results. ` +
           (b
-            ? `Sweeping it across everything a fit could plausibly return ` +
-              `(&times;${(+b.range[0]).toFixed(2)}\u2013${(+b.range[1]).toFixed(2)}) leaves the median at ` +
-              `<b>${b.median_values[0]}</b> and moves the expected count by ` +
-              `<b>${b.expected_span.toFixed(2)}</b>. `
+            ? `Swept across the whole range a fit could return ` +
+              `(&times;${(+b.range[0]).toFixed(2)}\u2013${(+b.range[1]).toFixed(2)}): median holds at ` +
+              `<b>${b.median_values[0]}</b>, expected count moves ` +
+              `<b>${b.expected_span.toFixed(2)}</b> of a seat. `
             : '') +
           `<a href="#s-limits">why</a>`;
         card.append(warn);
@@ -620,8 +619,8 @@ function renderToplineNote(s, bl) {
   note.replaceChildren();
   if (!bl || !bl.base) {
     note.innerHTML = bl
-      ? `No movement is shown: the run before this one was produced differently, so the two `
-        + `cannot be compared. `
+      ? `No movement shown: the previous run was produced differently, so the two cannot be `
+        + `compared. `
       : `No published history yet, so there is nothing to measure movement against. `;
   } else {
     note.innerHTML =
@@ -631,8 +630,8 @@ function renderToplineNote(s, bl) {
       + (bl.blocked
         ? `, and stops there: ${bl.blocked.state === 'broken'
             ? 'the build changed'
-            : 'that run recorded no provenance'}, so anything earlier is partly a different model `
-          + `rather than a different electorate. `
+            : 'that run recorded no provenance'}. Anything earlier is partly a different model, `
+          + `not a different electorate. `
         : `, which is every run ever published. `);
   }
   const a = el('a', null, 'Full history \u2192');
@@ -668,7 +667,7 @@ function mountSeatModes(onChange) {
     }
     if (note) {
       note.textContent = seatMode() === 'curve'
-        ? 'Every height is a probability. Read across from any seat number.'
+        ? 'Every height is P(at least this many seats). Read across from any seat number.'
         : 'One dot per percentile of the simulations. Count the dots past the line.';
     }
   };
@@ -698,10 +697,11 @@ function renderTogether(s) {
   const naive = ph * ps;
   const note = el('p', 'chart-note');
   note.innerHTML =
-    `Multiplying the two headline numbers together gives <b>${fmtPct(naive, 1)}</b> for both `
-    + `chambers. The draws say <b>${fmtPct(q.both, 1)}</b>. The difference is that a national `
-    + `polling miss moves both chambers the same way, so these are not independent events — `
-    + `which is why the model draws all 506 races together rather than one at a time.`
+    `<code>P(House) &times; P(Senate) = ${fmtPct(naive, 1)}</code>, which is what independence `
+    + `would give. The draws say <b>${fmtPct(q.both, 1)}</b> \u2014 a gap of `
+    + `<b>${Math.abs(q.both - naive) * 100 < 0.05 ? '0' : (Math.abs(q.both - naive) * 100).toFixed(1)} `
+    + `points</b>. A national polling miss moves both chambers the same way, so the two are not `
+    + `independent events. Hence one joint draw over all 506 races.`
     // `ok` is true whenever there are enough draws, which is true of every run
     // with nothing pinned at all. `pinned` is the question being asked here.
     + (c.pinned && c.ok ? `<br><br><b>Counted over your pinned draws.</b>` : '');
@@ -734,8 +734,8 @@ function renderTogether(s) {
   });
   const foot = el('p', 'chart-note');
   foot.innerHTML = `${who} sit at a median of <b>${path.median}</b> and need <b>${path.need}</b> `
-    + `more. These are the seats in ${name} they do not currently favour, closest first, with each `
-    + `one's own chance of going their way. Click any of them.`;
+    + `more. Every seat in ${name} they do not currently favour, closest first, each with its own `
+    + `chance of going their way. Click any row.`;
   cheap.append(h4, list, foot);
 }
 
@@ -801,7 +801,7 @@ function renderSeats(s) {
       a.href = '#s-path';
       a.onclick = e => { e.preventDefault(); goto('s-path', { scope: ch }); };
       line.append(a);
-      line.append(document.createTextNode(' is a different question, and a different answer.'));
+      line.append(document.createTextNode(' is a different question with a different answer.'));
       host.append(line);
     }
   });
@@ -883,27 +883,26 @@ const MAP_CAPTION = {
   'house:hex': f => {
     const stale = f.races.filter(r => r.chamber === 'house' && r.boundary_stale);
     const states = new Set(stale.map(r => r.state));
-    return `Every district is one hex of the same size, so 435 seats read as 435 seats and nobody's
-      vote looks larger for living somewhere emptier. The layout comes from Census district
-      centroids under the 118th Congress, which means the shapes are on <b>2024 boundaries</b>.
-      ${stale.length ? `<b>${stale.length} districts across ${states.size} states are hatched.</b>
-      Those states redrew their lines for 2026: the forecast uses the new lines, and this map has
-      no published shape file to place them with. Their seat count and their forecast are right;
-      where they sit on the map is not.` : ''}`;
+    return `One equal hex per district: 435 seats read as 435 seats, and land area carries no
+      weight. Laid out from Census district centroids under the 118th Congress, so the positions are
+      on <b>2024 boundaries</b>.
+      ${stale.length ? `<b>${stale.length} districts across ${states.size} states are hatched</b>
+      \u2014 those states redrew for 2026, the forecast uses the new lines, and no published shape
+      file exists to place them. Their seat counts and forecasts are right; their positions are
+      not.` : ''}`;
   },
-  'house:geo': () => `Real district boundaries, on <b>2024 lines</b>, simplified so that borders
-     shared between two districts stay shared. This is the honest shape of the country and a poor
-     way to read an election: small urban districts almost disappear, Montana takes up the room of
-     a state, and the two elect the same one member each. That is what the cartogram is for.`,
-  'state:hex': () => `One hex per state, all fifty, every one the same size — because that is what
-     these offices are. Sizing states by population would draw California at fifty-two times the
-     area of Wyoming for the same two Senate seats apiece, which is the opposite of how the chamber
-     works. States with no race this cycle are drawn grey rather than dropped, so the map is the
-     whole country and not only the part of it voting.`,
-  'state:geo': () => `Real geography, and no state boundary file is needed for it: a state is
-     exactly the union of its districts, so the district shapes are drawn, filled with the colour
-     of that state's race, and the seams between them closed. Land area is not votes — Montana is
-     large, Rhode Island is not, and each elects one senator — which is what the cartogram is for.`,
+  'house:geo': () => `Real district boundaries on <b>2024 lines</b>, simplified so that a border
+     shared by two districts stays shared. Accurate geography, and a poor election map: area is not
+     votes. A dense urban district almost disappears beside Montana, and each elects one member.
+     Switch to the cartogram to read seats.`,
+  'state:hex': () => `One equal hex per state, all fifty, matching how these offices are awarded.
+     Sizing by population would draw California at 52&times; the area of Wyoming for the same two
+     Senate seats each. States with no race this cycle are grey rather than dropped, so the map
+     stays the whole country.`,
+  'state:geo': () => `Real geography, from the district shapes alone: a state is the union of its
+     districts, so they are drawn, filled with that state's race colour, and the internal seams
+     closed. No state boundary file needed. Area is not votes \u2014 Montana and Rhode Island each
+     elect one senator \u2014 so switch to the cartogram to read seats.`,
 };
 
 // The heading names the unit the map is drawn in, which is the district for the
@@ -985,9 +984,10 @@ function renderMap(s) {
   // printing it twice would read as a rendering fault.
   $('#map-caption').innerHTML = [...new Set(caption)].join(' ');
   $('#hops-read').innerHTML = s.playing ? '' :
-    'Press <b>Play simulations</b> above to swap the forecast for single runs. Each frame is one ' +
-    'complete election night out of 20,000, not an average — and whole regions will swing ' +
-    'together from frame to frame, which is the shared national, regional and state error at work.';
+    `Press <b>Play simulations</b> above to swap the forecast for single runs. Each frame is one ` +
+    `complete election night out of ${s.data.sims.m.n_sims.toLocaleString()}, not an average. ` +
+    `Whole regions swing together between frames: that is the shared national, regional and state ` +
+    `error.`;
   if (s.playing) {
     hopsCtl.start();
     hopsCtl.observe($('#s-map'), () => store.set({ playing: false }));
@@ -1097,10 +1097,9 @@ function renderPins(s) {
   $('#cond-bar').classList.toggle('on', s.pins.length > 0);
   if (!s.pins.length) {
     host.append(el('p', 'hint',
-      'Click any race — on a map, on any chart, or in the table — to hold its result fixed. Every '
-      + 'number on the page is then re-read from only the simulations where it went that way, '
-      + 'which is how to ask questions like "if Republicans hold this seat, what happens to the '
-      + 'rest?"'));
+      'Click any race — on a map, on a chart, in the table — to hold its result fixed. Every number '
+      + 'on the page is then re-read from only the simulations where it went that way. That answers '
+      + 'questions of the form: if Republicans hold this seat, what happens to the rest?'));
     return;
   }
   host.append(el('span', 'pins-label', 'Held fixed'));
@@ -1305,7 +1304,6 @@ const HEADLINE_SAY = {
     const nb = f.topline.senate && f.topline.senate.no_democrat_bound;
     if (!nb) return [`${n} Senate seats have no Democrat on the ballot.`,
       'The Senate probability assumes their independents lose.'];
-    const now = f.topline.senate.control_prob;
     const priced = nb.races.filter(r => (nb.priced || []).includes(r));
     const held = nb.races.filter(r => !priced.includes(r));
     const list = a => (a.length === 1 ? a[0]
@@ -1315,75 +1313,72 @@ const HEADLINE_SAY = {
     const spread = r => (by[r] && by[r].spread != null
       ? `${by[r].n_polls} polls spanning ${by[r].spread.toFixed(0)}` : 'too few polls');
 
-    // The caucus question is the headline of this note now, not an appendix to
-    // it. It was a 3x3 table and four sentences of its own underneath; the table
-    // said nothing the three figures do not, and the note was long enough that
-    // the thing it is actually about arrived last.
-    // Every figure below comes from the payload. The majority threshold too:
-    // it is 51 today and it is a property of the chamber, not of this sentence,
-    // and a note that hardcodes it is a note that lies quietly the first time a
-    // seat is added or a vacancy changes the arithmetic.
+    // The majority threshold comes from the payload: it is 51 today, it is a
+    // property of the chamber rather than of this sentence, and a note that
+    // hardcodes it lies quietly the first time a vacancy changes the arithmetic.
     const maj = (f.sims && f.sims.majority && f.sims.majority.senate) || null;
-    const reach = maj ? `nobody reaches ${maj}` : 'nobody reaches a majority';
+    const reach = maj ? `P(nobody reaches ${maj})` : 'P(no majority)';
 
+    // ONE LINE PER CLAIM, not one paragraph carrying all of them. This was a
+    // single 900-character run of prose whose most consequential figure -- what
+    // the caucus decision is worth -- arrived last, after two subordinate
+    // clauses about polling spread. A reader looking for one of these four facts
+    // now finds it without reading the other three.
+    //
     // Sorted by what each is worth rather than by key order, and all of them are
     // rendered: the engine's own MATERIAL_PTS threshold already decided which
     // races are consequential enough to be here, so taking only the first would
     // silently drop a second seat that had cleared the same bar.
     const sc = nb.caucus_scenarios || {};
-    const caucus = Object.entries(sc)
-      .sort((a, b) => b[1].worth_pts - a[1].worth_pts)
-      .map(([rid, s]) => {
-        const who = (by[rid] && by[rid].name) || rid;
-        const surname = who.split(' ').pop();
-        return ` <b>${who} wins ${fmtPct(s.p_win, 0)} of the time, and how ${surname} then `
-          + `caucuses is worth ${s.worth_pts.toFixed(1)} points</b> — Democratic control is `
-          + `<b>${fmtPct(s.caucus_dem.d, 1)}</b> caucusing with Democrats, `
-          + `${fmtPct(s.caucus_rep.d, 1)} with Republicans, and ${fmtPct(s.caucus_neither.d, 1)} `
-          + `with neither, where the chance ${reach} rises from `
-          + `${fmtPct(s.tie_baseline, 1)} to ${fmtPct(s.caucus_neither.none, 1)} — a seat in `
-          + `neither column, which no Vice President breaks.`;
-      }).join('')
-      + (Object.keys(sc).length
-          ? ` The published figure takes the first of those, which is the ballot feed's claim `
-            + `carried through as stated.`
-          : '');
+    const pts = [];
+    if (priced.length) {
+      pts.push(`<b>Priced from polling</b> — `
+        + `${list(priced.map(r => `${r} (${spread(r)} points)`))}. The polling agrees with `
+        + `itself there.`);
+    }
+    if (held.length) {
+      pts.push(`<b>Held on the presidential prior</b> — `
+        + `${list(held.map(r => `${r} (${spread(r)})`))}. That prior describes a Democrat who is `
+        + `not on the ballot; the polling does not hold together well enough to replace it.`);
+    }
+    for (const [rid, sn] of Object.entries(sc).sort((a, b) => b[1].worth_pts - a[1].worth_pts)) {
+      const who = (by[rid] && by[rid].name) || rid;
+      pts.push(`<b>Caucus, ${who}</b> — wins <b>${fmtPct(sn.p_win, 0)}</b> of runs, and how they `
+        + `then caucus is worth <b>${sn.worth_pts.toFixed(1)} points</b> of Senate control: `
+        + `<b>${fmtPct(sn.caucus_dem.d, 1)}</b> caucusing D, `
+        + `${fmtPct(sn.caucus_rep.d, 1)} caucusing R, ${fmtPct(sn.caucus_neither.d, 1)} with `
+        + `neither. With neither, ${reach} goes ${fmtPct(sn.tie_baseline, 1)} → `
+        + `<b>${fmtPct(sn.caucus_neither.none, 1)}</b>, and no Vice President breaks that.`);
+    }
+    if (Object.keys(sc).length) {
+      pts.push(`<b>Published figure</b> — takes the ballot feed's stated caucus claim, carried `
+        + `through as-is.`);
+    }
 
     return [
       priced.length
         ? `${priced.length} of ${nb.n_seats} no-Democrat Senate seats priced from polling.`
         : `The Senate number assumes ${nb.n_seats} independents lose.`,
-      `${nb.races.join(', ')} have no Democrat on the ballot and a named independent running. `
-      + `The model uses that polling only where it agrees with itself: `
-      + (priced.length
-          ? `${list(priced.map(r => `<b>${r}</b> (${spread(r)} points)`))} `
-            + `${priced.length === 1 ? 'is' : 'are'} priced from it. `
-          : '')
-      + (held.length
-          ? `${list(held.map(r => `${r} (${spread(r)})`))} still run on how the state voted for `
-            + `president — a Democrat who is not on the ballot — because ${held.length === 1
-              ? 'its polling does' : 'their polling does'} not hold together.`
-          : '')
-      + caucus
-      + ` Open any of these races for the polling itself.`,
+      `${nb.races.join(', ')} have no Democrat on the ballot and a named independent running.`
+      + `<ul class="pts">${pts.map(x => `<li>${x}</li>`).join('')}</ul>`
+      + `<p>Open any of these races for the polling itself.</p>`,
     ];
   },
   governor_zero_poll_coverage: (n, f) => [
     'No governor race has usable polling.',
-    `All ${f.topline.governor.of} are forecast from how the state voted for president, the national `
-    + 'environment and whether an incumbent is running. Nothing on the governors card has a poll '
-    + 'behind it.',
+    `All ${f.topline.governor.of} run on the prior alone: state presidential lean, national `
+    + 'environment, incumbency. No figure on the governors card has a poll behind it.',
   ],
   generic_ballot_stale: d => [
     `The generic ballot is ${d} days old.`,
-    'It is the input every number on this page is downstream of, and the model is carrying it '
-    + 'forward from a reading taken that long ago.',
+    `Every number on this page is downstream of it, and the model is carrying a reading taken `
+    + `${d} days ago forward to today.`,
   ],
   generic_ballot_beyond_corpus_support: d => [
     `The generic ballot is ${d} days old \u2014 older than any reading that could be checked against `
     + 'a result.',
-    'The corpus the national uncertainty was fitted on does not reach this far from an election, '
-    + 'so the width of the interval around it is extrapolated rather than measured.',
+    'The corpus the national error bar was fitted on stops 60 days out, so the width at '
+    + `${d} days is extrapolated from the drift rate rather than measured.`,
   ],
 };
 
@@ -1481,8 +1476,7 @@ function renderCaveats(s) {
 
   for (const [key, label, why] of [
     ['races', 'Individual races',
-      'True of particular contests, and already inside the numbers above rather than a reason to '
-      + 'doubt them.'],
+      'True of particular contests, and already priced into the numbers above.'],
     ['data', 'Data handling',
       'Records dropped or reconciled before anything was computed. Each says how it was resolved; '
       + 'no figure on this page depends on the choice having gone the other way.'],
@@ -1497,9 +1491,8 @@ function renderCaveats(s) {
   }
 
   const foot = el('p', 'caveat-why');
-  foot.innerHTML = 'These come and go with the data on every run. The limits that do not \u2014 the '
-    + 'ones built into the model and waiting on somebody to find the missing data \u2014 are on the '
-    + '<a href="#s-limits">Method</a> tab.';
+  foot.innerHTML = 'These come and go with the data on every run. The structural limits, which do '
+    + 'not, are on the <a href="#s-limits">Method</a> tab.';
   more.append(foot);
   host.append(more);
 }
@@ -1552,13 +1545,18 @@ function renderDiagnostics(s) {
   // container so the page body never does.
   const box = el('div', 'scroll-x'); box.append(t);
   const host = $('#diagnostics'); host.replaceChildren(box);
-  host.append(el('p', 'chart-note',
-    `Pinning a race — holding its winner fixed and re-reading the forecast from only the runs ` +
-    `that agree — is done in the browser too, by discarding the runs that disagree. Anything that ` +
-    `can be counted from who won survives that exactly: ${Sims.recomputable.yes.join(', ')}. ` +
-    `Anything that needs the margins cannot, because margins are not in the payload, so these ` +
-    `are frozen at their unpinned values and labelled where they appear: ` +
-    `${Sims.recomputable.no.join(', ')}.`));
+  // A DIV, not a p: the list below cannot legally live inside a paragraph, and a
+  // browser that meets one there closes the p and leaves the list outside it.
+  const rec = el('div', 'chart-note');
+  rec.innerHTML =
+    `Pinning a race is done in the browser too, by discarding every run that disagrees. What ` +
+    `survives that is exactly what can be counted from who won:` +
+    `<ul class="pts">` +
+    `<li><b>Recomputed under a pin</b> — ${Sims.recomputable.yes.join(', ')}.</li>` +
+    `<li><b>Frozen at unpinned values</b> — ${Sims.recomputable.no.join(', ')}. These need each ` +
+    `run's margins, which the payload does not carry. Each is labelled where it appears.</li>` +
+    `</ul>`;
+  host.append(rec);
 }
 
 // ---- boot ---------------------------------------------------------------
@@ -1680,10 +1678,10 @@ function renderAll(s, changed) {
         if (race) open(race);
       } });
       host.append(el('p', 'chart-note',
-        `The ${d.races.length} seats most often the deciding one, over `
-        + `${d.runs.length} runs, ordered by how far each has travelled. Every card uses the same `
-        + `vertical scale — scaling each to its own range would make a half-point wobble look like `
-        + `a six-point swing. Click any of them.`));
+        `The ${d.races.length} seats most often the deciding one, over ${d.runs.length} runs, `
+        + `ordered by distance travelled. One shared vertical scale across all cards: scaled each `
+        + `to its own range, a half-point wobble would draw like a six-point swing. Click any `
+        + `card.`));
     });
     paint('s-ahead', () => {
       const f = s.data.forecast;
@@ -1697,22 +1695,22 @@ function renderAll(s, changed) {
       const gb = f.sigma;
       const note = el('p', 'chart-note');
       note.innerHTML =
-        `<b>${r.days} days left.</b> Each tick is an expected reading, from how often that feed has `
-        + `actually published this cycle. The red mark is how long silence would have to run `
-        + `before the model calls the feed dead — not a forecast, a deadline.`
+        `<b>${r.days} days left.</b> Each tick is an expected reading, spaced by how often that `
+        + `feed has actually published this cycle. The red mark is the silence a feed has to run `
+        + `before the model calls it dead: a deadline, not a forecast.`
         // TWO DIFFERENT AGES, and saying "the generic ballot is 35 days old" while
         // the feed publishes daily reads as a contradiction. The newest poll is
         // days old; the WEIGHTED age of the average is what the model charges
         // for, because the average spans a decaying window rather than the last
         // reading. The distinction is the point of the sentence.
         + (gb && gb.nat_fitted && gb.nat_gb_age_days != null
-            ? `<br><br>Both feeds are current — the newest ${term('generic-ballot')} poll is `
-              + `<b>${f.freshness.generic_ballot_age_days} days</b> old. But the average those `
-              + `polls form has a weighted age of <b>${gb.nat_gb_age_days.toFixed(0)} days</b>, `
-              + `because it spans a decaying window rather than the last reading, and the model `
-              + `charges for that: the national error bar widens from ${gb.nat_fitted.toFixed(2)} `
-              + `to <b>${gb.nat.toFixed(2)}</b> points. More national polling narrows this `
-              + `forecast faster than anything else on the schedule above.`
+            ? `<br><br><b>Two different ages.</b> The newest ${term('generic-ballot')} poll is `
+              + `${f.freshness.generic_ballot_age_days} days old, but the average those polls form `
+              + `spans a decaying window, so its weighted age is `
+              + `<b>${gb.nat_gb_age_days.toFixed(0)} days</b>. The model charges for the second: `
+              + `<code>σ_nat ${gb.nat_fitted.toFixed(2)} → ${gb.nat.toFixed(2)}</code> points. `
+              + `More national polling narrows this forecast faster than anything else on the `
+              + `schedule above.`
             : '');
       host.append(note);
     });

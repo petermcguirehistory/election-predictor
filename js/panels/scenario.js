@@ -198,20 +198,22 @@ export function scenarioPanel(host, { scenarios, environment, chambers, onPick }
     'Curves show the probability of Democratic control, except governors, which show seats won');
   host.append(key);
 
-  const note = document.createElement('p');
+  // A div, not a p: this note carries a fact table, and a <table> inside a <p>
+  // is closed out of it by the parser.
+  const note = document.createElement('div');
   note.className = 'chart-note';
   note.innerHTML =
-    `Every stop is a full rebuild: each race's estimate recomputed at that `
-    + `${term('generic-ballot')} correction, then fresh simulations. Not an interpolation between `
-    + `two answers. Drag left to assume the generic ballot flatters Democrats less than history `
-    + `says; right to assume it flatters them more.`
-    + `<br><br>The fitted <b>+${fitted}</b> is an average over 13 cycles.`
+    `Every stop is a full rebuild — each race's estimate recomputed at that `
+    + `${term('generic-ballot')} correction, then fresh simulations under common random numbers. `
+    + `No interpolation. Drag left for a smaller assumed lean toward Democrats, right for a `
+    + `larger.`
     + `<table class="fx"><tbody>`
-    + `<tr><th>Standard error</th><td>${se} — the long-run figure could sit from `
-    + `+${(fitted - 2 * se).toFixed(1)} to +${(fitted + 2 * se).toFixed(1)}</td></tr>`
-    + `<tr><th>Range across cycles</th><td>−1.9 to +6.2 — wider still</td></tr>`
-    + `<tr><th>Why the slider spans that</th><td>A single election can miss the long-run average `
-    + `by more than the long-run average is itself uncertain</td></tr>`
+    + `<tr><th>Fitted value</th><td><b>+${fitted}</b>, the mean over 13 cycles</td></tr>`
+    + `<tr><th>Standard error</th><td>${se}, so &plusmn;2 SE puts the long-run figure between `
+    + `+${(fitted - 2 * se).toFixed(1)} and +${(fitted + 2 * se).toFixed(1)}</td></tr>`
+    + `<tr><th>Range across cycles</th><td>−1.9 to +6.2 — wider than the SE on the mean</td></tr>`
+    + `<tr><th>Why the sweep spans that</th><td>One election can miss the long-run average by more `
+    + `than the long-run average is itself uncertain</td></tr>`
     + `</tbody></table>`;
   host.append(note);
   paint();

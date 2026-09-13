@@ -245,7 +245,8 @@ export function senateRatio(host, { fit }) {
     .attr('text-anchor', 'middle').attr('fill', C.faint).attr('font-size', 10.5)
     .text('Senate prior error ÷ House prior error');
 
-  const note = document.createElement('p');
+  // A div, not a p -- this note carries a fact table.
+  const note = document.createElement('div');
   note.className = 'chart-note';
   note.innerHTML =
     `The model starts a Senate race with a wider ${term('sigma')} than a House district — `
@@ -259,8 +260,8 @@ export function senateRatio(host, { fit }) {
     + `<tr><th>Verdict</th><td>The bar overlaps the shipped ${fit.shipped_value}. The measurement `
     + `cannot tell the two apart, so it was not adopted.</td></tr>`
     + `</tbody></table>`
-    + `<p>Shown because a measurement that fails to overturn an assumption is still a measurement. `
-    + `Fitted ${fit.fitted_on || ''}.</p>`;
+    + `<p>Shown because a measurement that fails to overturn an assumption is still a `
+    + `measurement. Fitted ${fit.fitted_on || ''}.</p>`;
   host.append(note);
 }
 
@@ -309,7 +310,8 @@ export function governorSweep(host, { sweep }) {
     .attr('text-anchor', 'middle').attr('fill', C.faint).attr('font-size', 10.5)
     .text('assumed governor error ÷ House error');
 
-  const note = document.createElement('p');
+  // A div, not a p -- this note carries a fact table.
+  const note = document.createElement('div');
   note.className = 'chart-note';
   note.innerHTML =
     `This ${term('sigma')} could not be fitted — no source publishes statewide governor results in `

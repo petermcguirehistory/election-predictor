@@ -152,19 +152,24 @@ export function correlationMatrix(host, { sims, races, condition, sigmaState, to
   }
   const mean = xs => xs.reduce((p, c) => p + c, 0) / (xs.length || 1);
 
-  const note = document.createElement('p');
+  // A div, not a p -- the caption carries a <ul>.
+  const note = document.createElement('div');
   note.className = 'chart-note';
   note.innerHTML =
     `<b>${term('correlation')}</b> between every pair of the ${Math.min(topN, oid.length)} `
     + `closest ${scopeLabel} of ${races.length}, across `
-    + `${live ? condition.n.toLocaleString() : sims.m.n_sims.toLocaleString()} draws. `
-    + `Colour saturates at the strongest pair here, ${hi.toFixed(2)}; the diagonal is 1 and blank.`
-    + `<br><br>Row order comes from clustering the simulated outcomes. <b>No geography was given `
-    + `to the clustering</b> — states appear as blocks because the errors really are shared inside `
-    + `them.`
-    + `<br><br>Same state: <b>${mean(sameState).toFixed(2)}</b> on average. Different states: `
-    + `<b>${mean(cross).toFixed(2)}</b>. That gap is the state-level ${term('sigma')} `
-    + `(${sigmaState} points), and it is why these are not ${races.length} independent coin flips.`
+    + `${live ? condition.n.toLocaleString() : sims.m.n_sims.toLocaleString()} draws.`
+    + `<ul class="pts">`
+    + `<li><b>Colour</b> — saturates at the strongest pair here, ${hi.toFixed(2)}. The diagonal is `
+    + `1 and left blank.</li>`
+    + `<li><b>Row order</b> — clustered on the simulated outcomes. <b>No geography was given to `
+    + `the clustering</b>; states appear as blocks because the errors really are shared inside `
+    + `them.</li>`
+    + `<li><b>Same state ${mean(sameState).toFixed(2)}, different states `
+    + `${mean(cross).toFixed(2)}</b> on average. The gap is the state-level ${term('sigma')} `
+    + `(${sigmaState} points), and it is why these are not ${races.length} independent coin `
+    + `flips.</li>`
+    + `</ul>`
     + (live
         ? ` <br><br><b>Recomputed over your pinned draws</b>, with the clustering order held fixed `
           + `so the axes do not move. A pinned race is the same in every matching draw, so it `

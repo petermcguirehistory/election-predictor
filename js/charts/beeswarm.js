@@ -62,18 +62,22 @@ export function beeswarm(host, { races, colorBy = 'polls', scopeLabel = 'races',
   axis.selectAll('line,path').attr('stroke', C.line);
 
   const n = rows.filter(r => Math.abs(r.median_margin) <= 5).length;
-  const note = document.createElement('p');
+  // A div, not a p: the caption carries a <ul>, which a parser will not leave
+  // inside a paragraph.
+  const note = document.createElement('div');
   note.className = 'chart-note';
   // `races` minus `rows` are the settled same-party generals: no margin, so no
   // position on a margin axis. Counted out loud rather than silently dropped.
   const off = races.length - rows.length;
   note.innerHTML = `One dot per race, across ` +
-    (off ? `<b>${rows.length}</b> of ${races.length} ${scopeLabel} — the other ` +
-           `${off} ${off > 1 ? 'are' : 'is'} a settled same-party general, where both candidates ` +
-           `on the November ballot belong to one party, so there is no two-party margin to plot`
+    (off ? `<b>${rows.length}</b> of ${races.length} ${scopeLabel}. The other ` +
+           `${off} ${off > 1 ? 'are' : 'is'} a settled same-party general — both November ` +
+           `candidates in one party, so there is no two-party margin to plot`
          : `all <b>${races.length}</b> ${scopeLabel}`) +
-    `. <b>${n}</b> sit within 5 points of a tie, which is the band worth watching: anything wider ` +
-    `takes a national polling miss to overturn. Faded dots are races with no usable poll, ` +
-    `forecast from the seat's own history instead.`;
+    `.<ul class="pts">` +
+    `<li><b>Shaded band</b> — within 5 points of a tie. <b>${n}</b> races sit in it; overturning ` +
+    `anything wider takes a national polling miss.</li>` +
+    `<li><b>Faded dots</b> — no usable poll. Forecast from the seat's own history.</li>` +
+    `</ul>`;
   host.append(note);
 }

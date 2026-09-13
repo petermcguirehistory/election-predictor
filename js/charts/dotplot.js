@@ -85,13 +85,13 @@ export function dotplot(host, { hist, threshold, n, chamber, unit, showNote = tr
   if (!showNote) return;
   const note = document.createElement('p');
   note.className = 'chart-note';
-  note.innerHTML = `Each dot is one percentile of ${n.toLocaleString()} simulations — ` +
-    `sort every run by its seat total, cut the sorted list into a hundred equal parts, and plot ` +
-    `where each part falls. ` +
+  note.innerHTML = `Each dot is one percentile of ${n.toLocaleString()} simulations: sort every ` +
+    `run by seat total, cut the sorted list into a hundred equal parts, plot where each part ` +
+    `falls. ` +
     (hasThresh
-      ? `The dots past the line are the runs that won control, so their share of the hundred is ` +
+      ? `The dots past the line are the runs that won control, so <code>dots past ÷ 100</code> is ` +
         `the headline probability.`
-      : `There is no line to count past: these are separate offices with no collective majority ` +
-        `to hold, so the chart says how many are won and nothing about control.`);
+      : `No line to count past — these are separate offices with no collective majority to hold, ` +
+        `so the chart reports how many are won and nothing about control.`);
   host.append(note);
 }

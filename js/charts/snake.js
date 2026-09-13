@@ -111,10 +111,10 @@ export function snake(host, { races, threshold, crossing, unit = 'seats', held =
     // No majority to reach, so the only thing the crossing can report is the
     // count -- which is the whole question here.
     note.innerHTML =
-      `Every ${unit.replace(/s$/, '')} on the ballot, ordered by its expected margin, with the ` +
-      `curve crossing zero at <b>${nWin}</b> of ${rows.length}. There is no line to cross here: ` +
-      `${rows.length} governorships are separate offices with no collective majority, so this ` +
-      `ordering says how many are won and nothing about control.`;
+      `Every ${unit.replace(/s$/, '')} on the ballot ordered by expected margin, the curve ` +
+      `crossing zero at <b>${nWin}</b> of ${rows.length}. No line to cross: ${rows.length} ` +
+      `governorships are separate offices with no collective majority, so this ordering reports how ` +
+      `many are won and nothing about control.`;
   } else {
     const gap = nWin - threshold;
     note.innerHTML =

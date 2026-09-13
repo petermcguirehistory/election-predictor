@@ -11,10 +11,10 @@
 // seat that is never in doubt is almost never the seat that tips.
 //
 // Governors have no such quantity, and inventing one would be the error this
-// site keeps refusing to make elsewhere: 36 governorships confer no collective
-// majority, so no race among them can be the deciding one. What they do have is
-// races that could go either way, so they are ranked by closeness and the panel
-// says, in words, that it has changed the question.
+// site refuses elsewhere: 36 governorships confer no collective majority, so no
+// race among them can be the deciding one. What they do have is races that could
+// go either way, so they are ranked by closeness and the panel states that it has
+// changed the question.
 import { C, fmtPct, fmtMargin } from '../charts/util.js';
 
 // Candidate names are feed text. Escaped, like everywhere else they are shown.
@@ -46,10 +46,10 @@ const MODES = {
     // A length from the left, carrying the same share the number reports.
     bar: 'length',
     say: (ch, n, top) =>
-      `Ranked by how often each race casts the vote that makes the majority — counted across every `
-      + `simulation, not guessed from the margin. The job is spread over <b>${n}</b> different `
-      + `${ch} races and the busiest takes only <b>${(top * 100).toFixed(1)}%</b> of them, which is `
-      + `why this is a list and not a single tipping-point race.`,
+      `Ranked by how often each race casts the vote that makes the majority, counted across every `
+      + `simulation. The job is spread over <b>${n}</b> different ${ch} races and the busiest takes `
+      + `<b>${(top * 100).toFixed(1)}%</b> of them, so this is a list and not one tipping-point `
+      + `race.`,
     frozen: 'The ranking is frozen while a race is pinned: it needs each run’s margins, and the '
           + 'payload ships only who won. The win probabilities beside it are live.',
   },
@@ -63,12 +63,10 @@ const MODES = {
     // reports. NOT the ranking quantity: see the note on `drawBar`.
     bar: 'diverging',
     say: () =>
-      `A different question from the one above, because the one above has no answer here: 36 `
-      + `separate offices confer no collective majority, so no governor’s race can be the seat `
-      + `that decides control. These are ranked instead by how near they are to an even chance — `
-      + `the races where the result is genuinely not yet settled. The bars are each race’s median `
-      + `margin about a centre line, Democrats to the left, the same way round as the swarm on the `
-      + `Races tab.`,
+      `A different question, because the one above has no answer here: 36 separate offices confer `
+      + `no collective majority, so no governor’s race can be the seat that decides control. `
+      + `Ranked instead by distance from an even chance. The bars are each race’s median margin `
+      + `about a centre line, Democrats to the left, matching the swarm on the Races tab.`,
     frozen: null,
   },
 };

@@ -79,9 +79,8 @@ export function movementPanel(host, { movement, chamber, chamberLabel }) {
   } else if (!inputsMoved) {
     head.innerHTML = `<b>No new polling arrived.</b> Not one generic-ballot reading and not one `
       + `race poll has moved since <b>${movement.from}</b>. The ${chamberLabel} number still `
-      + `shifted <b>${fmt(ch.total, ch.unit)}</b>, and all of it is the forecast getting a day `
-      + `older: a stale generic ballot widens the national error, which moves a probability `
-      + `without moving a single estimate.`;
+      + `shifted <b>${fmt(ch.total, ch.unit)}</b>, all of it age: a staler generic ballot widens `
+      + `<code>σ_nat</code>, which moves a probability without moving any estimate.`;
   } else {
     head.innerHTML = `The ${chamberLabel} number moved <b>${fmt(ch.total, ch.unit)}</b> toward `
       + `<b>${dir}</b> since <b>${movement.from}</b>. Each cause below is the model `
@@ -138,8 +137,8 @@ export function movementPanel(host, { movement, chamber, chamberLabel }) {
   host.append(list);
 
   const foot = el('p', 'mv-foot');
-  foot.innerHTML = 'These causes are not additive, so the engine runs the swaps in both '
-    + 'orders and each figure is the midpoint of the two. Where they disagree the row says '
-    + 'so rather than picking one.';
+  foot.innerHTML = 'These causes are not additive. The engine runs the swaps in both orders and '
+    + 'each figure is the midpoint of the two; where the orderings disagree materially, the row '
+    + 'says so rather than printing a midpoint that implies a precision it does not have.';
   host.append(foot);
 }

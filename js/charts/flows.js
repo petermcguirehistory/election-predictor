@@ -82,15 +82,14 @@ export function flows(host, { races, chamber = 'house', unit = 'districts', seat
   const note = document.createElement('p');
   note.className = 'chart-note';
   note.innerHTML =
-    `The ${topN} likeliest flips each way. Each race contributes its own probability rather than ` +
-    `a whole seat, so these are expected counts and not a most-likely election night — no single ` +
-    `run will look like this, because in any one run each seat goes entirely one way or the ` +
-    `other.` +
+    `The ${topN} likeliest flips each way. Each race contributes its probability, not a whole ` +
+    `seat, so these are expected counts: no single run looks like this, because in one run each ` +
+    `seat goes entirely one way.` +
     (U.length
-      ? ` <b>${U.length}</b> ${unit} sit outside both columns because no party is recorded as ` +
-        `holding them, and a flip only means something against a holder. They still contribute ` +
+      ? ` <b>${U.length}</b> ${unit} sit outside both columns — no party is recorded as holding ` +
+        `them, and a flip is only defined against a holder. They still contribute ` +
         `<b>${d3.sum(U, r => r.win_prob).toFixed(1)}</b> expected Democratic ${seat}s to the net ` +
-        `figure above.`
+        `above.`
       : '');
   host.append(note);
 }

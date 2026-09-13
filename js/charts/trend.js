@@ -69,9 +69,8 @@ export function trendChart(host, { history, chambers = Object.keys(CH) }) {
     const p = document.createElement('p');
     p.className = 'chart-note';
     p.innerHTML = `Only ${pts.length} run${pts.length === 1 ? '' : 's'} so far. A trend needs a `
-      + `cadence, not a second point — the series starts once the model has been run on a `
-      + `schedule for long enough that a change in it is news about the electorate rather than `
-      + `about the build.`;
+      + `cadence, not a second point: the series starts once the model has run on a schedule long `
+      + `enough that a change in it is news about the electorate, not about the build.`;
     host.append(p);
     return;
   }
@@ -194,17 +193,22 @@ function panel(host, pts, series, kind, history) {
     .text(K.label);
 
   const joinable = (history.edges ?? []).filter(e => e.state === 'comparable').length;
-  const note = document.createElement('p');
+  // A div, not a p -- the caption carries a <ul>.
+  const note = document.createElement('div');
   note.className = 'chart-note';
   const named = show.map(c => `<span style="color:${CH[c].col}">${CH[c].label}</span>`);
   const who = named.length > 1
     ? `${named.slice(0, -1).join(', ')} and ${named.at(-1)}` : named[0];
   note.innerHTML =
-    `${K.note(who)} across ${rows.length} published runs. ${joinable} of `
-    + `${(history.edges ?? []).length} gaps between consecutive runs are drawn solid, meaning the `
-    + `two ends were produced by the same model on the same sources and the movement between them `
-    + `is news about the election. The rest are dashed: something in the build changed across `
-    + `those, so part of the step is the model rather than the electorate, and there is no way to `
-    + `say how much. <b>Hover a dashed break to see what changed.</b>`;
+    `${K.note(who)} across ${rows.length} published runs. `
+    + `<code>${joinable} / ${(history.edges ?? []).length}</code> gaps between consecutive runs are `
+    + `drawn solid.`
+    + `<ul class="pts">`
+    + `<li><b>Solid</b> — same model, same sources at both ends. The movement is news about the `
+    + `election.</li>`
+    + `<li><b>Dashed</b> — the build changed across the gap, so part of the step is the model and `
+    + `not the electorate. How much is not recoverable. <b>Hover a break to see what `
+    + `changed.</b></li>`
+    + `</ul>`;
   host.append(note);
 }

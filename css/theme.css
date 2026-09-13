@@ -208,6 +208,49 @@ h3 { font: 600 1rem/1.3 var(--sans); margin: 0 0 .5rem; color: var(--ink); }
 p { max-width: var(--measure); color: var(--ink-dim); }
 a { color: var(--dem); text-decoration-thickness: 1px; text-underline-offset: 2px; }
 
+/* A definition, a rule, or a set of cases -- as a list, because that is what it
+   is. Prose was doing this job in paragraphs that ran past nine hundred
+   characters: a reader looking for the one case that applies to them had to read
+   all of them in sequence to find it. Marker is an en dash rather than a bullet,
+   which sits better beside the letterspaced caps this page sets headings in. */
+ul.pts { list-style: none; padding: 0; margin: .9rem 0 0; max-width: var(--measure); }
+ul.pts li {
+  position: relative; padding-left: 1.1rem; margin: 0 0 .45rem;
+  color: var(--ink-dim); font-size: .92rem; line-height: 1.5;
+}
+ul.pts li::before {
+  content: "\2013"; position: absolute; left: 0; color: var(--faint);
+}
+ul.pts li b, ul.pts li strong { color: var(--ink); font-weight: 600; }
+ul.pts li:last-child { margin-bottom: 0; }
+/* Inside a smaller block -- a chart note, an alarm, a drawer -- the list
+   inherits that block's size rather than imposing its own. */
+.chart-note ul.pts, .caveat-why ul.pts, .caveat-major ul.pts,
+.limit .limit-body ul.pts, .dt-note-block ul.pts, .dt-chart-cap ul.pts,
+.dt-cond-note ul.pts, .mv-foot ul.pts, .wt-copy ul.pts {
+  margin-top: .5rem; margin-bottom: .5rem; font-size: 1em; max-width: none;
+}
+.chart-note ul.pts li, .caveat-major ul.pts li, .limit .limit-body ul.pts li,
+.dt-chart-cap ul.pts li, .dt-cond-note ul.pts li, .wt-copy ul.pts li { font-size: 1em; }
+/* Last list in a block does not push the block's padding open. */
+.caveat-major ul.pts:last-child, .limit .limit-body ul.pts:last-child { margin-bottom: 0; }
+
+/* A formula is the definition. Prose paraphrases of `n / (n + 3)` cost a reader
+   a sentence and tell them less, so the formula is set where the sentence was.
+   `python -m engine.dashboard.build` is longer than a phone is wide, so this
+   wraps rather than forcing the page to scroll sideways. */
+code {
+  font: 500 .88em/1.4 var(--mono); background: var(--surface-2);
+  color: var(--ink); padding: .08em .34em; border-radius: 2px;
+  overflow-wrap: break-word;
+}
+/* A formula on its own line, where it is the answer and not an aside. */
+p.fml-block, div.fml-block {
+  margin: .9rem 0 0; font: 500 .95rem/1.5 var(--mono);
+  color: var(--ink); max-width: var(--measure);
+}
+p.fml-block code, div.fml-block code { background: none; padding: 0; }
+
 /* ---- headline ---------------------------------------------------------- */
 .lede {
   font: 400 clamp(1.5rem, 3.4vw, 2.15rem)/1.28 var(--serif);
@@ -476,7 +519,13 @@ svg :focus-visible { outline:2px solid var(--accent); }
 .limit summary::after { content:'+'; color:var(--muted); font-size:1rem; line-height:1; }
 .limit[open] summary::after { content:'−'; }
 .limit summary:hover { color:var(--accent); }
-.limit p { margin:0; padding:0 .9rem .9rem; font-size:.83rem; color:var(--ink-dim); max-width:none; }
+/* The body opens with a bare sentence and then carries block children -- a fact
+   table, a list, sometimes a closing paragraph. No `> :first-child { margin-top }`
+   reset here: the first ELEMENT child is usually the table, and zeroing its top
+   margin jams it against the sentence above it, which is a text node. */
+.limit .limit-body { padding:0 .9rem .9rem; font-size:.83rem; color:var(--ink-dim); }
+.limit .limit-body > :last-child { margin-bottom:0; }
+.limit .limit-body p { margin:.6rem 0 0; font-size:1em; color:inherit; max-width:none; }
 .limit em { color:var(--ink); font-style:italic; }
 #s-limits h3 {
   font:500 .74rem/1 var(--sans); letter-spacing:.12em; text-transform:uppercase;

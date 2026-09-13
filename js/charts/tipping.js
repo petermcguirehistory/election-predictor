@@ -17,10 +17,10 @@ export function tippingChart(host, { distribution, byId, topN = 14, frozen, cham
   if (!distribution) {
     const p = document.createElement('p');
     p.className = 'chart-note';
-    p.innerHTML = `Nothing to draw here, and that is the answer rather than a gap: no race can ` +
-      `be the deciding one when there is nothing collective to decide. The 36 governorships are ` +
-      `separate offices and confer no majority. The ordering beside this one still answers the ` +
-      `question governors do have — how many Democrats win.`;
+    p.innerHTML = `Nothing to draw, and the absence is the answer: no race can be the deciding ` +
+      `one where there is nothing collective to decide. The 36 governorships are separate offices ` +
+      `and confer no majority. The ordering beside this one answers the question governors do ` +
+      `have — how many Democrats win.`;
     host.append(p);
     return;
   }
@@ -82,13 +82,12 @@ export function tippingChart(host, { distribution, byId, topN = 14, frozen, cham
   note.className = 'chart-note';
   const top = distribution[0];
   note.innerHTML =
-    `In every run the races are re-ordered by that run's own margins, and whichever one falls on ` +
-    `the majority line is that run's deciding seat. Across all the simulations the job is spread ` +
-    `over <b>${distribution.length}</b> different races` +
-    (top ? `, the most frequent being <b>${top.race_id}</b> at just ` +
-           `<b>${(top.share * 100).toFixed(1)}%</b>` : '') +
-    ` — which is why it is a distribution rather than a single "tipping-point race". ` +
+    `Each run re-orders the races by its own margins; whichever falls on the majority line is that ` +
+    `run's deciding seat. The job is spread over <b>${distribution.length}</b> different races` +
+    (top ? `, the busiest being <b>${top.race_id}</b> at <b>${(top.share * 100).toFixed(1)}%</b>`
+         : '') +
+    `. Hence a distribution, not a single tipping-point race. ` +
     (frozen ? `<span class="frozen">Frozen while a race is pinned: redoing this needs each run's ` +
-              `margins, and the payload ships only who won each race.</span>` : '');
+              `margins, and the payload carries only who won.</span>` : '');
   host.append(note);
 }

@@ -166,10 +166,9 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
   body += ballotBlock(race);
 
   if (race.locked) {
-    body += `<p class="dt-lead">Settled — a same-party general under top-two. Both candidates on
-      the November ballot are ${race.locked_party === 'D' ? 'Democrats' : 'Republicans'}, so the
-      seat is decided and the model does not forecast it. It is carried as a certain
-      ${race.locked_party} hold.</p>`;
+    body += `<p class="dt-lead">Settled — a same-party general under top-two. Both November
+      candidates are ${race.locked_party === 'D' ? 'Democrats' : 'Republicans'}, so the seat is
+      decided rather than forecast, and carried as a certain ${race.locked_party} hold.</p>`;
     body += row('2024 presidential margin', fmtMargin(race.pres_margin));
     body += row('District lean', fmtMargin(race.lean));
     body += row('Estimate it would otherwise carry', fmtMargin(race.prior_mu));
@@ -217,17 +216,17 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     if (Math.abs(fund) > 0.005) {
       body += row('Fundraising',
                   `${fund >= 0 ? '+' : ''}${fund.toFixed(2)}`
-                  + `<span class="dt-note">only where the lean is not already decisive, and `
-                  + `measured against the rest of this cycle rather than in dollars. Filings run `
-                  + `to June; the fit is on full-cycle ones</span>`);
+                  + `<span class="dt-note">applied only where the lean is not already decisive, `
+                  + `and measured as a share of this cycle rather than in dollars. Filings run to `
+                  + `June; the fit is on full-cycle ones</span>`);
     }
     body += row('Estimate before polls', fmtMargin(race.prior_mu), 'dt-sum');
 
     if (race.n_polls > 0) {
       body += row('Poll average', fmtMargin(race.poll_margin) +
-        `<span class="dt-note">${race.n_polls} poll${race.n_polls > 1 ? 's' : ''}, worth about ` +
-        `${race.effective_n.toFixed(1)} independent reading${race.effective_n < 1.5 ? '' : 's'} ` +
-        `after weighting, across ${race.effective_pollsters.toFixed(1)} pollsters</span>`);
+        `<span class="dt-note">${race.n_polls} poll${race.n_polls > 1 ? 's' : ''} → effective ` +
+        `n = ${race.effective_n.toFixed(1)} after weighting, across ` +
+        `${race.effective_pollsters.toFixed(1)} pollsters</span>`);
       if (race.house_adj) {
         body += row('Pollster-lean correction', `${race.house_adj >= 0 ? '+' : ''}${race.house_adj.toFixed(2)}` +
           `<span class="dt-note">${fmtPct(race.pollster_coverage, 0)} of the weight comes from pollsters with enough past results to correct</span>`);
@@ -301,10 +300,10 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     })).filter(pt => pt.mu != null);
     chartHost.replaceChildren();
     if (!polls.length && series.length < 2) {
-      chartHost.innerHTML = '<p class="dt-note-block">No polling of this race, and only one '
-        + 'run to compare against \u2014 there is nothing yet to plot. The estimate below is the '
-        + 'seat\u2019s own history and the national environment, which is what the model uses '
-        + 'when nobody has polled a race.</p>';
+      chartHost.innerHTML = '<p class="dt-note-block">No polling of this race, and only one run '
+        + 'to compare against, so there is nothing yet to plot. The estimate below is the '
+        + 'seat\u2019s own history plus the national environment \u2014 what the model runs on '
+        + 'where a race is unpolled.</p>';
       return;
     }
     const ind = (detail.independent || {})[wanted] || null;
@@ -340,8 +339,8 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
                  Object.assign(document.createElement('dd'), { innerHTML: v }));
     };
     if (polls.length) {
-      item('Each dot', 'A poll, at the day its fieldwork ended. Its area is how much that poll '
-        + 'counts — older polls, partisan sponsors and campaign internals all count for less.');
+      item('Each dot', 'A poll, at the day its fieldwork ended. Area is weight: age, a partisan '
+        + 'sponsor and a campaign internal each reduce it.');
     }
     if (nOld) {
       item('Hollow dots', `<b>${nOld}</b> of a matchup no longer on the ballot. Shown because the `
@@ -354,8 +353,8 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
                  + 'it makes of the polling that existed then. It is not a record of what was '
                  + 'forecast at the time.' : ''));
     }
-    item('The fan', 'Where the model expects the result to land on election day — the inner band '
-      + 'about two thirds of the time, the outer about nineteen times in twenty.');
+    item('The fan', 'Where the result is expected to land on election day: the inner band about '
+      + 'two thirds of the time, the outer about 19 times in 20.');
     chartHost.append(cap);
 
     // The range control sits with the chart it changes.
@@ -380,19 +379,25 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     // An independent's polling needs a sentence, not just a colour. It is the
     // only series on this page the forecast does not consume.
     if (ind) {
-      const n = document.createElement('p');
+      // A div, not a p: this caption carries a <ul>, which a parser closes a
+      // paragraph to escape.
+      const n = document.createElement('div');
       n.className = 'dt-chart-cap dt-cap-warn';
-      n.innerHTML = `The amber diamonds are <b>${ind.name}</b>, who is running as an independent `
-        + `and states they would caucus with the ${ind.caucus === 'DEM' ? 'Democrats' : 'Republicans'}. `
-        + `<b>The forecast does not use them.</b> There is no major-party opponent to price the `
-        + `race against, the error curve is fitted on Democrat-versus-Republican contests, and the `
-        + `prior describes a Democrat who is not on this ballot. `
+      n.innerHTML = `The amber diamonds are <b>${ind.name}</b>, running as an independent and `
+        + `stating they would caucus with the `
+        + `${ind.caucus === 'DEM' ? 'Democrats' : 'Republicans'}. `
         + (ind.avg != null
             ? `Their polling averages <b>${ind.avg >= 0 ? 'D+' : 'R+'}${Math.abs(ind.avg).toFixed(1)}</b>`
               + (ind.spread != null ? ` across a ${ind.spread.toFixed(0)}-point spread` : '') + '. '
             : '')
-        + `The line and the fan above show a contest between the two major parties, which is not `
-        + `the contest on the ballot here.`;
+        + `<b>The forecast does not use them</b>, for three reasons:`
+        + `<ul class="pts">`
+        + `<li>No major-party opponent to price the race against.</li>`
+        + `<li>The error curve is fitted on Democrat-versus-Republican contests.</li>`
+        + `<li>The prior describes a Democrat who is not on this ballot.</li>`
+        + `</ul>`
+        + `So the line and the fan above show a two-major-party contest, which is not the contest `
+        + `on the ballot here.`;
       chartHost.append(n);
     }
 
@@ -404,9 +409,9 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
       seatHistory(chartHost, { past, race });
       const pc = document.createElement('p');
       pc.className = 'dt-chart-cap';
-      pc.innerHTML = 'Each election on its own, never joined into a line: redistricting means a '
+      pc.innerHTML = 'Each election on its own, never joined into a line: after redistricting a '
         + '2018 district and a 2026 district can share a name without sharing much territory. '
-        + 'Hollow marks are uncontested, where there is no two-party margin to compare against.';
+        + 'Hollow marks are uncontested, with no two-party margin to compare against.';
       chartHost.append(pc);
     }
 
@@ -436,8 +441,9 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
   } else {
     const p = document.createElement('p');
     p.className = 'dt-note-block';
-    p.textContent = 'This race has the same winner in all 20,000 simulations, so it is not in the ' +
-                    'conditioning payload and cannot be pinned.';
+    p.textContent = `This race has the same winner in all ` +
+                    `${sims.m.n_sims.toLocaleString()} simulations, so it is not in the ` +
+                    `conditioning payload and cannot be pinned.`;
     box.append(p);
   }
 

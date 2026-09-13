@@ -177,6 +177,15 @@ export class Sims {
     let hit = 0;
     if (thresh !== null) for (let i = 0; i < n; i++) if (vals[i] >= thresh) hit++;
     const sorted = Int16Array.from(vals).sort();
+    // ONE HALF OF A PAIR: `seat_quantile` in engine/simulate/tabulate.py is the
+    // other, and the two must return the same integer for the same draws.
+    // CHANGE BOTH OR NEITHER. The engine used to reach this number through
+    // np.percentile, which interpolates between the draws either side of
+    // (n-1)*p; this takes the draw at rank floor(p*n). They agree only when
+    // those land on the same value, so the House p10 shipped as
+    // 207.9000000000001 here against 208 -- and on another day they can differ
+    // by a whole seat with both sides printing clean integers. The diagnostics
+    // panel below compares them for equality, which is what caught it.
     const q = p => sorted[Math.min(n - 1, Math.floor(p * n))];
     const lo = sorted[0], hi = sorted[n - 1];
     const counts = new Array(hi - lo + 1).fill(0);
