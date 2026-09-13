@@ -26,6 +26,7 @@ import { C, fmtMargin, fmtPct } from '../charts/util.js';
 import { loadRaceDetail } from '../data.js';
 import { raceTrend } from '../charts/racetrend.js';
 import { varianceBar } from '../charts/variance.js';
+import { seatHistory, pollsterTable, conditionalReadout } from '../charts/racepanels.js';
 
 const row = (k, v, cls) =>
   `<div class="dt-row ${cls || ''}"><span class="dt-k">${k}</span><span class="dt-v">${v}</span></div>`;
@@ -232,7 +233,16 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
   loadRaceDetail().then(detail => {
     if (!detail || host.dataset.race !== wanted) return;
     const polls = (detail.polls || {})[wanted] || [];
-    const series = (detail.history || {})[wanted] || [];
+    // The payload stores history as parallel arrays against one shared run list,
+    // because the date, the join and whether a run is a reconstruction belong to
+    // the run and repeating them inside all 506 races cost 150 KB gzipped. It is
+    // widened back into rows here, once, where the chart wants them.
+    const runs = detail.runs || [];
+    const arr = (detail.history || {})[wanted];
+    const series = !arr ? [] : runs.map((r, i) => ({
+      a: r.a, j: r.j, r: r.r,
+      mu: arr.mu[i], s: arr.s[i], w: arr.w[i], n: arr.n[i],
+    })).filter(pt => pt.mu != null);
     chartHost.replaceChildren();
     if (!polls.length && series.length < 2) {
       chartHost.innerHTML = '<p class="dt-note-block">No polling of this race, and only one '
@@ -241,12 +251,17 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
         + 'when nobody has polled a race.</p>';
       return;
     }
+    const ind = (detail.independent || {})[wanted] || null;
+    const past = (detail.past || {})[wanted] || null;
+
     const h = document.createElement('h4');
     h.className = 'dt-h';
     h.textContent = polls.length ? 'The polling, and what the model made of it'
-                                 : 'What the model has said about this race';
+                 : ind ? 'What has been polled here, and why none of it counts'
+                 : 'What the model has said about this race';
     chartHost.append(h);
-    raceTrend(chartHost, { polls, history: series, race, sigma: race.sigma_total });
+    raceTrend(chartHost, { polls, history: series, independent: ind, race,
+                           sigma: race.sigma_total });
     const cap = document.createElement('p');
     cap.className = 'dt-chart-cap';
     const nLive = polls.filter(x => !(x.x || '').includes('s')).length;
@@ -260,16 +275,67 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
                     + `longer on the ballot; they are shown because the field changed, and counted `
                     + `for nothing. ` : '')
         : '')
-      + `The dark line is the model\u2019s estimate at each daily run. The shaded fan is where it `
-      + `expects the result to land on election day \u2014 the inner band about two thirds of the `
-      + `time, the outer about nineteen times in twenty.`;
+      + `The solid line is the model\u2019s estimate on runs it actually produced. `
+      + (series.some(pt => pt.r)
+          ? `The faint dashed line before it is a <b>reconstruction</b> \u2014 today\u2019s model `
+            + `asked what it makes of the polling that existed on each of those dates. It is not a `
+            + `record of what was forecast then, because this model has only been run daily since `
+            + `${(series.find(pt => !pt.r) || {}).a || 'recently'}, and the priors and calibration `
+            + `behind the dashed part are today\u2019s. It shows how the estimate responds to `
+            + `polling, not how it performed. `
+          : '')
+      + `The shaded fan is where the model expects the result to land on election day \u2014 the `
+      + `inner band about two thirds of the time, the outer about nineteen times in twenty.`;
     chartHost.append(cap);
+
+    // An independent's polling needs a sentence, not just a colour. It is the
+    // only series on this page the forecast does not consume.
+    if (ind) {
+      const n = document.createElement('p');
+      n.className = 'dt-chart-cap dt-cap-warn';
+      n.innerHTML = `The amber diamonds are <b>${ind.name}</b>, who is running as an independent `
+        + `and states they would caucus with the ${ind.caucus === 'DEM' ? 'Democrats' : 'Republicans'}. `
+        + `<b>The forecast does not use them.</b> There is no major-party opponent to price the `
+        + `race against, the error curve is fitted on Democrat-versus-Republican contests, and the `
+        + `prior describes a Democrat who is not on this ballot. `
+        + (ind.avg != null
+            ? `Their polling averages <b>${ind.avg >= 0 ? 'D+' : 'R+'}${Math.abs(ind.avg).toFixed(1)}</b>`
+              + (ind.spread != null ? ` across a ${ind.spread.toFixed(0)}-point spread` : '') + '. '
+            : '')
+        + `The line and the fan above show a contest between the two major parties, which is not `
+        + `the contest on the ballot here.`;
+      chartHost.append(n);
+    }
+
+    // The seat's own record, which the prior encodes and never displays.
+    if (past && past.length > 1) {
+      const ph = document.createElement('h4');
+      ph.className = 'dt-h'; ph.textContent = 'What this seat has actually done';
+      chartHost.append(ph);
+      seatHistory(chartHost, { past, race });
+      const pc = document.createElement('p');
+      pc.className = 'dt-chart-cap';
+      pc.innerHTML = 'Each election on its own, never joined into a line: redistricting means a '
+        + '2018 district and a 2026 district can share a name without sharing much territory. '
+        + 'Hollow marks are uncontested, where there is no two-party margin to compare against.';
+      chartHost.append(pc);
+    }
+
+    // Who did the polling, since `effective pollsters` names nobody.
+    if (polls.some(x => !(x.x || '').includes('s'))) {
+      const th = document.createElement('h4');
+      th.className = 'dt-h'; th.textContent = 'Who polled it';
+      chartHost.append(th);
+      pollsterTable(chartHost, { polls });
+    }
   });
 
   const varHost = box.querySelector('.dt-var');
   if (varHost && race.sigma_total) {
     varianceBar(varHost, { sigma: sig, race });
   }
+
+  conditionalReadout(box, { race, sims, forecast });
 
   if (sims.col.has(race.race_id)) {
     const b = document.createElement('button');

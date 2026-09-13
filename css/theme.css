@@ -925,3 +925,44 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
 /* The variance bar sits inside the uncertainty block, directly under the total
    it decomposes, so the rows and the picture cannot drift apart on screen. */
 .dt-var { margin: .8rem 0 .4rem; }
+
+/* ---- race drawer: the deeper panels -------------------------------------- */
+.dt-cap-warn { border-left: 2px solid var(--accent); padding-left: .7rem; }
+
+.dt-pollsters {
+  width: 100%; border-collapse: collapse; font-size: .78rem; margin: .2rem 0 1.2rem;
+}
+.dt-pollsters th {
+  text-align: left; font: 500 .68rem/1 var(--sans); letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted); padding: 0 .5rem .45rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.dt-pollsters td { padding: .4rem .5rem .4rem 0; border-bottom: 1px solid var(--line-soft);
+                   color: var(--ink-dim); vertical-align: baseline; }
+.dt-pollsters td.num { text-align: right; font-variant-numeric: tabular-nums;
+                       font-family: var(--mono); font-size: .74rem; white-space: nowrap; }
+.dt-tag { font-size: .66rem; color: var(--faint); text-transform: uppercase;
+          letter-spacing: .06em; }
+/* The bar sits behind its own number rather than in a column of its own: a share
+   and a picture of the share are one quantity and should not be two cells. */
+.dt-wbar { display: inline-block; height: .62em; background: var(--dem-deep);
+           opacity: .5; margin-right: .4rem; vertical-align: baseline;
+           max-width: 4.5rem; }
+
+.dt-cond { margin: 1.4rem 0 .6rem; border-top: 1px solid var(--line); padding-top: .9rem; }
+.dt-cond-h { font: 500 .72rem/1 var(--sans); letter-spacing: .13em; text-transform: uppercase;
+             color: var(--muted); margin-bottom: .7rem; }
+.dt-cond-row { display: grid; grid-template-columns: 1fr auto; gap: 0 .8rem;
+               align-items: baseline; padding: .4rem 0;
+               border-bottom: 1px solid var(--line-soft); }
+.dt-cond-k { font-size: .84rem; color: var(--ink); }
+.dt-cond-v { font: 600 1rem/1 var(--sans); font-variant-numeric: tabular-nums;
+             text-align: right; }
+.dt-cond-se { font-size: .7rem; font-weight: 400; color: var(--faint); }
+.dt-cond-n { grid-column: 1 / -1; font-size: .72rem; color: var(--faint); }
+.dt-cond-note { font-size: .76rem; line-height: 1.5; color: var(--muted);
+                margin: .7rem 0 0; max-width: none; }
+@media (max-width: 560px) {
+  .dt-pollsters { font-size: .72rem; }
+  .dt-pollsters td.num { font-size: .68rem; }
+}
