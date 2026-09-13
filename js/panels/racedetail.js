@@ -124,6 +124,37 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
   const box = document.createElement('div');
   box.className = 'drawer-inner';
 
+  // WIDER, BECAUSE 420px IS NOT ENOUGH FOR A CHART. The drawer was sized for a
+  // column of figures and now carries two time series and three panels; at its
+  // default width every chart in it has to scroll to stay legible. The toggle is
+  // remembered per reader in localStorage rather than in the hash: it is a
+  // preference about this screen, not part of the view a link describes, and a
+  // shared link should open the way the recipient likes it rather than the way
+  // the sender does.
+  const WIDE_KEY = 'drawer-wide';
+  let wide = false;
+  try { wide = localStorage.getItem(WIDE_KEY) === '1'; } catch { /* private window */ }
+  host.classList.toggle('wide', wide);
+
+  const grow = document.createElement('button');
+  grow.className = 'drawer-grow';
+  const label = () => {
+    grow.textContent = wide ? '⇥' : '⇤';
+    grow.title = wide ? 'Narrow this panel' : 'Widen this panel';
+    grow.setAttribute('aria-label', grow.title);
+    grow.setAttribute('aria-pressed', String(wide));
+  };
+  label();
+  grow.onclick = () => {
+    wide = !wide;
+    host.classList.toggle('wide', wide);
+    try { localStorage.setItem(WIDE_KEY, wide ? '1' : '0'); } catch { /* ignore */ }
+    label();
+    // The charts size themselves off the container, so they have to be told the
+    // container moved. util.js is already listening for exactly this.
+    dispatchEvent(new Event('resize'));
+  };
+
   const close = document.createElement('button');
   close.className = 'drawer-close'; close.textContent = '×';
   close.setAttribute('aria-label', 'Close');
@@ -285,33 +316,66 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
                  : ind ? 'What has been polled here, and why none of it counts'
                  : 'What the model has said about this race';
     chartHost.append(h);
-    raceTrend(chartHost, { polls, history: series, independent: ind, race,
-                           sigma: race.sigma_total });
-    const cap = document.createElement('p');
-    cap.className = 'dt-chart-cap';
+    let full = false;
+    const plot = document.createElement('div');
+    chartHost.append(plot);
+    const draw = () => {
+      plot.replaceChildren();
+      const r = raceTrend(plot, { polls, history: series, independent: ind, race,
+                                  sigma: race.sigma_total,
+                                  asof: forecast.meta.asof, full });
+      return r || {};
+    };
+    let meta = draw();
+    // THE CAPTION WAS ONE 937-CHARACTER PARAGRAPH under a chart, which is the
+    // shape of text people skip. The same sentences as short labelled lines:
+    // each answers one question about one thing on the chart, and a reader
+    // looking for what a hollow dot means can find it without reading the rest.
+    const cap = document.createElement('dl');
+    cap.className = 'dt-key';
     const nLive = polls.filter(x => !(x.x || '').includes('s')).length;
     const nOld = polls.length - nLive;
-    cap.innerHTML =
-      (polls.length
-        ? `Each dot is a poll, placed at the day its fieldwork ended. Area is how much that poll `
-          + `counts toward the average \u2014 older polls, partisan sponsors and campaign internals `
-          + `all count for less. `
-          + (nOld ? `<b>${nOld}</b> hollow dot${nOld === 1 ? '' : 's'} are of a matchup that is no `
-                    + `longer on the ballot; they are shown because the field changed, and counted `
-                    + `for nothing. ` : '')
-        : '')
-      + `The solid line is the model\u2019s estimate on runs it actually produced. `
-      + (series.some(pt => pt.r)
-          ? `The faint dashed line before it is a <b>reconstruction</b> \u2014 today\u2019s model `
-            + `asked what it makes of the polling that existed on each of those dates. It is not a `
-            + `record of what was forecast then, because this model has only been run daily since `
-            + `${(series.find(pt => !pt.r) || {}).a || 'recently'}, and the priors and calibration `
-            + `behind the dashed part are today\u2019s. It shows how the estimate responds to `
-            + `polling, not how it performed. `
-          : '')
-      + `The shaded fan is where the model expects the result to land on election day \u2014 the `
-      + `inner band about two thirds of the time, the outer about nineteen times in twenty.`;
+    const item = (k, v) => {
+      cap.append(Object.assign(document.createElement('dt'), { textContent: k }),
+                 Object.assign(document.createElement('dd'), { innerHTML: v }));
+    };
+    if (polls.length) {
+      item('Each dot', 'A poll, at the day its fieldwork ended. Its area is how much that poll '
+        + 'counts — older polls, partisan sponsors and campaign internals all count for less.');
+    }
+    if (nOld) {
+      item('Hollow dots', `<b>${nOld}</b> of a matchup no longer on the ballot. Shown because the `
+        + 'field changed; counted for nothing.');
+    }
+    if (series.length) {
+      const recon = series.filter(pt => pt.r).length;
+      item('The line', 'The model’s estimate at each run.'
+        + (recon ? ' The faint dashed part is a <b>reconstruction</b> — today’s model asked what '
+                 + 'it makes of the polling that existed then. It is not a record of what was '
+                 + 'forecast at the time.' : ''));
+    }
+    item('The fan', 'Where the model expects the result to land on election day — the inner band '
+      + 'about two thirds of the time, the outer about nineteen times in twenty.');
     chartHost.append(cap);
+
+    // The range control sits with the chart it changes.
+    const bar = document.createElement('div');
+    bar.className = 'dt-range';
+    const note = document.createElement('span');
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    const sync = () => {
+      note.textContent = full
+        ? 'Showing every poll on record.'
+        : `Showing the last ${meta.windowDays || 92} days`
+          + (meta.hidden ? `; ${meta.hidden} earlier poll${meta.hidden === 1 ? '' : 's'} not shown.` : '.');
+      btn.textContent = full ? 'Last 3 months' : 'Full record';
+      btn.hidden = !full && !meta.hidden;
+    };
+    btn.onclick = () => { full = !full; meta = draw(); sync(); };
+    sync();
+    bar.append(note, btn);
+    chartHost.append(bar);
 
     // An independent's polling needs a sentence, not just a colour. It is the
     // only series on this page the forecast does not consume.
@@ -377,5 +441,5 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     box.append(p);
   }
 
-  host.append(close, box);
+  host.append(grow, close, box);
 }

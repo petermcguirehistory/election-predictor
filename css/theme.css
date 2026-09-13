@@ -827,11 +827,20 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
 
 /* The chart scroller carries its own design width, so a chart that was already
    narrow never reaches the floor and never scrolls. Only the wide ones do. */
+/* --legible-w is measured per chart in js/charts/util.js: the width at which
+   that chart's own smallest label reaches 9px, capped at its design width. A
+   chart whose labels are large is still free to shrink.
+   
+   NOT INSIDE A VIEWPORT MEDIA QUERY, and it was. Keyed to `max-width: 760px`
+   this protected phones and did nothing for the race drawer, which is 420px wide
+   on a 1440px screen: every chart in it rendered at 0.54 of its design width with
+   labels at about 5px, on the widest monitor available. The floor is a fact about
+   the CONTAINER, not the window. Applied unconditionally it costs nothing in a
+   wide column -- min-width below the available width never binds -- and it
+   catches every narrow box, whatever made it narrow. */
+.chart-scroll > svg { min-width: var(--legible-w, 0px); }
+
 @media (max-width: 760px) {
-  /* --legible-w is measured per chart in js/charts/util.js: the width at which
-     that chart's own smallest label reaches 9px, capped at its design width. A
-     chart whose labels are large is still free to shrink. */
-  .chart-scroll > svg { min-width: var(--legible-w, 0px); }
   /* The table's scroll box is capped at 460px tall for the desktop layout, which
      on a phone is most of the screen given to a list you are scrolling past. */
   .table-wrap { max-height: 60vh; }
@@ -985,3 +994,35 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
   .scroll-x, .table-wrap { overscroll-behavior-x: contain; }
 }
 
+
+/* ---- drawer: width toggle, key, range control ---------------------------- */
+.drawer.wide { width: min(1040px, 96vw); }
+/* The charts inside are the reason this exists, so give them the room rather
+   than letting the prose stretch to a 1000px measure nobody can read. */
+.drawer.wide .drawer-inner { padding: 1.6rem 2.2rem 3rem; }
+.drawer.wide .dt-chart-cap, .drawer.wide .dt-cond-note { max-width: 68ch; }
+.drawer-grow {
+  position: absolute; top: .6rem; right: 2.6rem; background: none; border: 0;
+  color: var(--muted); font-size: 1.15rem; line-height: 1; cursor: pointer;
+  font-family: var(--sans);
+}
+.drawer-grow:hover { color: var(--ink); }
+.drawer-grow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The caption, as a key rather than a paragraph: one line per thing on the
+   chart, so a reader who wants to know what a hollow dot means can find that
+   without reading the other three. */
+.dt-key { margin: .8rem 0 0; font-size: .78rem; line-height: 1.5; }
+.dt-key dt {
+  font: 500 .66rem/1.4 var(--sans); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); margin: .55rem 0 .1rem;
+}
+.dt-key dd { margin: 0; color: var(--ink-dim); }
+.dt-key dd b { color: var(--ink); font-weight: 600; }
+
+.dt-range {
+  display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+  flex-wrap: wrap; margin: .9rem 0 .2rem; font-size: .76rem; color: var(--faint);
+}
+.dt-range .chip { margin-left: 0; font-size: .72rem; padding: .35rem .6rem; }
+@media (pointer: coarse) { .dt-range .chip { padding: .6rem .7rem; } }

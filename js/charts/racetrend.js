@@ -39,6 +39,19 @@ const W = 680, PH = 218, SH = 132, GAP = 34;
 const M = { t: 14, r: 92, b: 26, l: 44 };
 const ELECTION = new Date('2026-11-03');
 const parse = s => new Date(s + 'T00:00:00');
+
+// How far back the chart looks by default.
+//
+// The full record runs to April 2025 for some races, and drawing nineteen months
+// against a seven-week horizon compresses everything that matters into the right
+// quarter of the frame: Maine's ten live polls were sharing a fifth of the width
+// with twenty-nine superseded ones. Ninety days is also roughly where the model
+// stops listening -- the poll half-life is 30 days, so a poll at the edge of this
+// window carries about an eighth of the weight of today's.
+//
+// Nothing is hidden silently. Whatever falls outside is counted and named in the
+// caption, and the panel's own control opens the full range.
+const WINDOW_DAYS = 92;
 const SEP = '::';
 
 // The two feeds disagree about case: ElectIndex publishes "Troy Jackson" and
@@ -53,14 +66,25 @@ const surname = full => {
       : w));
 };
 
-export function raceTrend(host, { polls = [], history = [], independent, race, sigma }) {
-  const live = polls.filter(p => !(p.x || '').includes('s'));
-  const indPolls = (independent && independent.polls) || [];
-  if (!polls.length && history.length < 2 && !indPolls.length) return null;
+export function raceTrend(host, { polls: allPolls = [], history: allHistory = [],
+                                  independent, race, sigma, asof, full = false }) {
+  const indAll = (independent && independent.polls) || [];
+  if (!allPolls.length && allHistory.length < 2 && !indAll.length) return null;
 
+  // The window, unless the caller asked for everything.
+  const end = asof ? parse(asof) : new Date();
+  const from = new Date(end.getTime() - WINDOW_DAYS * 864e5);
+  const inWin = d => full || parse(d) >= from;
+  const polls = allPolls.filter(p => inWin(p.d));
+  const history = allHistory.filter(h => inWin(h.a));
+  const indPolls = indAll.filter(p => inWin(p.d));
+  const hidden = (allPolls.length - polls.length) + (indAll.length - indPolls.length);
+
+  const live = polls.filter(p => !(p.x || '').includes('s'));
   const dates = [...polls.map(p => parse(p.d)), ...history.map(h => parse(h.a)),
                  ...indPolls.map(p => parse(p.d)), ELECTION];
-  const x = d3.scaleUtc().domain([d3.min(dates), ELECTION]).range([M.l, W - M.r]);
+  const lo = full ? d3.min(dates) : new Date(Math.min(from, d3.min(dates) || from));
+  const x = d3.scaleUtc().domain([lo, ELECTION]).range([M.l, W - M.r]);
 
   const mus = history.map(h => h.mu).filter(v => v != null);
   const sig = sigma || 0;
@@ -278,5 +302,5 @@ export function raceTrend(host, { polls = [], history = [], independent, race, s
     xa.selectAll('line,path').attr('stroke', C.line);
   }
 
-  return s;
+  return { node: s, hidden, from, windowDays: WINDOW_DAYS };
 }
