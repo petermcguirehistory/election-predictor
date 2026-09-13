@@ -1,8 +1,13 @@
 // How this particular race got its number.
 //
 // The arithmetic is reproduced from the payload's own columns, and it agrees
-// with the engine exactly: prior_mu = lean + elasticity x environment + inc_adj,
-// and poll_weight = eff_n / (eff_n + 3), both to 0.0.
+// with the engine exactly: prior_mu = lean + elasticity x environment + inc_adj
+// + fundraising_adj, and poll_weight = eff_n / (eff_n + 3), both to 0.0.
+//
+// That formula is the panel's whole contract, and it went stale once: the
+// fundraising term shipped after this was written and was absent here for ten
+// days, which made the rows stop summing to the total on 129 races without
+// anything failing.
 //
 // The eight locked races get a different panel entirely. Their mu is OVERRIDDEN
 // to a sentinel, not blended -- a same-party general is settled, not forecast --
@@ -165,6 +170,26 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     body += row('Incumbency',
                 (inc ? `${inc >= 0 ? '+' : ''}${inc.toFixed(1)}` : '—')
                 + (incNote ? `<span class="dt-note">${incNote}</span>` : ''));
+
+    // FUNDRAISING WAS IN THE SUM AND NOT IN THE PANEL. Workstream J shipped on
+    // 2026-09-02 and this walkthrough was written before it, so for the 129
+    // races it touches the rows above added up to something other than the total
+    // printed beneath them — NJ-05 showed three numbers summing to +10.18 above
+    // a stated +16.59. A panel whose only job is to reproduce the arithmetic
+    // cannot be missing a term of it.
+    //
+    // Shown only where it is non-zero, which is the honest rendering of a term
+    // that is tapered away wherever the lean is already decisive: a row reading
+    // "0.0" on four hundred safe seats would suggest the model looked at money
+    // there and found none, when it did not look.
+    const fund = race.fundraising_adj || 0;
+    if (Math.abs(fund) > 0.005) {
+      body += row('Fundraising',
+                  `${fund >= 0 ? '+' : ''}${fund.toFixed(2)}`
+                  + `<span class="dt-note">only where the lean is not already decisive, and `
+                  + `measured against the rest of this cycle rather than in dollars. Filings run `
+                  + `to June; the fit is on full-cycle ones</span>`);
+    }
     body += row('Estimate before polls', fmtMargin(race.prior_mu), 'dt-sum');
 
     if (race.n_polls > 0) {

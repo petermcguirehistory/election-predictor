@@ -41,13 +41,14 @@ const ALARM = {
   }),
   unresolved_polls: n => ({
     title: `${n} polls could not be resolved to a two-party margin`,
-    body: `A poll is only usable once both names in it are matched to a party. Almost all of these
-           are hypothetical matchups — one poll testing several possible nominees against the same
-           opponent, which has no single two-party margin to extract. The rest are polls the feed
-           supplied without candidate names, same-party contests where both finalists share a
-           party, and polls of the handful of races where one major party has nobody on the ballot
-           at all, so a Democrat-versus-Republican number there is a reading of a contest that is
-           not being held. All are dropped rather than guessed at.`,
+    body: `A poll is only usable once both names in it are matched to a party. Most of these polled
+           somebody who is not a candidate in the race — a primary that has since been lost, or a
+           name that was speculated about and never filed — so there is no contest for the number
+           to describe. A handful test three or more names at once and have no single two-party
+           margin to extract. The rest are rows the feed supplied without candidate names,
+           same-party contests where both finalists share a party, and the races where one major
+           party has nobody on the ballot at all. All are dropped rather than guessed at, and none
+           of them is a race going unpolled: every one of these is a poll of something else.`,
   }),
   thin_poll_average: (n, f) => {
     // Which races these are matters more than how many. Computed here rather

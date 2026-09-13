@@ -1186,46 +1186,53 @@ const HEADLINE_SAY = {
     const hi = nb.ladder[String(nb.n_seats)];
     const now = f.topline.senate.control_prob;
 
-    // THE CONTESTS ARE POLLED. The note used to stop at the ladder, which left a
-    // reader to assume the assumption rests on nothing; it rests on evidence the
-    // model cannot consume, which is a different and more uncomfortable thing.
-    //
-    // The spread is quoted beside every average and is the point of the
-    // sentence, not a hedge on it: four Nebraska polls agreeing inside six
-    // points and six Idaho polls disagreeing across thirty-nine are not the same
-    // kind of fact, and an average without a spread would make them look it. A
-    // race is called out by name only when its polls agree closely enough for
-    // the average to mean something.
-    const pol = (nb.polling || []).filter(p => p.margin != null && p.n_polls > 0);
-    const tight = pol.filter(p => p.spread != null && p.spread <= 10)
-                     .sort((a, b) => Math.abs(a.margin) - Math.abs(b.margin));
+    // SCOPED TO THE SENATE RACES THIS NOTE IS ABOUT. `priced` is engine-wide and
+    // includes AK-AL, which is a House seat; counting it here produced "2 of 3
+    // no-Democrat Senate seats" out of a set of three that does not contain it.
+    const priced = nb.races.filter(r => (nb.priced || []).includes(r));
+    const held = nb.races.filter(r => !priced.includes(r));
+    const list = a => (a.length === 1 ? a[0]
+                     : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
     const show = m => `${m >= 0 ? 'D' : 'R'}+${Math.abs(m).toFixed(1)}`;
+    const by = {};
+    for (const q of (nb.polling || [])) by[q.race_id] = q;
+    const line = r => {
+      const q = by[r];
+      if (!q || q.margin == null) return `<b>${r}</b>`;
+      return `<b>${r}</b> ${q.name} ${show(q.margin)} across ${q.n_polls} `
+           + `poll${q.n_polls === 1 ? '' : 's'}`
+           + (q.spread != null ? ` spanning ${q.spread.toFixed(0)} points` : '');
+    };
 
-    const evidence = !pol.length ? '' :
-      ` Those contests <b>are</b> polled, and the forecast cannot read the polling: `
-      + pol.map(p => `<b>${p.race_id}</b> ${p.name} ${show(p.margin)} across ${p.n_polls} `
-                   + `poll${p.n_polls === 1 ? '' : 's'}`
-                   + (p.spread != null ? ` spanning ${p.spread.toFixed(0)} points` : '')).join('; ')
-      + `. The spread is the thing to read there`
-      + (tight.length
-          ? `, and only ${tight.map(t => `<b>${t.race_id}</b>`).join(' and ')} `
-            + `${tight.length === 1 ? 'has' : 'have'} polls that agree closely enough for the `
-            + `average to carry weight — ${tight.map(t => `${t.name.split(' ').pop()} at `
-              + `${show(t.margin)}`).join(', ')}.`
-          : ` — none of them agrees with itself closely enough for the average to carry weight.`)
-      + ` The model prices all three from how the state voted for president, which describes a `
-      + `Democrat who is not on this ballot. Open any of them for the polling itself.`;
+    const head = priced.length
+      ? `${priced.length} of ${nb.n_seats} no-Democrat Senate seats now priced from polling.`
+      : `The Senate number assumes ${nb.n_seats} independents lose.`;
 
-    return [
-      `The Senate number assumes ${nb.n_seats} independents lose.`,
-      `${nb.races.join(', ')} have no Democrat on the ballot, and the forecast holds all `
-      + `${nb.n_seats} Republican. If instead those independents won and caucused with Democrats, `
-      + `Democratic control of the Senate would be <b>${fmtPct(hi)}</b> rather than `
-      + `<b>${fmtPct(now)}</b>. It is the largest single assumption on this page.`
-      + evidence
-      + ` That they would caucus with Democrats is the ballot feed's claim, carried through as `
-      + `stated; an independent who caucused with neither would move none of this.`,
-    ];
+    const body =
+      `${nb.races.join(', ')} have no Democrat on the ballot and a named independent running. `
+      + `All three are polled, and the model reads the polling only where it agrees with itself: `
+      + `a spread of six points across four polls is a measurement, and a spread of thirty-nine `
+      + `is an average of disagreement. `
+      + (priced.length
+          ? `${list(priced.map(line))} — ${priced.length === 1 ? 'that one is' : 'those are'} `
+            + `priced from ${priced.length === 1 ? 'it' : 'them'} directly, carrying extra `
+            + `uncertainty because no fitted error curve in this model covers a contest with one `
+            + `major party missing. `
+          : '')
+      + (held.length
+          ? `${list(held.map(line))} — ${held.length === 1 ? 'that one is' : 'those are'} still `
+            + `forecast from how the state voted for president, which describes a Democrat who is `
+            + `not on the ballot, because ${held.length === 1 ? 'its' : 'their'} polling does not `
+            + `hold together well enough to replace it. `
+          : '')
+      + `If every one of these independents won and caucused with Democrats, Democratic control `
+      + `of the Senate would be <b>${fmtPct(hi)}</b> rather than <b>${fmtPct(now)}</b>, so it `
+      + `remains the largest single assumption on this page. That they would caucus with `
+      + `Democrats is the ballot feed's claim, carried through as stated; an independent who `
+      + `caucused with neither would move none of it. Open any of these races for the polling `
+      + `itself.`;
+
+    return [head, body];
   },
   governor_zero_poll_coverage: (n, f) => [
     'No governor race has usable polling.',
