@@ -23,6 +23,9 @@
 //     is the difference between a seat the party is defending and one it is not.
 import d3 from '../d3.js';
 import { C, fmtMargin, fmtPct } from '../charts/util.js';
+import { loadRaceDetail } from '../data.js';
+import { raceTrend } from '../charts/racetrend.js';
+import { varianceBar } from '../charts/variance.js';
 
 const row = (k, v, cls) =>
   `<div class="dt-row ${cls || ''}"><span class="dt-k">${k}</span><span class="dt-v">${v}</span></div>`;
@@ -106,8 +109,9 @@ function incumbencyNote(race, adj) {
 
 export function raceDetail(host, { race, forecast, sims, condition, onPin, onClose }) {
   host.replaceChildren();
-  if (!race) { host.hidden = true; return; }
+  if (!race) { host.hidden = true; host.dataset.race = ''; return; }
   host.hidden = false;
+  host.dataset.race = race.race_id;
 
   const env = forecast.environment.margin;
   const sig = forecast.sigma;
@@ -187,6 +191,9 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
       (race.prior_stale ? `<span class="dt-note">widened ×${
         forecast.calibration.prior.stale_multiplier.toFixed(2)} — prior joined across a redraw</span>` : ''));
     body += row('Total uncertainty', `±${race.sigma_total.toFixed(2)}`, 'dt-sum');
+    // Filled after innerHTML; see below. The four rows above are the numbers and
+    // this is their shape.
+    body += '<div class="dt-var"></div>';
 
     const q = race.quantiles;
     if (q) {
@@ -204,6 +211,65 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
   if (flags.length) body += `<div class="dt-flags">${flags.join(' · ')}</div>`;
 
   box.innerHTML = body;
+
+  // ---- the chart, mounted above the arithmetic -----------------------------
+  // Placed after `body` is written and before the pin control, so it sits at the
+  // top of the drawer where a reader looks first, and so the panel is already
+  // complete and correct if the fetch never returns. The arithmetic below it is
+  // the authority; this is the same numbers with their working shown.
+  //
+  // `race.race_id` is captured and re-checked when the fetch lands, because a
+  // reader can open a second race inside the round trip and the answer to the
+  // first would otherwise be drawn into the second one's drawer.
+  const wanted = race.race_id;
+  const chartHost = document.createElement('div');
+  chartHost.className = 'dt-chart';
+  chartHost.innerHTML = '<div class="dt-chart-wait">loading this race\u2019s polling\u2026</div>';
+  // Before the first arithmetic row, which puts it under the heading and the
+  // ballot and above the working.
+  box.insertBefore(chartHost, box.querySelector('.dt-row'));
+
+  loadRaceDetail().then(detail => {
+    if (!detail || host.dataset.race !== wanted) return;
+    const polls = (detail.polls || {})[wanted] || [];
+    const series = (detail.history || {})[wanted] || [];
+    chartHost.replaceChildren();
+    if (!polls.length && series.length < 2) {
+      chartHost.innerHTML = '<p class="dt-note-block">No polling of this race, and only one '
+        + 'run to compare against \u2014 there is nothing yet to plot. The estimate below is the '
+        + 'seat\u2019s own history and the national environment, which is what the model uses '
+        + 'when nobody has polled a race.</p>';
+      return;
+    }
+    const h = document.createElement('h4');
+    h.className = 'dt-h';
+    h.textContent = polls.length ? 'The polling, and what the model made of it'
+                                 : 'What the model has said about this race';
+    chartHost.append(h);
+    raceTrend(chartHost, { polls, history: series, race, sigma: race.sigma_total });
+    const cap = document.createElement('p');
+    cap.className = 'dt-chart-cap';
+    const nLive = polls.filter(x => !(x.x || '').includes('s')).length;
+    const nOld = polls.length - nLive;
+    cap.innerHTML =
+      (polls.length
+        ? `Each dot is a poll, placed at the day its fieldwork ended. Area is how much that poll `
+          + `counts toward the average \u2014 older polls, partisan sponsors and campaign internals `
+          + `all count for less. `
+          + (nOld ? `<b>${nOld}</b> hollow dot${nOld === 1 ? '' : 's'} are of a matchup that is no `
+                    + `longer on the ballot; they are shown because the field changed, and counted `
+                    + `for nothing. ` : '')
+        : '')
+      + `The dark line is the model\u2019s estimate at each daily run. The shaded fan is where it `
+      + `expects the result to land on election day \u2014 the inner band about two thirds of the `
+      + `time, the outer about nineteen times in twenty.`;
+    chartHost.append(cap);
+  });
+
+  const varHost = box.querySelector('.dt-var');
+  if (varHost && race.sigma_total) {
+    varianceBar(varHost, { sigma: sig, race });
+  }
 
   if (sims.col.has(race.race_id)) {
     const b = document.createElement('button');

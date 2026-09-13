@@ -31,6 +31,26 @@ async function inflate(path) {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
+// The per-race layer: every poll, and what the model said about each race on
+// every dated run. Half a megabyte raw, and read only by somebody who has opened
+// a race -- which most readers never do -- so it is fetched on the first race
+// opened rather than shipped to everyone with the page.
+//
+// Cached as the PROMISE and not the result, so two quick clicks on two races
+// start one request rather than two. A failure resolves to null instead of
+// rejecting: the panel it feeds is an enrichment, and the arithmetic beneath it
+// is already correct without it.
+let _detail = null;
+export function loadRaceDetail(base = 'data') {
+  if (!_detail) {
+    _detail = json(`${base}/racedetail.json`).catch(e => {
+      console.warn('race detail unavailable:', e.message);
+      return null;
+    });
+  }
+  return _detail;
+}
+
 export class Sims {
   constructor(buf, manifest) {
     this.buf = buf;

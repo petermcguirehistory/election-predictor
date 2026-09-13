@@ -906,3 +906,22 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
   /* The key names columns that no longer exist in that arrangement. */
   .wl-key { display: none; }
 }
+
+/* ---- the race chart ------------------------------------------------------ */
+/* Sits at the top of the drawer, above the arithmetic it illustrates. Its own
+   block rather than a bare svg, because it carries a heading and a caption and
+   they have to travel together when the drawer scrolls. */
+.dt-chart { margin: .2rem 0 1.4rem; }
+.dt-chart .dt-h {
+  font: 500 .72rem/1 var(--sans); letter-spacing: .13em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 .8rem;
+}
+.dt-chart-wait { font-size: .82rem; color: var(--faint); padding: 1.2rem 0; }
+.dt-chart-cap {
+  font-size: .78rem; line-height: 1.5; color: var(--muted);
+  margin: .7rem 0 0; max-width: none;
+}
+.dt-chart-cap b { color: var(--ink-dim); font-weight: 600; }
+/* The variance bar sits inside the uncertainty block, directly under the total
+   it decomposes, so the rows and the picture cannot drift apart on screen. */
+.dt-var { margin: .8rem 0 .4rem; }
