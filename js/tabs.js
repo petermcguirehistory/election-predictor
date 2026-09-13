@@ -10,7 +10,12 @@
 // section's paint while its tab is off screen. See the note on `paint` there for
 // what that is and is not worth.
 
+import { scrollAffordance } from './charts/util.js';
+
 export function mountTabs({ list, onSelect }) {
+  // Six labels do not fit a phone, so the strip scrolls -- and a strip that
+  // scrolls without saying so is a strip that appears to have four tabs on it.
+  scrollAffordance(list);
   const panels = Array.from(document.querySelectorAll('[data-tab]'));
   const owner = new Map();
   for (const p of panels) {

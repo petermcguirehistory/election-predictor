@@ -270,7 +270,7 @@ a { color: var(--dem); text-decoration-thickness: 1px; text-underline-offset: 2p
 }
 .panel.pending { color: var(--faint); }
 .panel.pending h3 { color: var(--muted); }
-.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
 
 /* ---- caveat strip ------------------------------------------------------ */
 .caveats { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
@@ -460,10 +460,10 @@ svg :focus-visible { outline:2px solid var(--accent); }
 .dt-pin { margin-top:1.5rem; margin-left:0; }
 
 /* ---- calibration + limits ---------------------------------------------- */
-.three-col { display:grid; gap:2rem; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); align-items:start; }
+.three-col { display:grid; gap:2rem; grid-template-columns:repeat(auto-fit,minmax(min(290px,100%),1fr)); align-items:start; }
 .three-col h3 { font-size:.95rem; margin-bottom:.7rem; }
 
-.limits { display:grid; gap:.5rem; margin:.8rem 0 2rem; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); }
+.limits { display:grid; gap:.5rem; margin:.8rem 0 2rem; grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr)); }
 .limit { background:var(--surface); border:1px solid var(--line); border-left:2px solid var(--line);
          border-radius:2px; }
 .limit.alarm { border-left-color:var(--warn); }
@@ -487,7 +487,7 @@ svg :focus-visible { outline:2px solid var(--accent); }
 .flow-net { display:flex; align-items:baseline; gap:.9rem; margin-bottom:1.4rem; }
 .fn-n { font:400 3rem/1 var(--serif); font-variant-numeric:tabular-nums; }
 .fn-l { color:var(--muted); font-size:.85rem; }
-.flow-cols { display:grid; gap:2rem; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); align-items:start; }
+.flow-cols { display:grid; gap:2rem; grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr)); align-items:start; }
 .flow-cols h3 { font-size:.92rem; font-weight:500; color:var(--ink-dim); margin-bottom:.6rem; }
 .flow-cols h3 b { color:var(--ink); font-size:1.05rem; }
 .fc-sub { color:var(--muted); font-weight:400; font-size:.8rem; }
@@ -762,3 +762,147 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
 .mv-note { grid-area: note; font-size: .75rem; color: var(--faint); }
 .mv-wide { font-style: italic; }
 .mv-foot { margin: .6rem 0 0; font-size: .78rem; color: var(--faint); }
+
+/* A section the current scope cannot ask for. Set in js/main.js, alongside the
+   badge, and deliberately not `hidden` -- that attribute belongs to the payload.
+   `!important` because the panel-level rules that lay these out are more
+   specific, and a section that is meant to be gone must actually be gone. */
+.scope-hidden { display: none !important; }
+
+/* ---- narrow viewports ---------------------------------------------------- */
+/* This page is read on a phone now that it has an address, and the thing that
+   broke there was never the prose -- it was the charts. Every chart is laid out
+   in viewBox units at a fixed design width and then given `width:100%`, which
+   scales the LABELS along with everything else. Measured at 390px: the race
+   swarm rendered at 0.40 of its design width and its axis text at 4.4px, the
+   seat dotplot at 0.50 and 5.5px, the trend at 0.51 and 5.1px. Axis text on this
+   page is 9.4 to 11.1 viewBox units, so the scale at which the smallest of it
+   still clears 8.5px is about 0.9 -- and that is the floor below which a chart
+   scrolls instead of shrinking.
+   
+   Shrinking further does not produce a smaller readable chart. The marks
+   collide as well: 426 dots across 358px is a smudge whatever size its labels
+   are, and zooming a raster of it recovers nothing. */
+
+/* `min-width: 0` on both, and it is load-bearing rather than defensive. A flex
+   or grid item takes its automatic minimum size from its content, and the
+   content here now declares a min-width of up to 0.9 x the design width -- so
+   without this the scroller does not scroll, it INFLATES every ancestor it sits
+   in and the whole page scrolls sideways instead. Measured: adding the chart
+   floor without this took the page from 395px wide to 485px. */
+.xscroll-frame { position: relative; min-width: 0; max-width: 100%; }
+/* `min-width: 0` is not enough on its own: it fixes the scroller's own automatic
+   minimum size but the frame still CONTRIBUTES the content's min-content width
+   upward, so any ancestor that sizes to its contents -- an auto grid track, a
+   plain block inside one -- grows to 468px and takes the page with it. This
+   makes the scroller's inline size independent of what is inside it, which is
+   the whole claim a scroll container is supposed to be making. */
+.xscroll { overflow-x: auto; overscroll-behavior-x: contain;
+           min-width: 0; max-width: 100%; contain: inline-size; }
+
+/* The fade is the affordance, and it hangs off a class set from a measurement
+   (js/charts/util.js) because no CSS can know whether a given scroller actually
+   overflows -- that depends on the payload, the scope and the viewport. It sits
+   on the FRAME, not the scroller, so it does not slide away on the first swipe.
+   `is-scrollable` is cleared at the right-hand end, so the fade is never a
+   promise of content that is not there. */
+.xscroll-frame {
+  /* What the fade fades TO. The default is the page, which is what almost every
+     chart sits on; the race table sits on a lighter surface and says so. A fade
+     to the wrong colour reads as a band drawn across the content rather than as
+     an edge. */
+  --fade-to: var(--bg);
+}
+.xscroll-frame::after {
+  content: ''; position: absolute; inset-block: 0; right: 0; width: 2.25rem;
+  pointer-events: none; opacity: 0; transition: opacity .18s ease;
+  /* A smooth ramp the whole width. The first version went fully opaque at 78%
+     and the last fifth of it was a flat dark block sitting on the chart. */
+  background: linear-gradient(to right, transparent, var(--fade-to));
+}
+.xscroll-frame.is-scrollable::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .xscroll-frame::after { transition: none; }
+}
+
+/* The chart scroller carries its own design width, so a chart that was already
+   narrow never reaches the floor and never scrolls. Only the wide ones do. */
+@media (max-width: 760px) {
+  /* --legible-w is measured per chart in js/charts/util.js: the width at which
+     that chart's own smallest label reaches 9px, capped at its design width. A
+     chart whose labels are large is still free to shrink. */
+  .chart-scroll > svg { min-width: var(--legible-w, 0px); }
+  /* The table's scroll box is capped at 460px tall for the desktop layout, which
+     on a phone is most of the screen given to a list you are scrolling past. */
+  .table-wrap { max-height: 60vh; }
+}
+
+/* ---- touch targets ------------------------------------------------------- */
+/* 44px is the usual floor and several controls sat at 22 to 30. Inline controls
+   inside running prose cannot simply grow -- a 44px-tall button in a paragraph
+   sets its own line height and opens a gap in the text -- so those take the hit
+   area from a pseudo-element instead, which is invisible to layout. */
+@media (pointer: coarse) {
+  .toggle button, .chip { padding: 1rem .9rem; }
+  /* The scope strip has its own narrow-width rule at 560px which is the more
+     specific selector, so it has to be named here or it keeps its 30px. Only the
+     vertical padding grows: the horizontal padding is small at that width
+     because four labels have to fit across a phone, and that has not changed. */
+  .scope-ctl .toggle button { padding: 1rem .6rem; }
+  .tab { padding: 1.15rem .05rem; }
+
+  .tl-inline, .tl-link, .wl-row, .mv-row {
+    position: relative;
+  }
+  .tl-inline::before, .tl-link::before {
+    content: ''; position: absolute; inset: -11px -8px;
+  }
+  .tl-link { padding: .5rem .75rem; }
+
+  /* The walkthrough's step dots were 34x4: a 4px-tall control is a target you
+     hit by luck. The bar stays 4px because it reads as a progress rule rather
+     than as a row of buttons; only the hit area grows. */
+  .wt-dots { gap: .55rem; }
+  .wt-dot { position: relative; }
+  .wt-dot::before { content: ''; position: absolute; inset: -20px -4px; }
+
+  /* A tooltip that must be dismissed by tapping elsewhere should not itself be
+     the thing under the finger. */
+  .tip { max-width: min(17rem, calc(100vw - 2rem)); }
+}
+
+/* ---- the watchlist row --------------------------------------------------- */
+/* Five columns at 4.6 + 3.2 + 6 + 5.4rem of fixed track, four .9rem gaps and
+   1.8rem of padding need 393px before the name column gets anything at all,
+   which is why 390px was the width at which this page scrolled sideways. The
+   row becomes two lines rather than five squeezed columns: what the race is on
+   the first, how it is moving on the second. */
+@media (max-width: 560px) {
+  /* `13rem 1fr 5rem` plus its gaps and padding needs 336px before the bar gets
+     anything, which is why the Method tab scrolled sideways on a 320px phone.
+     Same treatment as the watchlist row: the cause and its size on one line, the
+     bar it is drawn on beneath. */
+  .mv-row {
+    grid-template-columns: minmax(0, 1fr) 4.5rem;
+    grid-template-areas: 'k    v'
+                         'bar  bar'
+                         'note note';
+    gap: .35rem .7rem; padding: .6rem .7rem;
+  }
+  .mv-bar { margin-top: .1rem; }
+
+  .wl-row {
+    grid-template-columns: minmax(0, 1fr) 3.4rem;
+    grid-template-areas: 'id  p'
+                         'who p'
+                         'bar v2';
+    gap: .15rem .8rem; padding: .7rem .8rem;
+  }
+  .wl-id  { grid-area: id; }
+  .wl-who { grid-area: who; white-space: normal; }
+  .wl-p   { grid-area: p; align-self: center; font-size: .95rem; }
+  .wl-bar { grid-area: bar; margin-top: .45rem; }
+  .wl-v2  { grid-area: v2; text-align: right; margin-top: .4rem; }
+  /* The key names columns that no longer exist in that arrangement. */
+  .wl-key { display: none; }
+}

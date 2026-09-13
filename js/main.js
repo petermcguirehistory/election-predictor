@@ -265,15 +265,20 @@ function renderScopeTags(s) {
     badge.title = d.why || '';
     badge.dataset.set = '1';
 
-    // The explanation is a visible line, not a tooltip. A reader who set the
-    // scope to Senate and is looking at a House map needs to be told why on the
-    // page, not on hover -- and on a touch screen there is no hover at all.
-    if (off && d.why) {
-      note.innerHTML = `<b>Showing ${d.can.map(chamberName).join(' and ')} whatever the scope says.</b> ${d.why}`;
-      note.hidden = false;
-    } else {
-      note.hidden = true;
-    }
+    // A section the scope cannot ask for is REMOVED, not annotated. This used to
+    // stay on the page carrying a line explaining why it was not about the
+    // chamber you had selected -- which is a footnote apologising for its own
+    // presence. Selecting Senate is a request to be shown the Senate, and the
+    // House districting map is not a qualified answer to it, it is a different
+    // question.
+    //
+    // A CLASS AND NOT `hidden`. `hidden` already means something else here: it
+    // is what the payload sets when a chamber is absent altogether, and tabs.js
+    // reads it to decide whether a tab has anything left to show. Two mechanisms
+    // writing one attribute is how a section comes back from the dead when the
+    // scope changes.
+    sec.classList.toggle('scope-hidden', off);
+    note.hidden = true;
   }
 }
 

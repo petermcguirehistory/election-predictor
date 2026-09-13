@@ -1,7 +1,7 @@
 // The fallback for every question the graphics do not answer, and the
 // table view the accessibility pass requires: nothing above is available
 // only as colour.
-import { C, fmtMargin } from '../charts/util.js';
+import { C, fmtMargin, scrollAffordance } from '../charts/util.js';
 
 const COLS = [
   { k: 'competitive', label: 'Race', get: r => Math.abs(r.win_prob - 0.5), fmt: r => r.race_id },
@@ -43,6 +43,9 @@ export function raceTable(host, { races, scopeLabel = 'races', onPick }) {
   const t = document.createElement('table'); t.className = 'races';
   wrap.append(t);
   host.append(bar, wrap);
+  // Seven columns do not fit a phone and the wrap already scrolled; what it did
+  // not do was say so, so the table simply looked cut off at MEDIAN MARGIN.
+  scrollAffordance(wrap).style.setProperty('--fade-to', 'var(--surface)');
 
   function draw() {
     const q = filter.trim().toLowerCase();

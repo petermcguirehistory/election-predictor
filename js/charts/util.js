@@ -86,6 +86,17 @@ export function showTip(evt, html) {
 }
 export const hideTip = () => { if (tipEl) tipEl.style.display = 'none'; };
 
+// A hover tooltip on a touch screen has no hover to end. `pointerleave` does
+// fire for a touch pointer, but only when the finger lifts -- and not at all if
+// the gesture turns into a scroll, which leaves the tip pinned over the chart
+// with no way to dismiss it. Scrolling and the next touch elsewhere both clear
+// it. Capture, because the scroll happens inside .chart-scroll rather than on
+// the window.
+addEventListener('scroll', hideTip, { passive: true, capture: true });
+addEventListener('pointerdown', e => {
+  if (tipEl && tipEl.style.display === 'block' && e.pointerType !== 'mouse') hideTip();
+}, { passive: true, capture: true });
+
 // Attach hover + keyboard focus to a selection. Hit targets are the marks
 // themselves plus an invisible overlay where marks are smaller than 8px.
 export function hoverable(sel, html) {
@@ -101,14 +112,147 @@ export function hoverable(sel, html) {
   return sel;
 }
 
+// Charts are laid out in viewBox units at a fixed design width and then scaled
+// to whatever column they land in. That scales the LABELS too, and below about
+// 90% of the design width they stop being readable: axis text on this page is
+// 9.4 to 11.1 viewBox units, so at 0.9 the smallest of it lands at 8.5px and at
+// the 0.40 a phone was giving the race swarm it lands at 4.4px. A chart squeezed
+// that far has not become a smaller readable chart, it has become a smudge --
+// and the marks collide as well, so nothing is recovered by zooming.
+//
+// So a narrow viewport scrolls the chart at a legible scale rather than shrinking
+// it. `--design-w` is what the layout asked for; theme.css holds the floor and
+// the media query. Charts that were already narrow never reach it and never
+// scroll.
+// An element that scrolls sideways and does not say so reads as an element that
+// has been cut off. The page cannot know in CSS whether a given scroller
+// actually overflows -- that depends on the payload, the scope and the viewport
+// -- so the class is set from the measurement and the fade hangs off it.
+//
+// The frame is a separate element from the scroller because the fade must NOT
+// scroll with the content: painted inside, it would slide away on the first
+// swipe and sit in the middle of the chart.
+const SCROLLERS = new Set();
+// Which scrollers have ever been in the document. A scroller is pruned when it
+// leaves the page -- panels repaint constantly and the set would otherwise grow
+// for the life of the session -- but "not in the document" and "gone" are only
+// the same thing AFTER it has been in the document once.
+//
+// Several panels build their chart detached and attach it afterwards, so the
+// prune ran on the synchronous remark() inside the scroller's own registration
+// and deleted it on the spot. Six of the nine charts were removed from the set
+// by the call that added them, which is why the playing field never calibrated
+// and never scrolled while the three charts drawn into an attached host did.
+const SEEN = new WeakSet();
+let scrollWatch = null;
+
+// The floor below which a chart scrolls instead of shrinking, expressed as the
+// thing that actually matters: the smallest label it contains, in real pixels.
+//
+// The first version of this used one factor for every chart -- 0.9 of the design
+// width -- which is a proxy for legibility rather than legibility. It put six
+// charts comfortably over 9px and left the correlation matrix at 8.5px, because
+// that chart's labels are 9.4 viewBox units where the rest of the page uses 10
+// to 11. A constant cannot know that. This measures each chart's own smallest
+// label and asks for exactly the width that keeps it at MIN_LABEL_PX, capped at
+// the design width, so a chart with large labels is still free to shrink and one
+// with small labels is not.
+const MIN_LABEL_PX = 9;
+
+function calibrate(s) {
+  const svg = s.querySelector('svg');
+  const vb = svg && svg.getAttribute('viewBox');
+  if (!vb) return;
+  const vbw = Number(vb.split(/[\s,]+/)[2]);
+  if (!vbw) return;
+  // Re-measured whenever the label count changes, and NOT latched on the first
+  // look. svg() returns before its caller has drawn anything, so the first
+  // observation can land on a chart carrying only its title -- which is the
+  // largest text in it. Latching there recorded a floor from the one label that
+  // did not need protecting, and left five charts on the playing field at 8.2px
+  // while reporting success.
+  const texts = svg.querySelectorAll('text');
+  if (s.dataset.nText === String(texts.length)) return;
+  let min = Infinity;
+  for (const t of texts) {
+    if (!t.textContent.trim()) continue;
+    const fs = parseFloat(getComputedStyle(t).fontSize);
+    if (fs) min = Math.min(min, fs);
+  }
+  // No text yet means the chart has not drawn. Leave it uncalibrated and try
+  // again rather than recording a floor of zero.
+  if (!isFinite(min)) return;
+  s.dataset.nText = String(texts.length);
+  s.style.setProperty('--legible-w',
+    `${Math.round(vbw * Math.min(1, MIN_LABEL_PX / min))}px`);
+}
+
+// `calib` is off for scroll events: re-reading every label's computed style on
+// every scroll frame is the one way this could cost anything, and a scroll
+// cannot change what a label measures.
+function remark(calib = true) {
+  for (const s of SCROLLERS) {
+    if (s.isConnected) SEEN.add(s);
+    else if (SEEN.has(s)) { SCROLLERS.delete(s); scrollWatch.unobserve(s); continue; }
+    else continue;                       // built detached; it will be attached shortly
+    if (calib && s.classList.contains('chart-scroll')) calibrate(s);
+    const over = s.scrollWidth > s.clientWidth + 1;
+    const atEnd = s.scrollLeft + s.clientWidth >= s.scrollWidth - 1;
+    s.parentElement.classList.toggle('is-scrollable', over && !atEnd);
+    s.parentElement.classList.toggle('is-scrolled', s.scrollLeft > 1);
+  }
+}
+
+// Wrap `el` in a frame and keep that frame told whether `el` is currently
+// scrollable. Returns the frame.
+export function scrollAffordance(el) {
+  const frame = document.createElement('div');
+  frame.className = 'xscroll-frame';
+  el.parentNode.insertBefore(frame, el);
+  frame.append(el);
+  el.classList.add('xscroll');
+  SCROLLERS.add(el);
+  if (!scrollWatch) {
+    scrollWatch = new ResizeObserver(remark);
+    addEventListener('resize', remark, { passive: true });
+  }
+  scrollWatch.observe(el);
+  el.addEventListener('scroll', () => remark(false), { passive: true });
+
+  // A ResizeObserver on the scroller is not enough to catch the labels arriving.
+  // svg() returns before its caller has drawn anything, and drawing into a fixed
+  // viewBox changes neither the scroller's width (it is contained) nor, for most
+  // of these charts, its height -- so the observer never fires a second time and
+  // the calibration is taken on an empty chart forever. That is what left the
+  // playing field at 8.2px while the correlation matrix, whose height does move
+  // as it draws, calibrated correctly: the same code, passing and failing on
+  // whether a chart happened to change size.
+  const drawn = el.querySelector('svg');
+  if (drawn) {
+    let queued = false;
+    const mo = new MutationObserver(() => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; remark(); });
+    });
+    mo.observe(drawn, { childList: true, subtree: true });
+  }
+  remark();
+  requestAnimationFrame(() => remark());
+  return frame;
+}
+
 export function svg(host, width, height, label) {
-  const s = d3.select(host).append('svg')
+  const scroll = d3.select(host).append('div').attr('class', 'chart-scroll');
+  scroll.node().style.setProperty('--design-w', `${width}px`);
+  const s = scroll.append('svg')
     .attr('viewBox', `0 0 ${width} ${height}`)
     .attr('width', '100%')
     .attr('role', 'img')
     .attr('aria-label', label)
     .style('display', 'block')
     .style('overflow', 'visible');
+  scrollAffordance(scroll.node());
   return s;
 }
 
