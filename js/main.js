@@ -34,7 +34,7 @@ import { baseline, series } from './history.js';
 import { mountTabs } from './tabs.js';
 
 const store = {
-  data: null, pins: [], scope: 'house', mapMode: 'prob', vsup: true,
+  data: null, pins: [], scope: 'all', mapMode: 'prob', vsup: true,
   detail: null, playing: false, layout: 'hex', tab: 'forecast',
   _subs: new Set(),
   subscribe(fn) { this._subs.add(fn); return () => this._subs.delete(fn); },
@@ -63,7 +63,12 @@ const store = {
 // this they cannot hand it to anybody. Everything that changes what is on screen
 // lives in the hash, so a link carries the view.
 const HASH_KEYS = ['tab', 'scope', 'layout', 'mapMode', 'vsup'];
-const HASH_DEFAULT = { tab: 'forecast', scope: 'house', layout: 'hex', mapMode: 'prob', vsup: true };
+// `scope` MUST match the store's initial value above. writeHash omits a key
+// exactly when it holds its default and readHash supplies the default when the
+// key is absent, so a disagreement between the two means the page opens on one
+// scope and an empty hash reads back as another — the lossy round trip of
+// finding 40, in the one place it cannot be seen without a link to compare.
+const HASH_DEFAULT = { tab: 'forecast', scope: 'all', layout: 'hex', mapMode: 'prob', vsup: true };
 
 // The hash is the whole view, so reading it has to be TOTAL: a key that is
 // absent means the default, never "leave whatever is there".
