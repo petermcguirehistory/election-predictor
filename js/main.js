@@ -1185,12 +1185,46 @@ const HEADLINE_SAY = {
       'The Senate probability assumes their independents lose.'];
     const hi = nb.ladder[String(nb.n_seats)];
     const now = f.topline.senate.control_prob;
+
+    // THE CONTESTS ARE POLLED. The note used to stop at the ladder, which left a
+    // reader to assume the assumption rests on nothing; it rests on evidence the
+    // model cannot consume, which is a different and more uncomfortable thing.
+    //
+    // The spread is quoted beside every average and is the point of the
+    // sentence, not a hedge on it: four Nebraska polls agreeing inside six
+    // points and six Idaho polls disagreeing across thirty-nine are not the same
+    // kind of fact, and an average without a spread would make them look it. A
+    // race is called out by name only when its polls agree closely enough for
+    // the average to mean something.
+    const pol = (nb.polling || []).filter(p => p.margin != null && p.n_polls > 0);
+    const tight = pol.filter(p => p.spread != null && p.spread <= 10)
+                     .sort((a, b) => Math.abs(a.margin) - Math.abs(b.margin));
+    const show = m => `${m >= 0 ? 'D' : 'R'}+${Math.abs(m).toFixed(1)}`;
+
+    const evidence = !pol.length ? '' :
+      ` Those contests <b>are</b> polled, and the forecast cannot read the polling: `
+      + pol.map(p => `<b>${p.race_id}</b> ${p.name} ${show(p.margin)} across ${p.n_polls} `
+                   + `poll${p.n_polls === 1 ? '' : 's'}`
+                   + (p.spread != null ? ` spanning ${p.spread.toFixed(0)} points` : '')).join('; ')
+      + `. The spread is the thing to read there`
+      + (tight.length
+          ? `, and only ${tight.map(t => `<b>${t.race_id}</b>`).join(' and ')} `
+            + `${tight.length === 1 ? 'has' : 'have'} polls that agree closely enough for the `
+            + `average to carry weight — ${tight.map(t => `${t.name.split(' ').pop()} at `
+              + `${show(t.margin)}`).join(', ')}.`
+          : ` — none of them agrees with itself closely enough for the average to carry weight.`)
+      + ` The model prices all three from how the state voted for president, which describes a `
+      + `Democrat who is not on this ballot. Open any of them for the polling itself.`;
+
     return [
       `The Senate number assumes ${nb.n_seats} independents lose.`,
       `${nb.races.join(', ')} have no Democrat on the ballot, and the forecast holds all `
       + `${nb.n_seats} Republican. If instead those independents won and caucused with Democrats, `
       + `Democratic control of the Senate would be <b>${fmtPct(hi)}</b> rather than `
-      + `<b>${fmtPct(now)}</b>. It is the largest single assumption on this page.`,
+      + `<b>${fmtPct(now)}</b>. It is the largest single assumption on this page.`
+      + evidence
+      + ` That they would caucus with Democrats is the ballot feed's claim, carried through as `
+      + `stated; an independent who caucused with neither would move none of this.`,
     ];
   },
   governor_zero_poll_coverage: (n, f) => [
