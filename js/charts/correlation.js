@@ -10,6 +10,7 @@
 // something visible. If the ordering came out as noise, that finding would be
 // wrong.
 import d3 from '../d3.js';
+import { term } from '../glossary.js';
 import { C, svg, showTip, hideTip } from './util.js';
 
 // `idx` is the selected draws under a pin, or null for all of them. This panel
@@ -154,22 +155,20 @@ export function correlationMatrix(host, { sims, races, condition, sigmaState, to
   const note = document.createElement('p');
   note.className = 'chart-note';
   note.innerHTML =
-    `Each cell is how strongly two races move together across all the simulations: <b>0</b> means ` +
-    `knowing one tells you nothing about the other, <b>1</b> means they always move as one. Shown ` +
-    `for the ${Math.min(topN, oid.length)} closest races of ${races.length} ${scopeLabel}. ` +
-    `Colour saturates at the strongest pair here, ${hi.toFixed(2)}; the diagonal is 1 by ` +
-    `definition and is left blank.<br><br>` +
-    `The order of the rows comes from clustering the simulated outcomes themselves, and ` +
-    `<b>no geography was given to the clustering</b> — states show up as blocks because the ` +
-    `model's errors really are shared inside them, not because anything put them next to each ` +
-    `other. Two races in the same state correlate <b>${mean(sameState).toFixed(2)}</b> on average, ` +
-    `against <b>${mean(cross).toFixed(2)}</b> for two races in different states. That difference ` +
-    `is the state-level error term (${sigmaState} points), and it is why these are not ` +
-    `${races.length} independent coin flips.` +
-    (live
-      ? ` <b>Recomputed over the ${condition.n.toLocaleString()} draws matching your pins</b>, with the
-         clustering order held fixed so the axes do not move. A pinned race is the same in every
-         matching draw, so it correlates with nothing — that is what holding it fixed means.`
-      : '');
+    `<b>${term('correlation')}</b> between every pair of the ${Math.min(topN, oid.length)} `
+    + `closest ${scopeLabel} of ${races.length}, across `
+    + `${live ? condition.n.toLocaleString() : sims.m.n_sims.toLocaleString()} draws. `
+    + `Colour saturates at the strongest pair here, ${hi.toFixed(2)}; the diagonal is 1 and blank.`
+    + `<br><br>Row order comes from clustering the simulated outcomes. <b>No geography was given `
+    + `to the clustering</b> — states appear as blocks because the errors really are shared inside `
+    + `them.`
+    + `<br><br>Same state: <b>${mean(sameState).toFixed(2)}</b> on average. Different states: `
+    + `<b>${mean(cross).toFixed(2)}</b>. That gap is the state-level ${term('sigma')} `
+    + `(${sigmaState} points), and it is why these are not ${races.length} independent coin flips.`
+    + (live
+        ? ` <br><br><b>Recomputed over your pinned draws</b>, with the clustering order held fixed `
+          + `so the axes do not move. A pinned race is the same in every matching draw, so it `
+          + `correlates with nothing.`
+        : '');
   host.append(note);
 }

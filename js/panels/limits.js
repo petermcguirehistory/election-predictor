@@ -1,3 +1,4 @@
+import { term } from '../glossary.js';
 // What could be wrong.
 //
 // Two different things are collapsed together on most forecast sites and are
@@ -9,6 +10,16 @@
 // Both are on the page rather than behind a methodology link, because a reader
 // who does not scroll to the methodology is exactly the reader who most needs
 // to know how old the generic ballot is.
+// A fact table, for the numbers that were being carried in sentences.
+//
+// "the data said 1.465 against the assumed 1.625, across 97 races and three
+// cycles" is four figures and their relationships encoded as English, which a
+// reader has to parse back into a table before it means anything. So it is a
+// table. The prose above it then only has to say what the table is for.
+const facts = rows => '<table class="fx"><tbody>'
+  + rows.filter(Boolean).map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('')
+  + '</tbody></table>';
+
 const ALARM = {
   generic_ballot_stale: d => ({
     title: `The generic ballot is ${d} days stale`,
@@ -41,14 +52,15 @@ const ALARM = {
   }),
   unresolved_polls: n => ({
     title: `${n} polls could not be resolved to a two-party margin`,
-    body: `A poll is only usable once both names in it are matched to a party. Most of these polled
-           somebody who is not a candidate in the race — a primary that has since been lost, or a
-           name that was speculated about and never filed — so there is no contest for the number
-           to describe. A handful test three or more names at once and have no single two-party
-           margin to extract. The rest are rows the feed supplied without candidate names,
-           same-party contests where both finalists share a party, and the races where one major
-           party has nobody on the ballot at all. All are dropped rather than guessed at, and none
-           of them is a race going unpolled: every one of these is a poll of something else.`,
+    body: `A poll is usable once both names in it match a candidate in the race. These did not.`
+      + facts([
+          ['Not a candidate', 'A primary since lost, or a name speculated about that never filed.'],
+          ['Three or more names', 'No single two-party margin to extract.'],
+          ['No names supplied', 'The feed gave percentages without candidates.'],
+          ['Same-party general', 'Both finalists share a party.'],
+          ['No major-party opponent', 'One party has nobody on that ballot.'],
+        ])
+      + `<p>None of these is a race going unpolled. Each is a poll of something else.</p>`,
   }),
   thin_poll_average: (n, f) => {
     // Which races these are matters more than how many. Computed here rather
@@ -74,16 +86,16 @@ const ALARM = {
                     .slice(0, 3);
     return {
       title: `${n} races rest on roughly one poll`,
-      body: `After weighting for age, pollster lean and pollster accuracy, each of these races is
-             worth fewer than one and a half independent readings — so a single new poll can move
-             any of them noticeably. The model already widens their error bars for exactly this
-             reason, and holds a single poll to about a quarter of the weight, with the seat's own
-             history carrying the rest. That is the honest response to thin polling and it is not a
-             substitute for having more of it.
-             <b>${live.length} of these ${n} are still competitive</b>${top.length ? `, and they
-             include some of the races most likely to be the one that decides control:
-             ${top.map(r => `<b>${r.race_id}</b>`).join(', ')}` : ''}. Where this model is least
-             certain and where it matters most are not independent of each other.`,
+      body: `Each of these carries an ${term('effective-n')} below `
+        + `${thin.toFixed(1)} — so one new poll moves it noticeably.`
+        + facts([
+            ['How it is handled', `The ${term('poll-weight')} holds a single poll to about a `
+              + `quarter, with the seat's ${term('prior')} carrying the rest, and the `
+              + `${term('sigma')} is widened.`],
+            ['Still competitive', `<b>${live.length}</b> of ${n}`],
+            top.length && ['Among the decisive', `${top.map(r => `<b>${r.race_id}</b>`).join(', ')} `
+              + `— some of the races most often the ${term('tipping-point')}`],
+          ]),
     };
   },
   third_party_share: (n, f) => ({
@@ -106,14 +118,15 @@ const ALARM = {
   }),
   incumbency_hand_list_stale: n => ({
     title: `${n} races where the ballot feed overruled the hand-kept incumbency list`,
-    body: `The federal filing record says who holds a seat and not whether they are running for it
-           — a retiring senator still files. That fact has to come from somewhere else, and it used
-           to come from a list kept by hand. A hand-kept list is not wrong when it is written; it
-           rots. So the ballot feed is authoritative and the list is kept only to be checked
-           against it, which is how six Republican-held Senate seats were caught being credited an
-           incumbency bonus for a senator who is not on the ballot. These are the remaining
-           disagreements. The feed wins every one of them, so nothing here changes a number — it
-           records that the older source has drifted.`,
+    body: `The federal filing record says who holds a seat, not whether they are running for it: a
+           retiring senator still files. That fact comes from the ballot feed.`
+      + facts([
+          ['Authority', 'The ballot feed, on every disagreement.'],
+          ['The hand list', 'Kept only to be checked against it.'],
+          ['What that caught', 'Six Republican-held Senate seats credited an incumbency bonus for '
+            + 'a senator not on the ballot.'],
+          ['These rows', 'Remaining disagreements. None changes a number.'],
+        ]),
   }),
   governor_zero_poll_coverage: () => ({
     title: 'Governor races have no usable polls',
@@ -142,24 +155,26 @@ const STRUCTURAL = (f) => [
            the country rather than against it. The cap costs accuracy on paper and is kept anyway;
            it is re-checked on every run rather than taken on trust.` },
   ((pa, gov) => ({
-    title: 'How uncertain a governor race is before polling was assumed, not measured',
-    body: `Every other uncertainty in this model was fitted to past elections. This one is the
-           House figure multiplied by <b>${pa.bound ? pa.bound.shipped_ratio : '—'}</b>, a number
-           nobody has ever checked against results. The Senate's equivalent <em>was</em> checked —
-           the data said 1.465 against the assumed 1.625, across 97 races and three cycles, close
-           enough that the assumption was kept. No such test exists for governors: the returns
-           needed for it are not published in a usable form, since the standard tidy series covers
-           President, Senate and House only and has no 2022 state file at all.` +
-          (pa.bound ? `<br><br>
-           So instead of fitting it, the model asks what being wrong about it would cost. Re-running
-           the forecast at every ratio from <b>${(+pa.bound.range[0]).toFixed(2)} to
-           ${(+pa.bound.range[1]).toFixed(2)}</b> — the full spread the Senate figure showed across
-           its own three cycles — leaves the median at
-           ${pa.bound.median_values.join(' / ')} governorships at every single point, and moves the
-           expected count by <b>${pa.bound.expected_span}</b> of a seat. That is not luck: most of
-           the ${gov.of} governor races have polls, so this number only fully governs the handful
-           that do not, and those are safe either way. The assumption is unverified; what it is
-           worth is measured.` : ''),
+    title: 'The governor error bar was assumed, never measured',
+    body: `Every other uncertainty here was fitted to past results. This one is the House figure `
+      + `multiplied by <b>${pa.bound ? pa.bound.shipped_ratio : '—'}</b>.`
+      + facts([
+          ['Senate, assumed', '1.625'],
+          ['Senate, measured', '1.465 — 97 races, 3 cycles. Close enough to keep the assumption.'],
+          ['Governors, assumed', `${pa.bound ? pa.bound.shipped_ratio : '—'}`],
+          ['Governors, measured', 'No usable returns. The standard tidy series covers President, '
+            + 'Senate and House only, and has no 2022 state file.'],
+        ])
+      + (pa.bound ? `<p>Unfitted, so the model prices being wrong about it instead. Re-run at `
+          + `every ratio from <b>${(+pa.bound.range[0]).toFixed(2)}</b> to `
+          + `<b>${(+pa.bound.range[1]).toFixed(2)}</b> — the spread the Senate figure showed across `
+          + `its own three cycles:</p>`
+          + facts([
+              ['Median', `${pa.bound.median_values.join(' / ')} governorships at every point in that range`],
+              ['Expected count', `moves ${pa.bound.expected_span} of a seat`],
+            ])
+          + `<p>Most of the ${gov.of} governor races have polls, so this number only governs the `
+          + `handful that do not, and those are not close.</p>` : ''),
   }))(f.topline.governor.prior_asserted, f.topline.governor),
   { title: 'Governors have no control probability, by construction',
     body: `${f.topline.governor.of} governorships confer no collective majority, so there is no

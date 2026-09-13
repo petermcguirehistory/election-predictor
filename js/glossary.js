@@ -1,0 +1,142 @@
+// Defined terms, and the tooltip that carries them.
+//
+// The page used to explain its vocabulary inline, which is why several
+// paragraphs ran past nine hundred characters: every mention of a clustered
+// standard error or an effective n dragged its own definition along with it. A
+// term defined once and marked everywhere it appears costs a reader nothing on
+// the sentences they already understand, and is there on the one they do not.
+//
+// Marked, not guessed. Nothing scans prose looking for words to link -- that
+// matches inside other words, links the same term forty times in a paragraph,
+// and turns a page into a minefield of underlines. Terms are tagged where they
+// are written, with `data-term`, and anything tagged with an id that is not in
+// this file is reported by the diagnostics panel rather than silently rendering
+// as plain text.
+//
+// WHERE A TERM HAS A FORMULA, THE FORMULA IS THE DEFINITION. "How much a poll
+// counts" is a sentence a reader can nod at without learning anything;
+// `n / (n + 3)` is the thing itself, and it fits in a tooltip.
+import { showTip, hideTip } from './charts/util.js';
+
+export const GLOSSARY = {
+  'poll-weight': {
+    term: 'weight on the polls',
+    def: 'How far a race moves off its prior toward its polling.',
+    math: 'n / (n + 3), where n is the effective number of polls. One poll gives 0.25, three give 0.50, nine give 0.75.',
+  },
+  'effective-n': {
+    term: 'effective n',
+    def: 'The number of independent polls a race is really carrying, after age, pollster lean and pollster accuracy are taken off.',
+    math: '(Σw)² / Σw² over the weights. Nine polls from one shop count for closer to one than to nine.',
+  },
+  'house-effect': {
+    term: 'house effect',
+    def: 'A pollster’s standing lean, measured against the average of everyone else polling the same races, and subtracted before the poll is used.',
+  },
+  'elasticity': {
+    term: 'elasticity',
+    def: 'How far a seat moves when the national environment moves one point. Swing seats run above 1, safe seats below.',
+    math: 'Fitted per seat from its presidential lean; the prior is lean + elasticity × environment + incumbency + fundraising.',
+  },
+  'prior': {
+    term: 'prior',
+    def: 'What the model expects before any polling of the race itself: the seat’s presidential lean, adjusted for the national environment, incumbency and fundraising.',
+  },
+  'generic-ballot': {
+    term: 'generic ballot',
+    def: 'National polling asking which party’s candidate a voter prefers, without naming anyone. The single instrument every topline here is downstream of.',
+  },
+  'clustered-se': {
+    term: 'clustered standard error',
+    def: 'An error bar that treats one election cycle as one observation rather than one race as one observation.',
+    math: 'Every race in a cycle shares that year’s national polling miss, so 97 races across 3 cycles is a sample of 3, not 97. Here: 0.42 clustered against 0.11 plain.',
+  },
+  'tipping-point': {
+    term: 'tipping-point race',
+    def: 'The seat that delivers the majority when every race is sorted by margin. The race most often decisive across the simulations.',
+  },
+  'sigma': {
+    term: 'error bar',
+    def: 'One standard deviation of where this race could land.',
+    math: 'Four independent parts added in quadrature: national, regional, state and the race itself. √(a² + b² + c² + d²), so the largest dominates.',
+  },
+  'partisan-poll': {
+    term: 'partisan',
+    def: 'A poll sponsored by a campaign, party or aligned group. Kept, and down-weighted.',
+  },
+  'vsup': {
+    term: 'uncertainty suppression',
+    def: 'Colour is muted where the model knows least, so a seat it barely understands cannot look as emphatic as one it has polled nine times.',
+  },
+  'calibration': {
+    term: 'calibration',
+    def: 'Whether the stated confidence matches the observed hit rate: of the races called at 70%, did about 70% happen.',
+  },
+  'correlation': {
+    term: 'correlation',
+    def: 'How strongly two races move together across the simulations. 0 means knowing one tells you nothing about the other; 1 means they always move as one.',
+  },
+  'centred-share': {
+    term: 'centred fundraising share',
+    def: 'A candidate’s share of the money raised in their race, measured against the middle of their own cycle rather than in dollars — so a cheap cycle and an expensive one compare.',
+  },
+  'reconstruction': {
+    term: 'reconstruction',
+    def: 'Today’s model asked what it makes of the polling that existed on a past date. Not a record of what was forecast then: the priors and calibration behind it are current.',
+  },
+};
+
+function html(id) {
+  const g = GLOSSARY[id];
+  if (!g) return null;
+  return `<b>${g.term}</b><br>${g.def}` + (g.math ? `<br><em>${g.math}</em>` : '');
+}
+
+// One delegated listener for the whole page rather than a handler per mark:
+// these are generated by six different panels and re-created on every repaint,
+// and per-element listeners would have to be re-attached by each of them.
+export function mountGlossary(root = document) {
+  const at = e => e.target.closest && e.target.closest('[data-term]');
+  root.addEventListener('pointerover', e => {
+    const el = at(e);
+    if (el) { const h = html(el.dataset.term); if (h) showTip(e, h); }
+  });
+  root.addEventListener('pointerout', e => { if (at(e)) hideTip(); });
+  root.addEventListener('focusin', e => {
+    const el = at(e);
+    if (!el) return;
+    const h = html(el.dataset.term);
+    const b = el.getBoundingClientRect();
+    if (h) showTip({ clientX: b.x + b.width / 2, clientY: b.y }, h);
+  });
+  root.addEventListener('focusout', e => { if (at(e)) hideTip(); });
+  // Touch: the term is the only thing worth tapping in a paragraph, so a tap on
+  // one opens it and a tap anywhere else closes it (charts/util.js already
+  // dismisses on the next pointerdown and on scroll).
+  root.addEventListener('click', e => {
+    const el = at(e);
+    if (!el) return;
+    e.preventDefault();
+    const h = html(el.dataset.term);
+    const b = el.getBoundingClientRect();
+    if (h) showTip({ clientX: b.x + b.width / 2, clientY: b.y }, h);
+  });
+}
+
+// `term('effective-n')` -> the marked-up span, for prose built in JS.
+// `term('effective-n', 'effective sample')` overrides the visible text where the
+// sentence needs a different form of the word.
+export function term(id, label) {
+  const g = GLOSSARY[id];
+  const text = label || (g ? g.term : id);
+  return `<span class="term" data-term="${id}" tabindex="0" role="button">${text}</span>`;
+}
+
+// Every id used on the page, against every id defined here. A term that renders
+// as plain text because somebody mistyped its id is invisible; this makes it a
+// reported number instead.
+export function auditTerms(root = document) {
+  const used = new Set([...root.querySelectorAll('[data-term]')].map(e => e.dataset.term));
+  return { used: used.size, defined: Object.keys(GLOSSARY).length,
+           undefined: [...used].filter(id => !GLOSSARY[id]) };
+}

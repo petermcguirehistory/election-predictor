@@ -10,6 +10,7 @@
 // Common random numbers across the sweep, so moving the slider shows the effect
 // of the environment and not Monte Carlo noise.
 import d3 from '../d3.js';
+import { term } from '../glossary.js';
 import { C, svg, showTip, hideTip } from '../charts/util.js';
 
 const STYLE = {
@@ -200,16 +201,18 @@ export function scenarioPanel(host, { scenarios, environment, chambers, onPick }
   const note = document.createElement('p');
   note.className = 'chart-note';
   note.innerHTML =
-    `Every stop on the slider is a complete rebuild — each race's estimate recomputed, then 20,000 ` +
-    `fresh simulations — worked out when the page was built, not interpolated between two answers. ` +
-    `Drag left to assume the generic ballot flatters Democrats less than history says it does; ` +
-    `right to assume it flatters them more.<br><br>` +
-    `The fitted <b>+${fitted}</b> is an average over 13 cycles with a standard error of ` +
-    `<b>${se}</b>, so the true long-run figure could plausibly sit anywhere from about ` +
-    `+${(fitted - 2 * se).toFixed(1)} to +${(fitted + 2 * se).toFixed(1)}. Individual cycles have ` +
-    `run from −1.9 to +6.2, which is wider still: a single election can miss the long-run average ` +
-    `by much more than the long-run average is itself uncertain. That range is why the slider ` +
-    `spans what it does — the whole of it is a value this cycle could plausibly take.`;
+    `Every stop is a full rebuild: each race's estimate recomputed at that `
+    + `${term('generic-ballot')} correction, then fresh simulations. Not an interpolation between `
+    + `two answers. Drag left to assume the generic ballot flatters Democrats less than history `
+    + `says; right to assume it flatters them more.`
+    + `<br><br>The fitted <b>+${fitted}</b> is an average over 13 cycles.`
+    + `<table class="fx"><tbody>`
+    + `<tr><th>Standard error</th><td>${se} — the long-run figure could sit from `
+    + `+${(fitted - 2 * se).toFixed(1)} to +${(fitted + 2 * se).toFixed(1)}</td></tr>`
+    + `<tr><th>Range across cycles</th><td>−1.9 to +6.2 — wider still</td></tr>`
+    + `<tr><th>Why the slider spans that</th><td>A single election can miss the long-run average `
+    + `by more than the long-run average is itself uncertain</td></tr>`
+    + `</tbody></table>`;
   host.append(note);
   paint();
 }

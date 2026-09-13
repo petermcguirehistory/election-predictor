@@ -32,6 +32,7 @@ import { environmentStrip, houseLeverage } from './panels/environment.js';
 import { sparkline } from './charts/sparkline.js';
 import { baseline, series } from './history.js';
 import { mountTabs } from './tabs.js';
+import { mountGlossary, auditTerms, term } from './glossary.js';
 
 const store = {
   data: null, pins: [], scope: 'all', mapMode: 'prob', vsup: true,
@@ -1414,6 +1415,13 @@ function renderDiagnostics(s) {
   rows.push(['every section declares its scope', unlabelled.length === 0,
     unlabelled.length ? `missing: ${unlabelled.map(x => x.id).join(', ')}`
                       : `${secs.length} sections, ${Object.keys(SECTION_SCOPE).length} declarations`]);
+  // A term whose id is mistyped renders as ordinary text with a dotted underline
+  // and no definition behind it, which is invisible to everything except a
+  // reader who tries it. Counted here instead.
+  const g = auditTerms();
+  rows.push(['defined terms resolve', g.undefined.length === 0,
+    g.undefined.length ? `no definition for: ${g.undefined.join(', ')}`
+                       : `${g.used} in use, ${g.defined} defined`]);
 
   const t = document.createElement('table'); t.className = 'diag';
   for (const [name, pass, detail] of rows) {
@@ -1578,6 +1586,7 @@ async function boot() {
     store.data = data;
     mountScopeSlots();
     applyAvailability(store);
+    mountGlossary();
     tabs = mountTabs({ list: $('#tablist'), onSelect: id => store.set({ tab: id }) });
     tabs.prune();
     tabs.show(store.tab);

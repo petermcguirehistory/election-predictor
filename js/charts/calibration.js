@@ -5,6 +5,7 @@
 // they are here rather than in an appendix -- and two of them are computed by
 // the build from data the engine was never tuned on.
 import d3 from '../d3.js';
+import { term } from '../glossary.js';
 import { C, svg, showTip, hideTip, hoverable } from './util.js';
 
 // ---- 1. reliability: does a 70% mean 70%? --------------------------------
@@ -247,19 +248,19 @@ export function senateRatio(host, { fit }) {
   const note = document.createElement('p');
   note.className = 'chart-note';
   note.innerHTML =
-    `Before any polling, the model treats a Senate race as harder to call than a House district — ` +
-    `its error bars start <b>${fit.shipped_value}×</b> as wide. That multiplier was assumed, and ` +
-    `this is the attempt to measure it. Each dot is what one past cycle says it should be; the bar ` +
-    `at the bottom pools all three to ` +
-    `<b>${fit.ratio.toFixed(2)}</b> over ${fit.n_senate} Senate races and ${fit.n_house} House ` +
-    `districts.<br><br>` +
-    `The bar's width is the <b>clustered</b> standard error (${fit.clustered_se.toFixed(2)}), not ` +
-    `the plain one (${fit.se.toFixed(2)}), because every race in a cycle shares that year's ` +
-    `national polling miss — so the real sample size is three cycles, not ninety-seven races. That ` +
-    `bar overlaps the shipped ${fit.shipped_value}, meaning the measurement <b>cannot tell the two ` +
-    `apart</b>, and it was therefore <b>not adopted</b>. It is shown because a measurement that ` +
-    `fails to overturn an assumption is still a measurement, and leaving it out would make this ` +
-    `page look better tested than it is. Fitted ${fit.fitted_on}.`;
+    `The model starts a Senate race with a wider ${term('sigma')} than a House district — `
+    + `<b>${fit.shipped_value}×</b>. That multiplier was assumed. This is the attempt to measure it.`
+    + `<table class="fx"><tbody>`
+    + `<tr><th>Each dot</th><td>What one past cycle says the ratio should be</td></tr>`
+    + `<tr><th>The bar</th><td>All three pooled: <b>${fit.ratio.toFixed(2)}</b> over `
+    + `${fit.n_senate} Senate races and ${fit.n_house} House districts</td></tr>`
+    + `<tr><th>Bar width</th><td>The ${term('clustered-se')} `
+    + `(${fit.clustered_se.toFixed(2)}), not the plain one (${fit.se.toFixed(2)})</td></tr>`
+    + `<tr><th>Verdict</th><td>The bar overlaps the shipped ${fit.shipped_value}. The measurement `
+    + `cannot tell the two apart, so it was not adopted.</td></tr>`
+    + `</tbody></table>`
+    + `<p>Shown because a measurement that fails to overturn an assumption is still a measurement. `
+    + `Fitted ${fit.fitted_on || ''}.</p>`;
   host.append(note);
 }
 
@@ -311,16 +312,15 @@ export function governorSweep(host, { sweep }) {
   const note = document.createElement('p');
   note.className = 'chart-note';
   note.innerHTML =
-    `Every other uncertainty in this model was fitted to past elections. This one could not be — no ` +
-    `source publishes statewide governor results in the shape the fit needs — so it is asserted, ` +
-    `and the honest thing to do with an asserted number is to ask how much rests on it. The model ` +
-    `is re-run across the whole range a fit could plausibly have returned, ` +
-    `<b>×${(+sweep.range[0]).toFixed(2)}–${(+sweep.range[1]).toFixed(2)}</b>, taken from how far ` +
-    `the Senate figure on the left moved between its own three cycles.<br><br>` +
-    `The answer barely moves: the median stays at <b>${sweep.median_values.join('/')}</b> ` +
-    `governorships across the whole sweep and the expected count shifts by ` +
-    `<b>${sweep.expected_span.toFixed(2)}</b> of a seat. The shaded band gets wider, which is the ` +
-    `point — <b>being wrong about this number would make the forecast less certain, not ` +
-    `different.</b>`;
+    `This ${term('sigma')} could not be fitted — no source publishes statewide governor results in `
+    + `the shape the fit needs — so it is asserted, and the model measures what rests on it.`
+    + `<table class="fx"><tbody>`
+    + `<tr><th>Range tested</th><td><b>×${(+sweep.range[0]).toFixed(2)}–${(+sweep.range[1]).toFixed(2)}</b>, `
+    + `taken from how far the Senate figure moved across its own three cycles</td></tr>`
+    + `<tr><th>Median</th><td><b>${sweep.median_values.join('/')}</b> governorships across the whole sweep</td></tr>`
+    + `<tr><th>Expected count</th><td>shifts <b>${sweep.expected_span.toFixed(2)}</b> of a seat</td></tr>`
+    + `<tr><th>The shaded band</th><td>widens — being wrong here makes the forecast less certain, `
+    + `not differently centred</td></tr>`
+    + `</tbody></table>`;
   host.append(note);
 }
