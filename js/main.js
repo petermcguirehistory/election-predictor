@@ -1178,6 +1178,51 @@ const RANK = {
 // The headline tier gets a sentence and, wherever the payload can supply one, a
 // magnitude. An alarm a reader cannot size is an alarm they can only either
 // ignore or panic about.
+// The caucus choice, for a seat where it decides the chamber.
+//
+// Two branches were never enough. "Does not caucus with Democrats" has been
+// standing in for two different futures, and in a Senate this close they are not
+// shades of one another: caucusing Republican hands the seat over, while
+// caucusing with nobody takes it out of both columns and can leave the chamber
+// with no majority at all — a state a seat count cannot express and a Vice
+// President cannot break.
+//
+// The ordinary 50-50 is separated out on purpose. It is present in every branch,
+// it is 14% of draws, and it is not a deadlock; attributing it to the
+// independent would overstate what the choice is worth by almost a factor of
+// three.
+function caucusBlock(nb, by) {
+  const sc = nb.caucus_scenarios || {};
+  const ids = Object.keys(sc);
+  if (!ids.length) return '';
+  return ids.map(rid => {
+    const s = sc[rid];
+    const who = (by[rid] && by[rid].name) || rid;
+    const row = (k, lab) => {
+      const v = s[k];
+      return `<tr><td>${lab}</td><td class="num">${fmtPct(v.d, 1)}</td>`
+           + `<td class="num">${fmtPct(v.r, 1)}</td>`
+           + `<td class="num">${fmtPct(v.none, 1)}</td></tr>`;
+    };
+    const unbreakable = s.caucus_neither.none - s.tie_baseline;
+    return `<div class="nd-caucus"><b>${who}</b> wins ${fmtPct(s.p_win, 0)} of the time, and `
+      + `which way ${who.split(' ').pop()} then caucuses is worth `
+      + `<b>${s.worth_pts.toFixed(1)} points</b> of Democratic control — more than any polling `
+      + `question left in this race.`
+      + `<table class="nd-tab"><thead><tr><th></th><th>D control</th><th>R control</th>`
+      + `<th>nobody at 51</th></tr></thead><tbody>`
+      + row('caucus_dem', 'Caucuses with Democrats')
+      + row('caucus_rep', 'Caucuses with Republicans')
+      + row('caucus_neither', 'Caucuses with neither')
+      + `</tbody></table>`
+      + `<span class="nd-foot">The bottom row is the one the forecast cannot represent. `
+      + `${fmtPct(s.tie_baseline, 1)} of that last column is the ordinary 50&ndash;50, which the `
+      + `Vice President breaks and which is there in all three rows. The other `
+      + `<b>${(unbreakable * 100).toFixed(1)} points</b> is a seat sitting in neither column, `
+      + `which nothing breaks. The published number is the top row.</span></div>`;
+  }).join('');
+}
+
 const HEADLINE_SAY = {
   senate_no_democrat_seats: (n, f) => {
     const nb = f.topline.senate && f.topline.senate.no_democrat_bound;
@@ -1228,9 +1273,9 @@ const HEADLINE_SAY = {
       + `If every one of these independents won and caucused with Democrats, Democratic control `
       + `of the Senate would be <b>${fmtPct(hi)}</b> rather than <b>${fmtPct(now)}</b>, so it `
       + `remains the largest single assumption on this page. That they would caucus with `
-      + `Democrats is the ballot feed's claim, carried through as stated; an independent who `
-      + `caucused with neither would move none of it. Open any of these races for the polling `
-      + `itself.`;
+      + `Democrats is the ballot feed's claim, carried through as stated. Open any of these `
+      + `races for the polling itself.`
+      + caucusBlock(nb, by);
 
     return [head, body];
   },

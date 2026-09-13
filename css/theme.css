@@ -966,3 +966,19 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
   .dt-pollsters { font-size: .72rem; }
   .dt-pollsters td.num { font-size: .68rem; }
 }
+
+/* ---- the caucus scenarios ------------------------------------------------ */
+.nd-caucus { margin: .9rem 0 .2rem; }
+.nd-tab { width: 100%; border-collapse: collapse; margin: .6rem 0 .5rem; font-size: .8rem; }
+.nd-tab th { text-align: right; font: 500 .66rem/1.3 var(--sans); letter-spacing: .07em;
+             text-transform: uppercase; color: var(--muted); padding: 0 0 .35rem .6rem;
+             border-bottom: 1px solid var(--line); }
+.nd-tab th:first-child { text-align: left; }
+.nd-tab td { padding: .35rem 0 .35rem .6rem; border-bottom: 1px solid var(--line-soft);
+             color: var(--ink-dim); }
+.nd-tab td.num { text-align: right; font-variant-numeric: tabular-nums;
+                 font-family: var(--mono); font-size: .76rem; }
+/* The row the model cannot express gets the accent, not the winning number. */
+.nd-tab tbody tr:last-child td { color: var(--ink); }
+.nd-tab tbody tr:last-child td:last-child { color: var(--accent); font-weight: 600; }
+.nd-foot { display: block; font-size: .76rem; line-height: 1.5; color: var(--muted); }
