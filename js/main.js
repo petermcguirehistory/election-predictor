@@ -1293,9 +1293,10 @@ const RANK = {
   stale_priors: 'races',
   third_party_share: 'races',
   independent_candidate_races: 'races',
+  independent_priced: 'races',
   unresolved_polls: 'data',
   cross_feed_duplicate: 'data',
-  incumbency_hand_list_stale: 'data',
+  incumbency_feed_uncovered: 'data',
   pres_source_margin_mismatch: 'data',
 };
 
@@ -1390,29 +1391,39 @@ function renderCaveats(s) {
     governor_zero_poll_coverage: () => 'Governor races have no usable polls',
     pres_source_margin_mismatch: n => `${n} district${n === '1' ? '' : 's'} where the presidential `
       + `source's published margin contradicts its own vote counts \u2014 the counts are used`,
-    // This reads as a data fault and is the opposite: the list is kept precisely
-    // so that it can be contradicted, and here it was.
-    incumbency_hand_list_stale: n => `${n} race${n === '1' ? '' : 's'} where the ballot feed `
-      + `overruled the hand-kept incumbency list \u2014 the cross-check working`,
+    incumbency_feed_uncovered: n => `${n} federal race${n === '1' ? '' : 's'} with no `
+      + `ballot-feed answer on whether the incumbent is running \u2014 filings used instead`,
     unresolved_polls: n => `${n} polls could not be resolved to a two-party margin`,
     thin_poll_average: n => `${n} races rest on roughly one poll`,
     stale_priors: n => `${n} districts carry priors from superseded maps`,
     generic_ballot_beyond_corpus_support: d =>
       `Generic ballot ${d} days old \u2014 older than any reading that could be checked against results`,
+    // Not priced, and the group heading says the race notes are. The margin is D
+    // minus R whatever share goes elsewhere, so the chip says so itself.
     third_party_share: n => `${n} polled race${n === '1' ? '' : 's'} where a third candidate `
-      + `takes a large share`,
+      + `takes a large share \u2014 the margin is D minus R and does not price them`,
     senate_no_democrat_seats: n => `${n} Senate seats have no Democrat on the ballot \u2014 `
       + `the Senate probability assumes their independents lose`,
-    independent_candidate_races: n => `${n} race${n === '1' ? '' : 's'} where the contest is `
-      + `Republican vs independent, which a two-party margin does not describe`,
+    // Not "Republican vs independent": half of the eight this was written over are
+    // a Democrat against an independent with no Republican running (AZ-03, MA-01,
+    // NJ-08, PA-03). Either party can be the absent one.
+    independent_candidate_races: n => `${n} race${n === '1' ? '' : 's'} where an independent `
+      + `faces only one major party, which a two-party margin does not describe`,
+    independent_priced: (n, f) => {
+      const nb = (f.topline.senate && f.topline.senate.no_democrat_bound) || {};
+      const who = (nb.priced || []).join(', ');
+      return `${n} of them${who ? ` (${who})` : ''} priced from polls of the independent, `
+        + `with a wider error bar, instead of the D-vs-R prior`;
+    },
     // "May be counted twice" asserted more than the check found. What it found is
     // a shared race and fieldwork date under two pollster spellings, which is one
     // shop named twice about as often as it is two shops finishing on the same
     // day -- and the engine already merges the pairs the poll itself identifies,
     // by margin and sample size. What is left is the judgement, so the sentence
     // has to be the judgement rather than the conclusion.
-    cross_feed_duplicate: n => `${n} poll${n === '1' ? '' : 's'} share a race and fieldwork `
-      + `date with a poll from the other feed under a different pollster name`,
+    cross_feed_duplicate: n => `${n} poll${n === '1' ? '' : 's'} share a race, fieldwork `
+      + `date and a margin, sample size or pollster name with a poll from the other feed \u2014 `
+      + `both kept`,
   };
 
   const bucket = { headline: [], races: [], data: [] };
@@ -1434,7 +1445,7 @@ function renderCaveats(s) {
       bucket.headline.push(HEADLINE_SAY[key](arg, f));
     } else {
       const fn = pretty[key];
-      bucket[rank].push(fn ? fn(arg) : a);
+      bucket[rank].push(fn ? fn(arg, f) : a);
     }
   }
   for (const st of (f.redraw_ratchet && f.redraw_ratchet.reverted) || []) {

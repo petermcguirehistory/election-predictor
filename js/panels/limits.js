@@ -122,27 +122,47 @@ const ALARM = {
     title: `${n} polls share a race and fieldwork date with a poll from the other feed`,
     body: `Two feeds supply race polls and spell pollsters differently.`
       + facts([
-          ['Merged automatically', `Same race, same day, same margin, same sample size, and one
-            name containing the other. The poll settles the question itself.`],
-          ['These rows', 'What is left, where the only evidence is the name and the date.'],
-          ['What they could be', `One shop written two ways, or two pollsters who finished
-            fieldwork the same day and disagree — which is not double counting.`],
-          ['Resolution', 'Named rather than guessed at.'],
+          ['Merged automatically', `Same race, margin and sample size — on the same day, or up to
+            a few weeks apart where one pollster name contains the other. The poll settles the
+            question itself.`],
+          ['These rows', `Same race and day, and one more thing in common — margin, sample size or
+            a related name — but not all of them.`],
+          ['What they could be', `One survey reported in two versions (likely voters and
+            registered voters, say), or two polls that happen to share a detail.`],
+          ['Not listed', `Same-day pairs from unrelated pollsters with a different margin
+            <em>and</em> sample size. Nothing besides the date suggests one poll, so they count as
+            two.`],
+          ['Resolution', 'Both copies kept, and named rather than guessed at.'],
         ]),
   }),
-  incumbency_hand_list_stale: n => ({
-    title: `${n} races where the ballot feed overruled the hand-kept incumbency list`,
+  incumbency_feed_uncovered: n => ({
+    title: `${n} federal race${n === '1' ? '' : 's'} with no ballot-feed answer on whether the `
+      + `incumbent is running`,
     body: `The federal filing record says who <em>holds</em> a seat, not whether they are running
-           for it — a retiring senator still files. Whether they are running comes from the ballot
-           feed.`
+           for it — a retiring member still files. Only the ballot feed answers that.`
       + facts([
-          ['Authority', 'The ballot feed, on every disagreement.'],
-          ['The hand list', 'Kept only to be checked against it.'],
-          ['What that caught', 'Six Republican-held Senate seats credited an incumbency bonus for '
-            + 'a senator not on the ballot.'],
-          ['These rows', 'Remaining disagreements. None changes a number.'],
+          ['House fallback', 'FEC filings — the reading that credits a retiring member.'],
+          ['Senate fallback', 'No incumbency adjustment.'],
+          ['At stake', 'The 2.5-point incumbency adjustment in each race named.'],
         ]),
   }),
+  independent_priced: (n, f) => {
+    const nb = (f.topline.senate && f.topline.senate.no_democrat_bound) || {};
+    const priced = nb.priced || [];
+    return {
+      title: `${n} race${n === '1' ? '' : 's'} priced from polls of the independent rather `
+        + `than the D-vs-R prior`,
+      body: `${priced.map(r => `<b>${r}</b>`).join(' and ')}: one major party has no candidate, and
+             the independent's polling agrees with itself closely enough to use.`
+        + facts([
+            ['Estimate', 'The polling average, in place of the prior for a candidate not running.'],
+            ['Uncertainty', `Widened by the spread of past independent candidacies around their
+              polls — seven since 1998. Too few to correct the mean, enough to size the error.`],
+            ['Qualifies', `3+ polls, all within 10 points of each other, and an independent who
+              says they would caucus with the Democrats.`],
+          ]),
+    };
+  },
   governor_zero_poll_coverage: () => ({
     title: 'Governor races have no usable polls',
     body: `No governor poll could be matched to a two-party matchup this run.`
