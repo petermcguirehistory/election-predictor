@@ -28,6 +28,7 @@ import { reliability, locoChart, seatMisses, senateRatio,
 import { trendChart } from './charts/trend.js';
 import { flows } from './charts/flows.js';
 import { limitsPanel } from './panels/limits.js';
+import { alarmKind } from './alarms.js';
 import { playingField, statewideField } from './panels/playingfield.js';
 import { walkthrough } from './panels/walkthrough.js';
 import { watchlist } from './panels/watchlist.js';
@@ -1279,26 +1280,51 @@ function renderCoverage(s) {
 //   data      records dropped or reconciled BEFORE anything was computed, with
 //             the resolution stated. No figure on the page rests on that choice
 //             having gone the other way.
+//   checks    one of the engine's checks on its own inputs FAILED this run. Not
+//             "reconciled" -- something is not working, and the note says what it
+//             touches. `ban_list_empty` filed under "data" would have told a reader
+//             a disabled fabricated-data filter was routine housekeeping.
+//
+// Every kind the engine can raise must appear here, in HEADLINE_SAY or CHIP, and
+// in limits.js's ALARM table. engine/dashboard/build.py fails the build otherwise:
+// an alarm with no text used to render as its raw key, and `independent_priced_2`
+// shipped that way.
 //
 // Eight chips of identical weight taught a reader that "17 polls may be counted
 // twice across the two race feeds" and "the Senate probability assumes three
 // independents lose" are the same size of problem. The second is worth forty
 // points of Senate control and the first is worth nothing you can see.
 const RANK = {
+  feed_stopped: 'headline',
+  feed_not_refetched: 'headline',
   generic_ballot_stale: 'headline',
   generic_ballot_beyond_corpus_support: 'headline',
+  house_zero_poll_coverage: 'headline',
+  senate_zero_poll_coverage: 'headline',
   governor_zero_poll_coverage: 'headline',
   senate_no_democrat_seats: 'headline',
+  race_feed_union_empty: 'headline',
+  ban_list_empty: 'headline',
   thin_poll_average: 'races',
   stale_priors: 'races',
   third_party_share: 'races',
   independent_candidate_races: 'races',
   independent_priced: 'races',
-  unresolved_polls: 'data',
   cross_feed_duplicate: 'data',
   incumbency_feed_uncovered: 'data',
   pres_source_margin_mismatch: 'data',
+  ballot_poll_unresolved: 'checks',
+  banned_name_near_miss: 'checks',
+  fundraising_absent: 'checks',
+  fundraising_share_level_out_of_range: 'checks',
+  prior_sigma_no_provenance: 'checks',
+  prior_sigma_stale: 'checks',
+  prior_sigma_stale_acknowledgement: 'checks',
+  independent_dispersion_unavailable: 'checks',
 };
+
+// Rendered from the payload rather than from the alarm string; see renderCaveats.
+const RENDERED_ELSEWHERE = new Set(['redraw_reverted']);
 
 const HEADLINE_SAY = {
   senate_no_democrat_seats: (n, f) => {
@@ -1370,6 +1396,43 @@ const HEADLINE_SAY = {
     `All ${f.topline.governor.of} run on the prior alone: state presidential lean, national `
     + 'environment, incumbency. No figure on the governors card has a poll behind it.',
   ],
+  feed_stopped: (d, f, feed) => {
+    const x = ((f.freshness && f.freshness.feeds) || {})[feed] || {};
+    return [
+      `${x.what || feed} has published nothing new for ${d} days.`,
+      `It supplies ${x.used_for || 'part of this forecast'}. That input is carried forward from `
+      + `its last reading${x.newest ? `, ${x.newest},` : ''} rather than updated.`,
+    ];
+  },
+  feed_not_refetched: (d, f, feed) => {
+    const x = ((f.freshness && f.freshness.feeds) || {})[feed] || {};
+    return [
+      `The local copy of ${x.what || feed} was last fetched ${d} days ago.`,
+      'The source may still be publishing; this run did not download it, so everything it '
+      + `supplies is ${d} days behind.`,
+    ];
+  },
+  house_zero_poll_coverage: () => [
+    'No House race has usable polling.',
+    'Every House race runs on its prior alone: presidential lean, national environment, '
+    + 'incumbency, fundraising. No figure on the House card has a district poll behind it.',
+  ],
+  senate_zero_poll_coverage: () => [
+    'No Senate race has usable polling.',
+    'Every Senate race runs on its prior alone: state presidential lean, national environment, '
+    + 'incumbency. No figure on the Senate card has a poll behind it.',
+  ],
+  race_feed_union_empty: () => [
+    'The second race-poll feed contributed nothing this run.',
+    'ElectIndex supplies the only polling in many races. Either its file is stale or '
+    + 'de-duplication removed every row, and those races are running on fewer polls or on their '
+    + 'prior.',
+  ],
+  ban_list_empty: () => [
+    'The fabricated-data filter is switched off.',
+    'The list of pollsters flagged for fabricated data came back empty, so polls it would '
+    + 'normally remove are in this forecast.',
+  ],
   generic_ballot_stale: d => [
     `The generic ballot is ${d} days old.`,
     `Every number on this page is downstream of it, and the model is carrying a reading taken `
@@ -1383,69 +1446,87 @@ const HEADLINE_SAY = {
   ],
 };
 
+const CHIP = {
+  generic_ballot_stale: d => `Generic ballot is ${d} days stale`,
+  governor_zero_poll_coverage: () => 'Governor races have no usable polls',
+  pres_source_margin_mismatch: n => `${n} district${n === '1' ? '' : 's'} where the presidential `
+    + `source's published margin contradicts its own vote counts \u2014 the counts are used`,
+  incumbency_feed_uncovered: n => `${n} federal race${n === '1' ? '' : 's'} with no `
+    + `ballot-feed answer on whether the incumbent is running \u2014 filings used instead`,
+  thin_poll_average: n => `${n} races rest on roughly one poll`,
+  stale_priors: n => `${n} districts carry priors from superseded maps`,
+  generic_ballot_beyond_corpus_support: d =>
+    `Generic ballot ${d} days old \u2014 older than any reading that could be checked against results`,
+  // Not priced, and the group heading says the race notes are. The margin is D
+  // minus R whatever share goes elsewhere, so the chip says so itself.
+  third_party_share: n => `${n} polled race${n === '1' ? '' : 's'} where a third candidate `
+    + `takes a large share \u2014 the margin is D minus R and does not price them`,
+  senate_no_democrat_seats: n => `${n} Senate seats have no Democrat on the ballot \u2014 `
+    + `the Senate probability assumes their independents lose`,
+  // Not "Republican vs independent": half of the eight this was written over are
+  // a Democrat against an independent with no Republican running (AZ-03, MA-01,
+  // NJ-08, PA-03). Either party can be the absent one.
+  independent_candidate_races: n => `${n} race${n === '1' ? '' : 's'} where an independent `
+    + `faces only one major party, which a two-party margin does not describe`,
+  independent_priced: (n, f) => {
+    const nb = (f.topline.senate && f.topline.senate.no_democrat_bound) || {};
+    const who = (nb.priced || []).join(', ');
+    return `${n} of them${who ? ` (${who})` : ''} priced from polls of the independent, `
+      + `with a wider error bar, instead of the D-vs-R prior`;
+  },
+  // "May be counted twice" asserted more than the check found. What it found is
+  // a shared race and fieldwork date under two pollster spellings, which is one
+  // shop named twice about as often as it is two shops finishing on the same
+  // day -- and the engine already merges the pairs the poll itself identifies,
+  // by margin and sample size. What is left is the judgement, so the sentence
+  // has to be the judgement rather than the conclusion.
+  cross_feed_duplicate: n => `${n} poll${n === '1' ? '' : 's'} share a race, fieldwork `
+    + `date and a margin, sample size or pollster name with a poll from the other feed \u2014 `
+    + `both kept`,
+  feed_stopped: (d, f, feed) => `${feed} has published nothing new for ${d} days`,
+  feed_not_refetched: (d, f, feed) => `${feed} not downloaded for ${d} days`,
+  house_zero_poll_coverage: () => 'House races have no usable polls',
+  senate_zero_poll_coverage: () => 'Senate races have no usable polls',
+  race_feed_union_empty: () => 'The second race-poll feed contributed nothing',
+  ban_list_empty: () => 'The fabricated-data filter is empty and removed nothing',
+  ballot_poll_unresolved: n => `${n} poll${n === '1' ? '' : 's'} of the actual November matchup `
+    + `did not resolve \u2014 a name-matching fault; left out`,
+  banned_name_near_miss: n => `${n} pollster ${n === '1' ? 'name nearly matches' : 'names nearly match'} `
+    + `a pollster flagged for fabricated data \u2014 not removed`,
+  fundraising_absent: () => 'Fundraising term not applied \u2014 House priors rest on '
+    + 'presidential lean alone',
+  fundraising_share_level_out_of_range: () => "This cycle's fundraising level is outside the "
+    + 'cycles the fundraising term was fitted on',
+  prior_sigma_no_provenance: () => 'The prior error bar does not record what it was fitted '
+    + 'against \u2014 whether it is stale cannot be checked',
+  prior_sigma_stale: n => `The prior error bar was fitted against ${n} input${n === '1' ? '' : 's'} `
+    + `that have since changed, and has not been refitted`,
+  prior_sigma_stale_acknowledgement: () => 'A note deferring a refit of the prior error bar '
+    + 'has outlived the problem it described',
+  independent_dispersion_unavailable: () => 'Independent-candidate races not priced \u2014 the '
+    + 'historical spread they rely on could not be read',
+};
+
 function renderCaveats(s) {
   const f = s.data.forecast;
   const host = $('#caveats'); host.replaceChildren();
-  const pretty = {
-    generic_ballot_stale: d => `Generic ballot is ${d} days stale`,
-    governor_zero_poll_coverage: () => 'Governor races have no usable polls',
-    pres_source_margin_mismatch: n => `${n} district${n === '1' ? '' : 's'} where the presidential `
-      + `source's published margin contradicts its own vote counts \u2014 the counts are used`,
-    incumbency_feed_uncovered: n => `${n} federal race${n === '1' ? '' : 's'} with no `
-      + `ballot-feed answer on whether the incumbent is running \u2014 filings used instead`,
-    unresolved_polls: n => `${n} polls could not be resolved to a two-party margin`,
-    thin_poll_average: n => `${n} races rest on roughly one poll`,
-    stale_priors: n => `${n} districts carry priors from superseded maps`,
-    generic_ballot_beyond_corpus_support: d =>
-      `Generic ballot ${d} days old \u2014 older than any reading that could be checked against results`,
-    // Not priced, and the group heading says the race notes are. The margin is D
-    // minus R whatever share goes elsewhere, so the chip says so itself.
-    third_party_share: n => `${n} polled race${n === '1' ? '' : 's'} where a third candidate `
-      + `takes a large share \u2014 the margin is D minus R and does not price them`,
-    senate_no_democrat_seats: n => `${n} Senate seats have no Democrat on the ballot \u2014 `
-      + `the Senate probability assumes their independents lose`,
-    // Not "Republican vs independent": half of the eight this was written over are
-    // a Democrat against an independent with no Republican running (AZ-03, MA-01,
-    // NJ-08, PA-03). Either party can be the absent one.
-    independent_candidate_races: n => `${n} race${n === '1' ? '' : 's'} where an independent `
-      + `faces only one major party, which a two-party margin does not describe`,
-    independent_priced: (n, f) => {
-      const nb = (f.topline.senate && f.topline.senate.no_democrat_bound) || {};
-      const who = (nb.priced || []).join(', ');
-      return `${n} of them${who ? ` (${who})` : ''} priced from polls of the independent, `
-        + `with a wider error bar, instead of the D-vs-R prior`;
-    },
-    // "May be counted twice" asserted more than the check found. What it found is
-    // a shared race and fieldwork date under two pollster spellings, which is one
-    // shop named twice about as often as it is two shops finishing on the same
-    // day -- and the engine already merges the pairs the poll itself identifies,
-    // by margin and sample size. What is left is the judgement, so the sentence
-    // has to be the judgement rather than the conclusion.
-    cross_feed_duplicate: n => `${n} poll${n === '1' ? '' : 's'} share a race, fieldwork `
-      + `date and a margin, sample size or pollster name with a poll from the other feed \u2014 `
-      + `both kept`,
-  };
 
-  const bucket = { headline: [], races: [], data: [] };
+  const bucket = { headline: [], races: [], data: [], checks: [] };
   for (const a of f.freshness.alarms) {
     // `redraw_reverted_MO` carries a LIST OF STATES in its name, and the payload
-    // carries the same list as data two keys away. Parsing it back out of the
-    // string gave the alarm grammar ("everything ends in a count") an exception
-    // that every renderer had to know about, in its own regex. Rendered from
+    // carries the same list as data two keys away. Rendered from
     // forecast.redraw_ratchet below instead.
-    if (a.startsWith('redraw_reverted_')) continue;
-    const m = a.match(/^(.*?)_(\d+)d?$/);
-    const key = m ? m[1] : a;
-    const arg = m ? m[2] : null;
-    // An alarm this page has never seen lands in `data` and is still shown. A
-    // new alarm going unrendered is the failure mode worth designing out; one
-    // shown a tier lower than it deserves is a formatting complaint.
-    const rank = RANK[key] || 'data';
+    const { key, arg, sub } = alarmKind(a);
+    if (RENDERED_ELSEWHERE.has(key)) continue;
+    // An alarm this page has never seen lands in `checks` and is still shown. The
+    // build refuses to ship one, so reaching this fallback means the payload and the
+    // page were built from different trees.
+    const rank = RANK[key] || 'checks';
     if (rank === 'headline' && HEADLINE_SAY[key]) {
-      bucket.headline.push(HEADLINE_SAY[key](arg, f));
+      bucket.headline.push(HEADLINE_SAY[key](arg, f, sub));
     } else {
-      const fn = pretty[key];
-      bucket[rank].push(fn ? fn(arg, f) : a);
+      const fn = CHIP[key];
+      bucket[rank === 'headline' ? 'checks' : rank].push(fn ? fn(arg, f, sub) : a);
     }
   }
   for (const st of (f.redraw_ratchet && f.redraw_ratchet.reverted) || []) {
@@ -1470,7 +1551,7 @@ function renderCaveats(s) {
     host.append(d);
   }
 
-  const rest = bucket.races.length + bucket.data.length;
+  const rest = bucket.races.length + bucket.data.length + bucket.checks.length;
   if (!rest) return;
 
   // Collapsed, because these are notes rather than news, and because eight of
@@ -1482,10 +1563,14 @@ function renderCaveats(s) {
   const parts = [];
   if (bucket.races.length) parts.push(`${bucket.races.length} on individual races`);
   if (bucket.data.length) parts.push(`${bucket.data.length} on the data itself`);
+  if (bucket.checks.length) parts.push(`${bucket.checks.length} failed check${bucket.checks.length === 1 ? '' : 's'}`);
   sum.textContent = `${rest} more note${rest === 1 ? '' : 's'} \u2014 ${parts.join(', ')}`;
   more.append(sum);
 
   for (const [key, label, why] of [
+    ['checks', 'Checks that failed',
+      'The engine checks its own inputs on every run. These did not pass; each says what it '
+      + 'affects.'],
     ['races', 'Individual races',
       'True of particular contests, and already priced into the numbers above.'],
     ['data', 'Data handling',

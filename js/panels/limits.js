@@ -1,4 +1,5 @@
 import { term } from '../glossary.js';
+import { alarmKind } from '../alarms.js';
 // What could be wrong.
 //
 // Two different things are collapsed together on most forecast sites and are
@@ -63,17 +64,22 @@ const ALARM = {
             machinery stays wired up for the next redraw that outruns the data.`],
         ]),
   }),
-  unresolved_polls: n => ({
-    title: `${n} polls could not be resolved to a two-party margin`,
-    body: `A poll is usable once both names in it match a candidate in the race. These did not.`
+  ballot_poll_unresolved: n => ({
+    title: `${n} poll${n === '1' ? '' : 's'} of the actual November matchup did not resolve`,
+    body: `Each of these names both of the race's November nominees, and still could not be
+           matched to a two-party margin — so it is left out of the average.`
       + facts([
-          ['Not a candidate', 'A primary since lost, or a name speculated about that never filed.'],
-          ['Three or more names', 'No single two-party margin to extract.'],
-          ['No names supplied', 'The feed gave percentages without candidates.'],
-          ['Same-party general', 'Both finalists share a party.'],
-          ['No major-party opponent', 'One party has nobody on that ballot.'],
-        ])
-      + `<p>None of these is a race going unpolled. Each is a poll of something else.</p>`,
+          ['What it means', 'A fault in matching poll names to candidates, not a property of the '
+            + 'poll.'],
+          ['Past causes', pts([
+            'An accented name split in two: <em>Luján</em> read as <em>LUJ</em>.',
+            'A nominee missing from the federal filing roster because their filing status lagged '
+              + 'the primary.',
+          ])],
+          ['Not counted here', `Polls of primary losers, hypothetical matchups and generic
+            "Democrat v Republican" questions. Those are set aside correctly and are reported in
+            the run log, not on this page.`],
+        ]),
   }),
   thin_poll_average: (n, f) => {
     // Which races these are matters more than how many. Computed here rather
@@ -111,24 +117,38 @@ const ALARM = {
           ]),
     };
   },
-  third_party_share: (n, f) => ({
-    title: `${n} polled race${n === '1' ? '' : 's'} where a third candidate takes a large share`,
-    body: `Every race is decided on the D-versus-R margin. In these a sizeable share of the
-           polling goes to neither, so that margin remains the best estimate available while no
-           longer describing the whole contest: ${(f.freshness.third_party_races || [])
-             .map(r => `<b>${r.race_id}</b> ${r.third_pct.toFixed(0)}%`).join(', ')}.`,
-  }),
+  third_party_share: (n, f) => {
+    const rows = (f.freshness.third_party_races || []);
+    const named = rows.filter(r => r.on_ballot);
+    return {
+      title: `${n} polled race${n === '1' ? '' : 's'} where a third candidate takes a large share`,
+      body: `Every race is decided on the D-versus-R margin. In these, a sizeable share of the
+             polling goes to neither: ${rows.map(r => `<b>${r.race_id}</b> `
+               + `${r.third_pct.toFixed(0)}%`).join(', ')}.`
+        + facts([
+            ['Priced', 'Nothing. The margin is D minus R whatever share goes elsewhere.'],
+            ['What the forecast cannot say', 'That the third candidate wins. Each race is '
+              + 'P(Democrat beats Republican); a third-candidate win has probability zero here.'],
+            named.length && ['On the ballot', named.map(r => `<b>${r.race_id}</b> `
+              + `${r.on_ballot.name}${r.on_ballot.party ? ` (${r.on_ballot.party})` : ''}`)
+              .join(', ')],
+          ]),
+    };
+  },
   cross_feed_duplicate: n => ({
     title: `${n} polls share a race and fieldwork date with a poll from the other feed`,
     body: `Two feeds supply race polls and spell pollsters differently.`
       + facts([
-          ['Merged automatically', `Same race, margin and sample size — on the same day, or up to
-            a few weeks apart where one pollster name contains the other. The poll settles the
-            question itself.`],
+          ['Merged automatically', pts([
+            'Same race, margin and sample size — on the same day, or within a few weeks where one '
+              + 'pollster name contains the other.',
+            'Same race, day and named matchup from a related pollster — one survey reported at two '
+              + 'populations. The other feed\'s version is kept.',
+          ])],
           ['These rows', `Same race and day, and one more thing in common — margin, sample size or
-            a related name — but not all of them.`],
-          ['What they could be', `One survey reported in two versions (likely voters and
-            registered voters, say), or two polls that happen to share a detail.`],
+            a related name — but none of the rules above.`],
+          ['What they could be', `One survey the rules could not identify, or two polls that
+            happen to share a detail.`],
           ['Not listed', `Same-day pairs from unrelated pollsters with a different margin
             <em>and</em> sample size. Nothing besides the date suggests one poll, so they count as
             two.`],
@@ -163,6 +183,154 @@ const ALARM = {
           ]),
     };
   },
+  feed_stopped: (d, f, feed) => {
+    const x = ((f.freshness && f.freshness.feeds) || {})[feed] || {};
+    return {
+      title: `${x.what || feed} has published nothing new for ${d} days`,
+      body: 'Each feed is checked against its own publishing rhythm, fitted every run.'
+        + facts([
+            ['Supplies', x.used_for || '—'],
+            ['Newest reading', x.newest || '—'],
+            ['Effect', 'That input is carried forward from its last reading. The forecast is '
+              + 'still produced; it is not produced from current information.'],
+            ['Publishing', 'Stopped. This page is not republished while this fires unless '
+              + 'someone overrides it.'],
+          ]),
+    };
+  },
+  feed_not_refetched: (d, f, feed) => {
+    const x = ((f.freshness && f.freshness.feeds) || {})[feed] || {};
+    return {
+      title: `${x.what || feed} was last downloaded ${d} days ago`,
+      body: 'A different fault from a feed going quiet: the source may be publishing, and this '
+        + 'machine did not fetch it.'
+        + facts([
+            ['Supplies', x.used_for || '—'],
+            ['Effect', `Everything from this feed is ${d} days behind.`],
+          ]),
+    };
+  },
+  house_zero_poll_coverage: () => ({
+    title: 'House races have no usable polls',
+    body: 'No House poll could be matched to a two-party matchup this run.'
+      + facts([
+          ['Effect', 'Every House race runs on its prior alone.'],
+          ['Usual cause', 'Both race-poll feeds failing, or candidate matching failing wholesale.'],
+        ]),
+  }),
+  senate_zero_poll_coverage: () => ({
+    title: 'Senate races have no usable polls',
+    body: 'No Senate poll could be matched to a two-party matchup this run.'
+      + facts([
+          ['Effect', 'Every Senate race runs on its prior alone.'],
+          ['Usual cause', 'Both race-poll feeds failing, or candidate matching failing wholesale.'],
+        ]),
+  }),
+  race_feed_union_empty: () => ({
+    title: 'The second race-poll feed contributed nothing',
+    body: 'Race polls come from two feeds, merged with duplicates removed. ElectIndex added no '
+      + 'polls this run.'
+      + facts([
+          ['Possible causes', pts(['Its file is stale or empty.',
+            'De-duplication matched every row against the other feed.'])],
+          ['Effect', 'Races only it covers run on fewer polls, or on their prior.'],
+        ]),
+  }),
+  ban_list_empty: () => ({
+    title: 'The fabricated-data filter is empty',
+    body: 'Polls from pollsters flagged for fabricating data are removed before anything else '
+      + 'happens. The list of flagged pollsters came back with no entries.'
+      + facts([
+          ['Effect', 'Nothing was removed. Polls the filter would normally drop are in this '
+            + 'forecast.'],
+          ['Why an alarm', 'An empty list looks exactly like a clean feed from the outside.'],
+        ]),
+  }),
+  banned_name_near_miss: n => ({
+    title: `${n} pollster ${n === '1' ? 'name nearly matches' : 'names nearly match'} a flagged pollster`,
+    body: 'The fabricated-data filter matches on names, and a respelled name slips past it.'
+      + facts([
+          ['These', 'Names close to a flagged pollster that the filter did not match.'],
+          ['Effect', 'Their polls are in the forecast.'],
+        ]),
+  }),
+  fundraising_absent: () => ({
+    title: 'The fundraising term was not applied',
+    body: 'The House prior adds a small adjustment for each side\'s share of fundraising, '
+      + 'fitted on past cycles and strongest in districts the presidential lean calls close.'
+      + facts([
+          ['Effect', 'House priors rest on presidential lean, environment and incumbency alone.'],
+          ['Usual cause', 'The filing data is missing or failed to load.'],
+        ]),
+  }),
+  fundraising_share_level_out_of_range: () => ({
+    title: "This cycle's fundraising level is outside the fitted cycles",
+    body: 'The fundraising term is centred on each cycle\'s own average, so a level shift '
+      + 'cancels out. A level this far outside the fitted cycles still says the data may be a '
+      + 'different kind of thing.'
+      + facts([
+          ['Effect', 'The term is applied anyway.'],
+        ]),
+  }),
+  prior_sigma_no_provenance: () => ({
+    title: 'The prior error bar does not record what it was fitted against',
+    body: 'The error bar on each race\'s prior is fitted, and the fit records the inputs it '
+      + 'used so a later run can tell when they have changed.'
+      + facts([
+          ['Effect', 'Staleness in that fit cannot be detected.'],
+        ]),
+  }),
+  prior_sigma_stale: n => ({
+    title: `The prior error bar is stale against ${n} of its inputs`,
+    body: 'The inputs it was fitted against have changed since, and nothing records the gap as '
+      + 'known.'
+      + facts([
+          ['Effect', 'Prior-only races carry an error bar fitted on data that is no longer live.'],
+          ['Fix', 'A refit.'],
+        ]),
+  }),
+  prior_sigma_stale_acknowledgement: () => ({
+    title: 'A deferred-refit note has outlived its reason',
+    body: 'The prior error bar carries a note acknowledging it is stale, and it is no longer '
+      + 'stale.'
+      + facts([
+          ['Effect', 'None on the numbers. The note would hide a future staleness.'],
+        ]),
+  }),
+  independent_dispersion_unavailable: () => ({
+    title: 'Independent-candidate races were not priced',
+    body: 'Races with an independent and no candidate from one major party are priced from '
+      + 'their own polling, with an error bar widened by how far past independents landed from '
+      + 'their polls. That history could not be read this run.'
+      + facts([
+          ['Effect', 'Every such race keeps the D-vs-R prior.'],
+        ]),
+  }),
+  independent_candidate_races: n => ({
+    title: `${n} race${n === '1' ? '' : 's'} where an independent faces only one major party`,
+    body: 'The model forecasts a Democratic slot against a Republican slot. Here one of those '
+      + 'parties has nobody on the ballot.'
+      + facts([
+          ['Priced from polling', 'Where there are 3+ polls within 10 points of each other, the '
+            + 'independent takes the missing party\'s slot.'],
+          ['Otherwise', 'The race keeps its D-vs-R prior, which describes a candidate who is not '
+            + 'running.'],
+        ]),
+  }),
+  pres_source_margin_mismatch: n => ({
+    title: `${n} district${n === '1' ? '' : 's'} where the presidential source contradicts itself`,
+    body: 'Each row of the presidential-results source carries vote counts and the percentages '
+      + 'computed from them. In these, the published margin does not match the counts.'
+      + facts([
+          ['Used', 'The margin derived from the counts.'],
+          ['Effect', 'None, if the counts are right.'],
+        ]),
+  }),
+  senate_no_democrat_seats: n => ({
+    title: `${n} Senate seats have no Democrat on the ballot`,
+    body: 'Each has a named independent against the Republican. How those independents are '
+      + 'priced, and what their caucus choice is worth, is set out at the top of the Forecast tab.',
+  }),
   governor_zero_poll_coverage: () => ({
     title: 'Governor races have no usable polls',
     body: `No governor poll could be matched to a two-party matchup this run.`
@@ -288,9 +456,9 @@ export function limitsPanel(host, { forecast }) {
     // concerns are data in the payload and were only ever recoverable from the
     // alarm name by giving the alarm grammar a per-renderer exception.
     if (a.startsWith('redraw_reverted_')) continue;
-    const m = a.match(/^(.*?)_(\d+)d?$/);
-    const fn = ALARM[m ? m[1] : a];
-    if (fn) alarms.push(fn(m ? m[2] : null, forecast));
+    const k = alarmKind(a);
+    const fn = ALARM[k.key];
+    if (fn) alarms.push(fn(k.arg, forecast, k.sub));
   }
   const rr = forecast.redraw_ratchet;
   if (rr && (rr.reverted || []).length) {
