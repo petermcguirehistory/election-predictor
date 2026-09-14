@@ -38,11 +38,18 @@
       </div>
     </div>
 
-    <div class="wrap">
+    <!-- The rail lists the sections of whichever tab is open, read off the DOM
+         in js/toc.js: the same rule as the tab strip, so there is no second list
+         of section names here to fall out of step with the panels. -->
+    <div class="wrap page-grid">
 
-      <div class="tabpanel" id="tab-forecast" data-tab="forecast" data-tab-label="Forecast" role="tabpanel" tabindex="0">
+      <nav class="toc" id="toc" aria-label="On this page"></nav>
 
-        <section id="s-headline">
+      <div class="page-main">
+
+      <div class="tabpanel" id="tab-forecast" data-tab="forecast" data-tab-label="Who wins" role="tabpanel" tabindex="0">
+
+        <section id="s-headline" data-toc="The forecast">
           <p class="lede" id="lede"></p>
           <!-- The left column used to hold the icon array and then stop, leaving
                roughly 350px of nothing beside the cards. The array now draws once
@@ -63,8 +70,8 @@
                 <li><b>70% means 70 runs in 100</b> won, 30 lost. Both halves are the
                     forecast.</li>
                 <li><b><span class="term" data-term="calibration" tabindex="0" role="button">Calibration</span></b> — whether stated probabilities have
-                    matched observed hit rates — is the
-                    <a href="#s-calibration">Track record</a> tab.</li>
+                    matched observed hit rates — is on the
+                    <a href="#s-calibration">Can you trust it</a> tab.</li>
               </ul>
             </div>
             <div>
@@ -73,29 +80,6 @@
             </div>
           </div>
           <div class="caveat-block" id="caveats"></div>
-        </section>
-
-        <!-- The delta under each card said how far the number moved and never
-             why. This is the why, and it is an exact re-run per cause rather
-             than a share of a linearisation. -->
-        <section id="s-movement">
-          <h2>What moved it</h2>
-          <p class="q">Why is this number different from last time?</p>
-          <p>A move is either news about the electorate or a change in the model, and its size
-             does not say which. So each cause is priced by re-running the forecast with only that
-             input changed and every other input held fixed. The causes sum to the movement on the
-             card above.</p>
-          <div id="movement"></div>
-        </section>
-
-        <!-- Which races moved, under the chamber-level answer above it. -->
-        <section id="s-movers">
-          <h2>Which races moved</h2>
-          <p class="q">The chamber shifted — where did that come from?</p>
-          <p>The seats most often decisive, ranked by <span class="term" data-term="tipping-point" tabindex="0" role="button">tipping-point share</span>.
-             All cards share one vertical scale, so they can be compared. The zero line in each is
-             a tie.</p>
-          <div id="movers"></div>
         </section>
 
         <section id="s-seats">
@@ -112,9 +96,29 @@
           <div id="dotplot"></div>
         </section>
 
-        <!-- The only route from this page to a single race used to be the snake
-             chart. This is the list a reader actually arrives wanting, and every
-             row opens that race's full working. -->
+        <!-- The whole chamber as one row of seats. The seat histogram above says how
+             many; this says which, and puts the majority on a particular race. -->
+        <section id="s-snake">
+          <h2>Every seat, in order</h2>
+          <p class="q">Where does the majority fall, and which seats sit on it?</p>
+          <p>Every seat in the chamber, lined up as one strip:</p>
+          <ul class="pts">
+            <li><b>Order</b> — safest Democratic seat at the left, safest Republican at the right,
+                by the race's median margin. Seats not on this year's ballot sit at the ends.</li>
+            <li><b>Colour</b> — <code>P(D wins)</code>. Bright blue or red is a safe seat, grey is a
+                toss-up. Hatched seats are not on the ballot.</li>
+            <li><b>The outlined seat</b> — the seat whose rank equals the majority, 218 in the
+                House and 51 in the Senate. If each side wins every seat on its own end of the
+                strip, this race decides the chamber.</li>
+            <li><b>Not the same as the deciding race</b> — this is one fixed ordering. In each
+                simulation the order is different, so the race that most often casts the deciding
+                vote is a separate count, in <a href="#s-watch">What to watch</a>.</li>
+          </ul>
+          <p>Below the strip, the seats nearest that line are drawn large enough to read. Click
+             any seat for that race's full working.</p>
+          <div id="snake"></div>
+        </section>
+
         <!-- The joint outcome. Every other view here is a marginal, and the draws
              already hold the pair; a reader multiplying the two card numbers
              together is out by fourteen points because the chambers move together. -->
@@ -127,11 +131,30 @@
           <div id="cheapest"></div>
         </section>
 
-        <!-- The schedule the forecast is working against. -->
-        <section id="s-ahead">
-          <h2>What is still to come</h2>
-          <p class="q">How much more will the model learn before November?</p>
-          <div id="ahead"></div>
+      </div>
+
+      <div class="tabpanel" id="tab-seats" data-tab="seats" data-tab-label="Which seats" role="tabpanel" tabindex="0" hidden>
+
+        <section id="s-flips">
+          <h2>Seats that could change hands</h2>
+          <p class="q">Which seats are most likely to flip, in any chamber?</p>
+          <p>A seat flips when the party holding it going into November loses it. House,
+             Senate and governor races share one list here, ranked by that chance alone:</p>
+          <p class="fml-block">P(flip) = P(holder loses)
+             = <code>1 − P(D)</code> for a Democratic seat, <code>P(D)</code> for a Republican one</p>
+          <ul class="pts">
+            <li><b>Held by</b> — the party holding the seat today. Where the only challenger is an
+                independent, a flip is a win by that independent.</li>
+            <li><b>Expected flips</b> — <code>Σ P(flip)</code> over the chamber. An average, not a
+                night: in any single simulation each seat flips entirely or not at all, so the
+                range beside it is counted from the simulations themselves.</li>
+            <li><b>Net</b> — <code>Σ P(flip | R-held) − Σ P(flip | D-held)</code>: the expected
+                change in the non-Republican side's seats. An independent's win counts against
+                whichever party held the seat.</li>
+            <li><b>Redrawn</b> — the district's lines changed for 2026. The holder is whoever
+                holds that district number now, so part of a flip there is the new map.</li>
+          </ul>
+          <div id="flips"></div>
         </section>
 
         <section id="s-watch">
@@ -151,14 +174,12 @@
                 majority, so no governor's race can be the deciding seat; they are ranked this way
                 instead.</li>
           </ul>
-          <p>Each list names the quantity it used. Click any row for that race's full working: the
-             ballot, the <span class="term" data-term="prior" tabindex="0" role="button">prior</span>, the polls, and the weight given to each.</p>
+          <p>Each list names the quantity it used. Beneath it, the same share for the top races as
+             bars: the deciding vote is spread across many races, because the ordering of seats
+             is different in every simulation. Click any row or bar for that race's full working:
+             the ballot, the <span class="term" data-term="prior" tabindex="0" role="button">prior</span>, the polls, and the weight given to each.</p>
           <div id="watch"></div>
         </section>
-
-      </div>
-
-      <div class="tabpanel" id="tab-map" data-tab="map" data-tab-label="Map" role="tabpanel" tabindex="0" hidden>
 
         <section id="s-map">
           <div class="head"><h2>The House, by district</h2><div id="map-controls"></div></div>
@@ -180,39 +201,6 @@
           <p class="hops-read chart-note" id="hops-read"></p>
         </section>
 
-        <section id="s-flows">
-          <h2>Where the seats come from</h2>
-          <p class="q">Which seats change hands?</p>
-          <p>Each race contributes its probability, not a whole seat: a district Democrats take in
-             60% of runs counts 0.6. The total is
-             <code>net = Σ P(D) − seats currently held</code>, an expected value over every
-             simulation at once. No single election night looks like it — in one run each seat flips
-             whole or not at all.</p>
-          <div id="flows"></div>
-        </section>
-
-        <!-- One pair of charts per chamber in scope, built in js/main.js: the
-             majority line is a different number in each, and for governors there
-             is none. -->
-        <section id="s-path">
-          <h2>Path to a majority</h2>
-          <p class="q">Which seat decides it?</p>
-          <p>Two ways to ask it, side by side, with different answers.</p>
-          <ul class="pts">
-            <li><b>Ordered by margin</b> — every seat on the ballot lined up from safest Democratic
-                to safest Republican by expected margin, with the one that reaches the majority
-                marked. One ordering.</li>
-            <li><b>Which race decides it</b> — how often each race casts the deciding vote across
-                all runs. The answer is spread over many races, because the ordering is different
-                in every run.</li>
-          </ul>
-          <div id="path"></div>
-        </section>
-
-      </div>
-
-      <div class="tabpanel" id="tab-races" data-tab="races" data-tab-label="Races" role="tabpanel" tabindex="0" hidden>
-
         <section id="s-races">
           <h2>Every race</h2>
           <p class="q">What does the whole field look like, race by race?</p>
@@ -227,37 +215,51 @@
 
       </div>
 
-      <div class="tabpanel" id="tab-drivers" data-tab="drivers" data-tab-label="Playing field" role="tabpanel" tabindex="0" hidden>
+      <div class="tabpanel" id="tab-change" data-tab="change" data-tab-label="What changed" role="tabpanel" tabindex="0" hidden>
 
-        <section id="s-field">
-          <h2>The House map</h2>
-          <p class="q">How far is the map from the country it is drawn on?</p>
-          <p><b>Lean</b> is a district's 2024 presidential margin measured against the national
-             margin the same day: <code>lean = district margin − national margin</code>. R+5 is five
-             points right of wherever the country lands, not five points Republican outright. Order
-             all 435 and the 218th decides the House.</p>
-          <p>The 218th sits <span data-cal="field.bias">3.26</span> points right of the country — a
-             price of entry. Democrats must carry the national vote by about that much before the
-             median district is theirs; short of it they lead the country and lose the chamber.</p>
-          <div id="playingfield"></div>
+        <!-- The delta under each card said how far the number moved and never
+             why. This is the why, and it is an exact re-run per cause rather
+             than a share of a linearisation. -->
+        <section id="s-movement">
+          <h2>What moved it</h2>
+          <p class="q">Why is this number different from last time?</p>
+          <p>A move is either news about the electorate or a change in the model, and its size
+             does not say which. So each cause is priced by re-running the forecast with only that
+             input changed and every other input held fixed. The causes sum to the movement shown
+             under each chamber's card on the <a href="#s-headline">Who wins</a> tab.</p>
+          <div id="movement"></div>
         </section>
 
-        <!-- Deliberately NOT a chamber mode of s-field above: a districting
-             bias is a choice somebody made and can unmake, and equal suffrage in
-             the Senate is the one clause Article V puts beyond amendment. Same
-             election, same national vote, different kind of fact. -->
-        <section id="s-statewide">
-          <h2>The state borders</h2>
-          <p class="q">And how far are the Senate and the governorships?</p>
-          <p>Both are decided by states, and a state's weight is independent of its population:
-             Wyoming and California send two senators each. Scoring the same 2024 presidential
-             result by state instead of by district says how far that arrangement sits from the
-             country.</p>
-          <p>A separate section, because it is a different kind of fact. District lines were drawn
-             and can be redrawn. Equal representation in the Senate is the one provision Article V
-             puts beyond amendment without a state's own consent.</p>
-          <div id="statewide"></div>
+        <!-- Which races moved, under the chamber-level answer above it. -->
+        <section id="s-movers">
+          <h2>Which races moved</h2>
+          <p class="q">The chamber shifted — where did that come from?</p>
+          <p>The seats most often decisive, ranked by <span class="term" data-term="tipping-point" tabindex="0" role="button">tipping-point share</span>.
+             All cards share one vertical scale, so they can be compared. The zero line in each is
+             a tie.</p>
+          <div id="movers"></div>
         </section>
+
+        <section id="s-trend">
+          <h2>Forecast history</h2>
+          <p class="q">How has this forecast moved over time?</p>
+          <p>Each point is a published run. The line is solid only between two runs built by the
+             same model on the same sources. Where the build changed in between — a new prior
+             source, a different poll feed, a different draw count — it is broken instead, because a
+             jump caused by the model is not news about the election.</p>
+          <div id="trend"></div>
+        </section>
+
+        <!-- The schedule the forecast is working against. -->
+        <section id="s-ahead">
+          <h2>What is still to come</h2>
+          <p class="q">How much more will the model learn before November?</p>
+          <div id="ahead"></div>
+        </section>
+
+      </div>
+
+      <div class="tabpanel" id="tab-whatif" data-tab="whatif" data-tab-label="What if" role="tabpanel" tabindex="0" hidden>
 
         <section id="s-scenario">
           <h2>The national polling</h2>
@@ -302,9 +304,39 @@
           <div id="correlation"></div>
         </section>
 
+        <section id="s-field">
+          <h2>The House map</h2>
+          <p class="q">How far is the map from the country it is drawn on?</p>
+          <p><b>Lean</b> is a district's 2024 presidential margin measured against the national
+             margin the same day: <code>lean = district margin − national margin</code>. R+5 is five
+             points right of wherever the country lands, not five points Republican outright. Order
+             all 435 and the 218th decides the House.</p>
+          <p>The 218th sits <span data-cal="field.bias">3.26</span> points right of the country — a
+             price of entry. Democrats must carry the national vote by about that much before the
+             median district is theirs; short of it they lead the country and lose the chamber.</p>
+          <div id="playingfield"></div>
+        </section>
+
+        <!-- Deliberately NOT a chamber mode of s-field above: a districting
+             bias is a choice somebody made and can unmake, and equal suffrage in
+             the Senate is the one clause Article V puts beyond amendment. Same
+             election, same national vote, different kind of fact. -->
+        <section id="s-statewide">
+          <h2>The state borders</h2>
+          <p class="q">And how far are the Senate and the governorships?</p>
+          <p>Both are decided by states, and a state's weight is independent of its population:
+             Wyoming and California send two senators each. Scoring the same 2024 presidential
+             result by state instead of by district says how far that arrangement sits from the
+             country.</p>
+          <p>A separate section, because it is a different kind of fact. District lines were drawn
+             and can be redrawn. Equal representation in the Senate is the one provision Article V
+             puts beyond amendment without a state's own consent.</p>
+          <div id="statewide"></div>
+        </section>
+
       </div>
 
-      <div class="tabpanel" id="tab-record" data-tab="record" data-tab-label="Track record" role="tabpanel" tabindex="0" hidden>
+      <div class="tabpanel" id="tab-trust" data-tab="trust" data-tab-label="Can you trust it" role="tabpanel" tabindex="0" hidden>
 
         <section id="s-calibration">
           <h2>Out-of-sample checks</h2>
@@ -327,29 +359,6 @@
                corpus across all three, and the other two chambers have their own
                measurements rather than a replay. Each card names its own source. -->
           <div class="three-col" id="calibration"></div>
-        </section>
-
-        <section id="s-trend">
-          <h2>Forecast history</h2>
-          <p class="q">How has this forecast moved over time?</p>
-          <p>Each point is a published run. The line is solid only between two runs built by the
-             same model on the same sources. Where the build changed in between — a new prior
-             source, a different poll feed, a different draw count — it is broken instead, because a
-             jump caused by the model is not news about the election.</p>
-          <div id="trend"></div>
-        </section>
-
-      </div>
-
-      <div class="tabpanel" id="tab-method" data-tab="method" data-tab-label="Method" role="tabpanel" tabindex="0" hidden>
-
-        <section id="s-walkthrough">
-          <h2>One race, step by step</h2>
-          <p class="q">How does a single seat get its number?</p>
-          <p>All 506 races go through the same seven steps, and nothing is added that is not shown
-             here. Pick a race and walk it: the chart redraws at every step, so the estimate moves
-             as each piece of evidence goes in.</p>
-          <div id="walkthrough"></div>
         </section>
 
         <section id="s-limits">
@@ -377,6 +386,15 @@
           <div id="coverage-split"></div>
         </section>
 
+        <section id="s-walkthrough">
+          <h2>One race, step by step</h2>
+          <p class="q">How does a single seat get its number?</p>
+          <p>All 506 races go through the same seven steps, and nothing is added that is not shown
+             here. Pick a race and walk it: the chart redraws at every step, so the estimate moves
+             as each piece of evidence goes in.</p>
+          <div id="walkthrough"></div>
+        </section>
+
         <section id="s-diag">
           <h2>Payload diagnostics</h2>
           <p class="q">Is the page showing what the engine actually computed?</p>
@@ -385,11 +403,17 @@
              on this page is counted back out of those bits in your browser. These checks confirm
              the counting still reproduces the engine's own answers exactly. A drift would leave the
              numbers looking entirely plausible, so it is checked rather than assumed.</p>
-          <div id="diagnostics"></div>
+          <!-- Closed by default: these are for somebody auditing the page, and they
+               sit at the end of the tab that is about auditing it. -->
+          <details class="caveats-more diag-more">
+            <summary>Show the checks</summary>
+            <div id="diagnostics"></div>
+          </details>
         </section>
 
       </div>
 
+      </div>
     </div>
   </div>
 </main>

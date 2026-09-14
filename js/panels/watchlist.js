@@ -66,7 +66,7 @@ const MODES = {
       `A different question, because the one above has no answer here: 36 separate offices confer `
       + `no collective majority, so no governor’s race can be the seat that decides control. `
       + `Ranked instead by distance from an even chance. The bars are each race’s median margin `
-      + `about a centre line, Democrats to the left, matching the swarm on the Races tab.`,
+      + `about a centre line, Democrats to the left, matching the swarm under Every race.`,
     frozen: null,
   },
 };

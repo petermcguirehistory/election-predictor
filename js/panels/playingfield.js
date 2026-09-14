@@ -316,7 +316,7 @@ export function playingField(host, { structural }) {
   ], hist));
   host.append(el('p', 'chart-note',
     `The rules mark where the measure changes, so no trend line is drawn through them. The ` +
-    `forecast-history chart on the Track record tab breaks at its own version changes for the ` +
+    `forecast-history chart on the What changed tab breaks at its own version changes for the ` +
     `same reason.`));
 
   // --- what is not drawable ----------------------------------------------

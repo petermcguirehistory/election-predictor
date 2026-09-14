@@ -5,15 +5,14 @@
 // the condition.
 
 import { loadAll, Sims } from './data.js';
-import { C, fmtPct, fmtMargin, chamberName, SCOPES, scopeName, chambersFor,
-         contestedThreshold } from './charts/util.js';
+import { C, fmtPct, fmtMargin, chamberName, SCOPES, scopeName, chambersFor } from './charts/util.js';
 import { iconArray } from './charts/iconarray.js';
 import { dotplot } from './charts/dotplot.js';
 import { seatCurve } from './charts/seatcurve.js';
 import { jointChambers, cheapestPath } from './charts/chambers.js';
 import { movers as moversChart } from './charts/movers.js';
 import { ahead } from './charts/ahead.js';
-import { snake } from './charts/snake.js';
+import { seatStrip } from './charts/seatstrip.js';
 import { tippingChart } from './charts/tipping.js';
 import { cartogram, choropleth, stateCartogram, stateChoropleth,
          cartogramModes } from './charts/cartogram.js';
@@ -26,17 +25,18 @@ import { hops, motionOK } from './charts/hops.js';
 import { reliability, locoChart, seatMisses, senateRatio,
          governorSweep } from './charts/calibration.js';
 import { trendChart } from './charts/trend.js';
-import { flows } from './charts/flows.js';
 import { limitsPanel } from './panels/limits.js';
 import { alarmKind } from './alarms.js';
 import { playingField, statewideField } from './panels/playingfield.js';
 import { walkthrough } from './panels/walkthrough.js';
 import { watchlist } from './panels/watchlist.js';
+import { flipsPanel } from './panels/flips.js';
 import { movementPanel } from './panels/movement.js';
 import { environmentStrip, houseLeverage } from './panels/environment.js';
 import { sparkline } from './charts/sparkline.js';
 import { baseline, series } from './history.js';
 import { mountTabs } from './tabs.js';
+import { mountToc } from './toc.js';
 import { mountGlossary, auditTerms, term } from './glossary.js';
 
 const store = {
@@ -74,6 +74,8 @@ const HASH_KEYS = ['tab', 'scope', 'layout', 'mapMode', 'vsup'];
 // key is absent, so a disagreement between the two means the page opens on one
 // scope and an empty hash reads back as another — the lossy round trip of
 // finding 40, in the one place it cannot be seen without a link to compare.
+const TAB_MOVED = { map: 'seats', races: 'seats', flips: 'seats', drivers: 'whatif',
+                    record: 'trust', method: 'trust' };
 const HASH_DEFAULT = { tab: 'forecast', scope: 'all', layout: 'hex', mapMode: 'prob', vsup: true };
 
 // The hash is the whole view, so reading it has to be TOTAL: a key that is
@@ -104,6 +106,10 @@ function readHash(s) {
   // no clue why. An unrecognised tab is handled by `tabs.show`, which reports
   // the tab it actually settled on.
   if (!SCOPES.includes(patch.scope)) patch.scope = HASH_DEFAULT.scope;
+  // The page had seven tabs before it had five, and it was public under both. A
+  // link to a retired tab opens the tab its sections moved to rather than the
+  // first tab, which is what `tabs.show` would otherwise fall back on.
+  if (TAB_MOVED[patch.tab]) patch.tab = TAB_MOVED[patch.tab];
 
   // Drop anything the payload cannot honour rather than failing the whole
   // link: a hash may outlive the run it was made against.
@@ -181,14 +187,18 @@ const SECTION_SCOPE = {
     label: 'All three chambers',
     why: 'The feeds supply every chamber, so what is still to arrive is not a per-chamber fact.' },
   's-seats': { kind: 'follows', can: ['house', 'senate', 'governor'] },
+  // Not governors: the strip exists to put the majority on a seat, and 36
+  // governorships have no majority for a seat to sit on.
+  's-snake': { kind: 'follows', can: ['house', 'senate'] },
+  // Pooled, and under `all` that is the point of it: every chamber's flips ranked
+  // against each other on the one quantity they share.
+  's-flips': { kind: 'pooled' },
   's-together': { kind: 'fixed', can: ['house', 'senate'],
     label: 'House · Senate',
     why: 'This is about the two chambers as a pair, so it shows both whatever the scope says. '
        + 'Governors confer no majority and have no threshold to be on either side of.' },
   's-watch': { kind: 'follows', can: ['house', 'senate', 'governor'] },
-  's-path': { kind: 'follows', can: ['house', 'senate', 'governor'] },
   's-map': { kind: 'follows', can: ['house', 'senate', 'governor'] },
-  's-flows': { kind: 'follows', can: ['house', 'senate', 'governor'] },
   's-races': { kind: 'pooled' },
   's-scenario': { kind: 'fixed', can: ['house', 'senate', 'governor'],
     label: 'All three chambers',
@@ -215,8 +225,6 @@ const SECTION_SCOPE = {
 // Spelled out, because these land inside sentences rather than beside a label.
 const NUMBER = { 1: 'one', 2: 'two', 3: 'three' };
 
-const CHAMBER_NOUN = { house: 'districts', senate: 'seats', governor: 'governorships' };
-const SEAT_NOUN = { house: 'seat', senate: 'seat', governor: 'governorship' };
 
 // The noun phrase a chart uses for the set it is drawing -- "House districts",
 // "governorships", "races, across all three chambers". A bare phrase with no
@@ -269,7 +277,10 @@ function renderScopeTags(s) {
       text = scopeName(s.scope);
     } else if (d.kind === 'follows') {
       const drawn = chambersFor(s.scope, d.can);
-      text = drawn.length === d.can.length ? 'All three chambers'
+      // "All three" only when the section can do all three: the seat strip draws
+      // two, and a badge claiming governors over it would be false.
+      text = drawn.length === d.can.length
+           ? (d.can.length === 3 ? 'All three chambers' : d.can.map(chamberName).join(' · '))
            : drawn.length ? chamberName(drawn[0])
            : scopeName(s.scope);
       off = !drawn.length;
@@ -573,8 +584,8 @@ function renderHeadline(s) {
     seats.append(document.createTextNode(' D seats \u00b7 '));
     const r = el('span'); r.innerHTML = range; seats.append(r);
     seats.append(document.createTextNode(' \u00b7 '));
-    seats.append(goButton(String(base.threshold), 'tl-inline', 's-path',
-      { scope: cc }, 'See which seat actually delivers the majority'));
+    seats.append(goButton(String(base.threshold), 'tl-inline', 's-snake',
+      { scope: cc }, 'See the seat that sits on the majority line'));
     seats.append(document.createTextNode(' to control'));
     card.append(seats);
 
@@ -604,6 +615,7 @@ function renderHeadline(s) {
 function cardLinks(cc) {
   const row = el('div', 'tl-links');
   row.append(
+    goButton('Flips', 'tl-link', 's-flips', { scope: cc }),
     goButton('Map', 'tl-link', 's-map', { scope: cc }),
     goButton('Races', 'tl-link', 's-races', { scope: cc }),
     goButton('Track record', 'tl-link', 's-calibration', { scope: cc }));
@@ -781,30 +793,43 @@ function renderSeats(s) {
       showNote: !told.has(kind),
     });
     told.add(kind);
-    // The one sentence left behind by moving `Path to a majority` off this page.
-    // It is the interesting half of that section -- which seat the ordering
-    // lands on -- and it is now a door rather than fifteen hundred pixels of
-    // chart above the fold.
-    const cross = forecast.tipping[ch] && forecast.tipping[ch].crossing;
-    if (cross) {
-      // The Senate's crossing seat sits at a margin of -0.02, which fmtMargin
-      // rounds to "R+0.0" -- a party label attached to nothing. Say what that
-      // actually is rather than printing a signed zero.
-      const cm = cross.median_margin;
-      const where = Math.abs(cm) < 0.05
-        ? `${cross.race_id}, which the model puts at a dead heat,`
-        : `${cross.race_id} (${fmtMargin(cm)}),`;
-      const line = el('p', 'chart-note');
-      line.append(document.createTextNode(
-        `Ordered by expected margin, the seat that reaches the majority is ${where} `
-        + `at rank ${cross.rank}. Which race `));
-      const a = el('a', null, 'actually decides it');
-      a.href = '#s-path';
-      a.onclick = e => { e.preventDefault(); goto('s-path', { scope: ch }); };
-      line.append(a);
-      line.append(document.createTextNode(' is a different question with a different answer.'));
-      host.append(line);
+  });
+}
+
+// ---- every seat, in order ------------------------------------------------
+
+function renderSnake(s) {
+  const { forecast, sims } = s.data;
+  const c = s.condition;
+  const live = c.ok && c.pinned;
+  perChamber($('#snake'), chambersFor(s.scope, ['house', 'senate']), (host, ch) => {
+    // A chamber the payload does not size cannot be drawn whole, and a strip of
+    // only the races on the ballot would put the majority on the wrong seat.
+    const size = sims.m.size && sims.m.size[ch];
+    const majority = sims.m.majority[ch];
+    if (!size || majority == null) {
+      host.append(el('p', 'chart-note', `No chamber size in this payload for the ${chamberName(ch)}.`));
+      return;
     }
+    seatStrip(host, {
+      races: forecast.races.filter(r => r.chamber === ch),
+      size, majority, heldD: sims.m.offsets[ch] || 0,
+      chamber: ch, chamberLabel: chamberName(ch),
+      prob: live ? r => sims.winProb(r.race_id, c.idx) ?? r.win_prob : undefined,
+      frozen: live,
+      onPick: r => open(r),
+    });
+  });
+}
+
+// ---- seats that could change hands ---------------------------------------
+
+function renderFlips(s) {
+  flipsPanel($('#flips'), {
+    races: scopedRaces(s),
+    chambers: chambersFor(s.scope, s.data.forecast.meta.chambers),
+    sims: s.data.sims, condition: s.condition,
+    onPick: r => open(r),
   });
 }
 
@@ -812,8 +837,11 @@ function renderSeats(s) {
 
 function renderWatch(s) {
   const { forecast, sims } = s.data;
+  const byId = new Map(forecast.races.map(r => [r.race_id, r]));
   perChamber($('#watch'), chambersFor(s.scope, forecast.meta.chambers), (host, ch) => {
-    watchlist(host, {
+    const list = el('div');
+    host.append(list);
+    watchlist(list, {
       races: forecast.races.filter(r => r.chamber === ch),
       chamber: ch,
       chamberLabel: chamberName(ch),
@@ -821,6 +849,20 @@ function renderWatch(s) {
       sims,
       condition: s.condition,
       onPick: r => open(r),
+    });
+    // The distribution behind the ranking, moved here from the retired "Path to a
+    // majority". Governors have none, and the list above already says why, so the
+    // chart's own no-majority note would only repeat it.
+    const tip = forecast.tipping[ch];
+    if (!tip || !tip.distribution) return;
+    const box = el('div', 'wl-tip');
+    box.append(el('h4', 'wl-h', 'How the deciding vote is spread'));
+    const chart = el('div');
+    box.append(chart);
+    host.append(box);
+    tippingChart(chart, {
+      distribution: tip.distribution, chamber: chamberName(ch), byId,
+      frozen: s.condition.pinned, onPick: r => open(r),
     });
   });
 }
@@ -833,44 +875,6 @@ function renderEnvironment(s) {
     scenarios: s.data.scenarios,
     gbAgeDays: s.data.forecast.freshness.generic_ballot_age_days,
     onLeverage: () => goto('s-scenario'),
-  });
-}
-
-function renderPath(s) {
-  const { forecast, sims } = s.data;
-  const c = s.condition;
-  const byId = new Map(forecast.races.map(r => [r.race_id, r]));
-
-  perChamber($('#path'), chambersFor(s.scope, forecast.meta.chambers), (host, ch) => {
-    const grid = el('div', 'two-col');
-    const left = el('div'), right = el('div');
-    // Counted in races on the ballot, not seats held: the Senate majority is 51,
-    // but 34 Democratic seats are not up, so the line falls at seat 17 of 35.
-    const threshold = contestedThreshold(sims, ch);
-    const held = (sims.m.offsets[ch] || 0);
-    const tip = forecast.tipping[ch];
-
-    left.append(el('h3', null, 'Ordered by margin'));
-    const snakeHost = el('div'); left.append(snakeHost);
-    right.append(el('h3', null, 'Which race decides it'));
-    const tipHost = el('div'); right.append(tipHost);
-    grid.append(left, right);
-    host.append(grid);
-
-    snake(snakeHost, {
-      races: forecast.races.filter(r => r.chamber === ch),
-      threshold,
-      majority: sims.m.majority[ch] ?? null,
-      held,
-      unit: CHAMBER_NOUN[ch] || 'races',
-      crossing: tip ? tip.crossing : null,
-      onPick: r => open(r),
-    });
-    tippingChart(tipHost, {
-      distribution: tip ? tip.distribution : null,
-      chamber: chamberName(ch), byId, frozen: c.pinned,
-      onPick: r => open(r),
-    });
   });
 }
 
@@ -1182,16 +1186,6 @@ function renderCalibration(s) {
     host.append(box);
     c.draw(chart, f);
   }
-}
-
-function renderFlows(s) {
-  perChamber($('#flows'), chambersFor(s.scope, s.data.forecast.meta.chambers), (host, ch) => {
-    flows(host, {
-      races: s.data.forecast.races, chamber: ch,
-      unit: CHAMBER_NOUN[ch] || 'races', seat: SEAT_NOUN[ch] || 'seat',
-      onPick: r => open(r),
-    });
-  });
 }
 
 // Rendered once: it owns its own step/district state, and re-running it on every
@@ -1588,7 +1582,7 @@ function renderCaveats(s) {
 
   const foot = el('p', 'caveat-why');
   foot.innerHTML = 'These come and go with the data on every run. The structural limits, which do '
-    + 'not, are on the <a href="#s-limits">Method</a> tab.';
+    + 'not, are on the <a href="#s-limits">Can you trust it</a> tab.';
   more.append(foot);
   host.append(more);
 }
@@ -1659,6 +1653,7 @@ function renderDiagnostics(s) {
 
 let hopsCtl = null;
 let tabs = null;
+let toc = null;
 
 // Paint scheduling.
 //
@@ -1811,14 +1806,14 @@ function renderAll(s, changed) {
       host.append(note);
     });
     paint('s-seats', () => renderSeats(s));
+    paint('s-snake', () => renderSnake(s));
+    paint('s-flips', () => renderFlips(s));
     paint('s-together', () => renderTogether(s));
     paint('s-watch', () => renderWatch(s));
-    paint('s-path', () => renderPath(s));
     paint('s-correlation', () => renderCorrelation(s));
   }
   if (t('scope')) {
     paint('s-calibration', () => renderCalibration(s));
-    paint('s-flows', () => renderFlows(s));
     paint('s-races', () => renderRaces(s));
     paint('s-trend', () => renderTrend(s));
     paint('s-walkthrough', () => renderWalkthrough(s));
@@ -1837,6 +1832,9 @@ function renderAll(s, changed) {
   }
 
   flush(s.tab);
+  // Last, after the paints: a heading can change with the scope, and the scope can
+  // remove a section outright, so the rail is read off the page as it now stands.
+  toc.refresh(s.tab);
 }
 
 async function boot() {
@@ -1854,6 +1852,7 @@ async function boot() {
     tabs = mountTabs({ list: $('#tablist'), onSelect: id => store.set({ tab: id }) });
     tabs.prune();
     tabs.show(store.tab);
+    toc = mountToc({ host: $('#toc'), condBar: $('#cond-bar') });
     store.subscribe(renderAll);
     $('#asof').textContent =
       `as of ${data.forecast.meta.asof} · ${data.forecast.meta.n_sims.toLocaleString()} simulations`;

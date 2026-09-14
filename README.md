@@ -33,25 +33,27 @@ that has not moved for a few days means something is being looked at.
 
 ## How to read it
 
-Six tabs, and the scope control above them (All races / House / Senate /
-Governors) applies to every one of them at once:
+Five tabs, each named for the question it answers, and the scope control above
+them (All races / House / Senate / Governors) applies to every one of them at
+once. On a wide screen the left rail lists the sections of the open tab.
 
-- **Forecast** — the headline probabilities, what moved them since the last run,
-  seat totals, and the races the answer rests on.
-- **Map** — every seat by district or by state, with colour drained toward grey
-  where the model knows least.
-- **Races** — all 506, as a swarm and as a sortable table.
-- **Playing field** — how far the districts and the state borders sit from the
-  country, and what the forecast does if the national polling is off.
-- **Track record** — whether this model has been right before, scored out of
-  sample.
-- **Method** — one race walked step by step, and what could be wrong.
+- **Who wins** — the headline probabilities, seat totals, every seat lined up
+  with the majority seat marked, and both chambers together.
+- **Which seats** — the seats most likely to change hands in all three chambers,
+  the races the answer rests on, the map, and all 506 as a swarm and a table.
+- **What changed** — what moved the forecast since the last run, which races
+  moved, the full history, and what is still to arrive before November.
+- **What if** — what the forecast does if the national polling is off, how errors
+  travel together, and how far the districts and state borders sit from the
+  country.
+- **Can you trust it** — whether this model has been right before, what could be
+  wrong, what it is built from, and one race walked step by step.
 
 Click any race anywhere — a map, a chart, a table row — for its full working:
 who is on the ballot, what the prior said, what the polls said, and the weight
 given to each. Clicking a race again holds its result fixed and re-reads every
 number on the page from only the simulations that agree.
 
-**What could be wrong**, on the Method tab, is not a footnote: it is the list of
+**What could be wrong**, on the Can you trust it tab, is not a footnote: it is the list of
 things this model is known to get wrong, and it is there because a forecast
 without one is a claim rather than a measurement.

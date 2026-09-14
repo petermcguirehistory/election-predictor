@@ -216,8 +216,9 @@ export class Sims {
   // support counts and probabilities; they do not support margins or rankings.
   static get recomputable() {
     return {
-      yes: ['control probability', 'seat histogram', 'per-race win probability', 'correlation'],
-      no: ['median margin', 'margin quantiles', 'snake ordering and colour',
+      yes: ['control probability', 'seat histogram', 'per-race win probability', 'correlation',
+            'seat strip colour', 'flip probabilities and flip ranges'],
+      no: ['median margin', 'margin quantiles', 'seat strip order',
            'cartogram margin/swing modes', 'tipping point'],
     };
   }

@@ -329,7 +329,7 @@ const ALARM = {
   senate_no_democrat_seats: n => ({
     title: `${n} Senate seats have no Democrat on the ballot`,
     body: 'Each has a named independent against the Republican. How those independents are '
-      + 'priced, and what their caucus choice is worth, is set out at the top of the Forecast tab.',
+      + 'priced, and what their caucus choice is worth, is set out at the top of the Who wins tab.',
   }),
   governor_zero_poll_coverage: () => ({
     title: 'Governor races have no usable polls',

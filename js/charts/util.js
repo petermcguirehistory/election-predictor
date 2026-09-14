@@ -289,14 +289,3 @@ export const scopeName = v => SCOPE_NAME[v] || v;
 // it can do at all. This is the single place the "all means one of each" rule
 // lives; no panel reimplements it.
 export const chambersFor = (scope, can) => (scope === 'all' ? can : can.filter(c => c === scope));
-
-// Democratic seats already banked before a single contested race is counted:
-// Senate holdovers, plus the seats the simulator never sampled because they
-// cannot flip. A chamber's snake ranks only the races on the ballot, so its
-// majority line has to be the majority MINUS what is already held -- 51 becomes
-// seat 17 of 35 for the Senate, which is meaningless unless it is said.
-export function contestedThreshold(sims, chamber) {
-  const maj = sims.m.majority;
-  if (!Object.prototype.hasOwnProperty.call(maj, chamber)) return null;
-  return maj[chamber] - (sims.m.offsets[chamber] || 0);
-}
