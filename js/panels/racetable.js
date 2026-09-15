@@ -6,8 +6,16 @@ import { C, fmtMargin, scrollAffordance } from '../charts/util.js';
 const COLS = [
   { k: 'competitive', label: 'Race', get: r => Math.abs(r.win_prob - 0.5), fmt: r => r.race_id },
   { k: 'state', label: 'State', get: r => r.state },
+  // "D win" is a Democrat's chance, so where the D slot holds an independent it is
+  // zero, and the independent's own chance is written beside it rather than
+  // passed off as a Democrat's.
   { k: 'win_prob', label: 'D win', num: true,
-    get: r => r.win_prob, fmt: r => `${(r.win_prob * 100).toFixed(1)}%` },
+    get: r => (r.ind_slot === 'D' ? 0 : r.win_prob),
+    fmt: r => (r.ind_slot === 'D'
+      ? `0% (IND ${(r.win_prob * 100).toFixed(1)}%)`
+      : r.ind_slot === 'R' && r.win_prob < 0.5
+        ? `${(r.win_prob * 100).toFixed(1)}% (IND ${((1 - r.win_prob) * 100).toFixed(1)}%)`
+        : `${(r.win_prob * 100).toFixed(1)}%`) },
   { k: 'median_margin', label: 'Median margin', num: true,
     get: r => r.median_margin ?? -1e9, fmt: r => (r.locked ? 'settled' : fmtMargin(r.median_margin)) },
   // "σ" told a reader who already knew what it was something they already knew.
@@ -87,7 +95,8 @@ export function raceTable(host, { races, scopeLabel = 'races', onPick }) {
         td.textContent = c.fmt ? c.fmt(r) : c.get(r);
         if (c.num) td.className = 'num';
         if (c.k === 'win_prob') {
-          td.style.color = r.win_prob >= 0.5 ? C.dem : C.rep;
+          const indP = r.ind_slot === 'D' ? r.win_prob : r.ind_slot === 'R' ? 1 - r.win_prob : 0;
+          td.style.color = indP >= 0.5 ? C.accent : r.win_prob >= 0.5 && r.ind_slot !== 'D' ? C.dem : C.rep;
         }
       }
     }

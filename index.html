@@ -148,9 +148,9 @@
             <li><b>Expected flips</b> — <code>Σ P(flip)</code> over the chamber. An average, not a
                 night: in any single simulation each seat flips entirely or not at all, so the
                 range beside it is counted from the simulations themselves.</li>
-            <li><b>Net</b> — <code>Σ P(flip | R-held) − Σ P(flip | D-held)</code>: the expected
-                change in the non-Republican side's seats. An independent's win counts against
-                whichever party held the seat.</li>
+            <li><b>Net</b> — <code>Σ P(flip → D) − Σ P(flip → R)</code>: expected Democratic
+                gains less Republican gains. An independent's win is a flip, but it goes to
+                neither party, so it is counted on its own line and left out of the net.</li>
             <li><b>Redrawn</b> — the district's lines changed for 2026. The holder is whoever
                 holds that district number now, so part of a flip there is the new map.</li>
           </ul>

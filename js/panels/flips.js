@@ -72,8 +72,12 @@ export function flipsPanel(host, { races, chambers, sims, condition, onPick }) {
     const mine = rows.filter(x => x.r.chamber === ch);
     if (!mine.length) continue;
     const exp = mine.reduce((a, x) => a + x.p, 0);
-    const toD = mine.filter(x => x.r.incumbent_party === 'R').reduce((a, x) => a + x.p, 0);
-    const toR = exp - toD;
+    // Gains by WHO TAKES THE SEAT, not by who loses it. "Republican-held, lost"
+    // was being counted as a Democratic gain, which put Osborn's Nebraska into the
+    // Democratic net; an independent's win is theirs, and the net between the two
+    // parties leaves it out.
+    const to = party => mine.filter(x => x.to === party).reduce((a, x) => a + x.p, 0);
+    const toD = to('D'), toR = to('R'), toI = to('I');
     const net = toD - toR;
     const likely = mine.filter(x => x.p >= 0.5).length;
     const range = flipRange(sims, mine, idx);
@@ -84,8 +88,10 @@ export function flipsPanel(host, { races, chambers, sims, condition, onPick }) {
       + `<div class="fl-n">${exp.toFixed(1)}</div>`
       + `<div class="fl-l">expected flips of ${mine.length} held seats</div>`
       + `<table class="fx fl-fx"><tbody>`
-      + `<tr><th>R-held → other side</th><td style="color:${C.dem}">${toD.toFixed(1)}</td></tr>`
-      + `<tr><th>D-held → other side</th><td style="color:${C.rep}">${toR.toFixed(1)}</td></tr>`
+      + `<tr><th>→ Democrats</th><td style="color:${C.dem}">${toD.toFixed(1)}</td></tr>`
+      + `<tr><th>→ Republicans</th><td style="color:${C.rep}">${toR.toFixed(1)}</td></tr>`
+      + (toI >= 0.05
+        ? `<tr><th>→ independents</th><td style="color:${C.accent}">${toI.toFixed(1)}</td></tr>` : '')
       + `<tr><th>Net</th><td style="color:${net >= 0 ? C.dem : C.rep}">`
       + `${net >= 0 ? 'D' : 'R'} +${Math.abs(net).toFixed(1)}</td></tr>`
       + `<tr><th>More likely than not</th><td>${likely}</td></tr>`

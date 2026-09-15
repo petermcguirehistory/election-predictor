@@ -178,8 +178,9 @@ const ALARM = {
             ['Estimate', 'The polling average, in place of the prior for a candidate not running.'],
             ['Uncertainty', `Widened by the spread of past independent candidacies around their
               polls — seven since 1998. Too few to correct the mean, enough to size the error.`],
-            ['Qualifies', `3+ polls, all within 10 points of each other, and an independent who
-              says they would caucus with the Democrats.`],
+            ['Qualifies', '3+ polls, all within 10 points of each other.'],
+            ['Counted as', 'Neither party\u2019s seat, when the independent wins. What they say '
+              + 'they would caucus with is not used.'],
           ]),
     };
   },

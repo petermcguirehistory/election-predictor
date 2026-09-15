@@ -357,9 +357,9 @@ const SHORT_DATE = iso => new Date(`${iso}T00:00:00Z`)
 // say "no comparable earlier run" -- it cannot quote a movement that is really
 // the model changing underneath the forecast. The first two published runs moved
 // House control eighteen points in two days and none of it was the election.
-function movement(bl, ch) {
+function movement(bl, ch, lead = 'D') {
   if (!bl) return null;
-  const ser = series(bl.run, ch);
+  const ser = series(bl.run, ch, lead);
   if (!ser) return null;
   const i = bl.base ? bl.run.indexOf(bl.base) : -1;
   return { kind: ser.kind, values: ser.values, from: i >= 0 ? ser.values[i] : null,
@@ -379,10 +379,9 @@ function movementRow(mv, ch, lead) {
     row.append(el('span', 'tl-nomove', 'no comparable earlier run'));
     return row;
   }
-  const flip = lead === 'R' && mv.kind === 'prob';
-  const values = flip ? mv.values.map(v => 1 - v) : mv.values;
-  const from = flip ? 1 - mv.from : mv.from;
-  const to = flip ? 1 - mv.to : mv.to;
+  // Already the lead's own series (see `movement`); this used to flip the
+  // Democratic one, which is only Republicans' when nobody else can win.
+  const { values, from, to } = mv;
   const d = to - from;
   const flat = mv.kind === 'prob' ? Math.abs(d) < 0.005 : d === 0;
   const dir = flat ? 'flat' : d > 0 ? 'up' : 'down';
@@ -419,8 +418,22 @@ function arrayChamber(shown, stateOf) {
   if (shown.length === 1) return shown[0];
   const contested = shown.filter(ch => stateOf(ch).control_prob != null);
   if (!contested.length) return shown[0];
-  return contested.reduce((a, b) =>
-    (Math.abs(stateOf(a).control_prob - 0.5) <= Math.abs(stateOf(b).control_prob - 0.5) ? a : b));
+  return contested.reduce((a, b) => (settled(stateOf(a)) <= settled(stateOf(b)) ? a : b));
+}
+
+// How settled a chamber's control is: the likelier party's probability. This was
+// distance from 50%, which stopped meaning anything once control had a third
+// outcome -- a Senate at D 41 / R 49.5 / independents 9.5 is further from 50% than
+// a coin flip and less settled than one.
+function settled(t) {
+  return Math.max(t.control_prob, t.r_control_prob);
+}
+
+// The likelier party, and its probability. Not `control_prob >= 0.5`: with a
+// third outcome neither party need be past half, and 1 - P(D) is not P(R).
+function leader(t) {
+  return t.control_prob >= t.r_control_prob
+    ? { lead: 'D', p: t.control_prob } : { lead: 'R', p: t.r_control_prob };
 }
 
 function renderHeadline(s) {
@@ -465,12 +478,20 @@ function renderHeadline(s) {
                `majority.${cond}${why}`,
       });
     } else {
-      const p = st.control_prob;
+      // Three blocks where the draws have three outcomes. Rounded per block and the
+      // Republican block takes the remainder, so the hundred always adds up.
+      const kd = Math.round(st.control_prob * 100);
+      const ku = Math.round(st.undecided_prob * 100);
+      const kr = 100 - kd - ku;
       iconArray(host, {
-        n: 100, k: Math.round(p * 100), cols: 20,
+        n: 100, k: kd, mid: ku, cols: 20,
         unit: `simulated elections won by Democrats in the ${chName}`,
+        midUnit: 'where neither party reached its number and independents decided',
         label: `In <b>100</b> simulated elections, Democrats won the ${chName} in ` +
-               `<b>${Math.round(p * 100)}</b>.${cond}${why}`,
+               `<b>${kd}</b> and Republicans in <b>${kr}</b>` +
+               (ku ? `. In <b>${ku}</b> neither party reached its number, and the ` +
+                     `independents decided` : '') +
+               `.${cond}${why}`,
       });
     }
   }
@@ -482,7 +503,7 @@ function renderHeadline(s) {
     if (st.control_prob == null) {
       return `Democrats take <em>${st.median}</em> of ${forecast.topline.governor.of} governorships`;
     }
-    return st.control_prob >= 0.5
+    return leader(st).lead === 'D'
       ? `Democrats are <em>favoured</em> to win the ${chName}`
       : `Republicans are <em class="r">favoured</em> to hold the ${chName}`;
   };
@@ -515,7 +536,7 @@ function renderHeadline(s) {
     const card = el('div', `topline${cc === s.scope ? ' on' : ''}`);
     card.append(el('div', 'chamber', chamberName(cc)));
     const range = `80% range <b>${st.p10}\u2013${st.p90}</b>`;
-    const lead = p == null ? null : p >= 0.5 ? 'D' : 'R';
+    const lead = p == null ? null : leader(st).lead;
 
     // The face of the card is the control that changes the page's subject. It
     // was a div: the row has always BEHAVED like a control -- it marks the
@@ -567,14 +588,16 @@ function renderHeadline(s) {
       continue;
     }
 
-    face.append(el('div', `prob ${lead === 'D' ? 'd' : 'r'}`, fmtPct(lead === 'D' ? p : 1 - p)));
+    face.append(el('div', `prob ${lead === 'D' ? 'd' : 'r'}`, fmtPct(leader(st).p)));
     face.append(el('div', 'who',
       `${lead === 'D' ? 'Democrats' : 'Republicans'} favoured` +
-      (live && c.pinned ? ` \u00b7 n=${live.n.toLocaleString()} (\u00b1${(live.se * 100).toFixed(1)} pts)` : '')));
+      (live && c.pinned
+        ? ` \u00b7 n=${live.n.toLocaleString()} (\u00b1${((lead === 'D' ? live.se : live.se_r) * 100).toFixed(1)} pts)`
+        : '')));
     // A conditioned probability is not a point in the published series, so there
     // is nothing honest to compare it with; the movement row is dropped rather
     // than left showing the unconditional one beside a conditional number.
-    if (!(live && c.pinned)) face.append(movementRow(movement(bl, cc), cc, lead));
+    if (!(live && c.pinned)) face.append(movementRow(movement(bl, cc, lead), cc, lead));
     card.append(face);
 
     const seats = el('div', 'seats');
@@ -589,18 +612,66 @@ function renderHeadline(s) {
     seats.append(document.createTextNode(' to control'));
     card.append(seats);
 
-    // The Senate figure is conditional on three seats with no Democrat running
-    // staying Republican, and says so where it is read. Hidden while a scenario is
-    // pinned: the ladder is computed on the unconditional simulation, so pairing it
-    // with a conditioned probability would compare two different things.
+    // THE WHOLE SPLIT, on every card with control to win. The big number is the
+    // likelier party's; this line is the rest of it, because 100 minus that number
+    // is not the other party's chance once independents can decide the chamber.
+    // From the same state as the big number, so it follows a pin.
+    const split = el('div', 'seats split3');
+    split.innerHTML = `Democrats <b>${fmtPct(st.control_prob)}</b> \u00b7 Republicans ` +
+      `<b>${fmtPct(st.r_control_prob)}</b>` +
+      (st.undecided_prob > 0
+        ? ` \u00b7 independents decide <b>${fmtPct(st.undecided_prob)}</b>` : '');
+    card.append(split);
+
+    // The seats with no Democrat running. Hidden while a scenario is pinned: the
+    // ladder is computed on the unconditional simulation, so pairing it with a
+    // conditioned probability would compare two different things. The guard is
+    // `live && c.pinned`, not `!live` -- `live` exists on every load, and `!live`
+    // hid this note from the page entirely until 2026-09-15.
     const nb = base.no_democrat_bound;
-    if (nb && !live) {
+    if (nb && !(live && c.pinned)) {
       const hi = nb.ladder[String(nb.n_seats)];
       const note = el('div', 'seats');
-      note.innerHTML = `assumes <b>${nb.n_seats}</b> seats with no Democrat running ` +
-        `(${nb.races.join(', ')}) stay R \u00b7 if their independents win and caucus D, ` +
-        `<b>${fmtPct(hi)}</b>`;
+      note.innerHTML = `<b>${nb.n_seats}</b> seats have no Democrat running ` +
+        `(${nb.races.join(', ')}); an independent\u2019s win there counts for neither party ` +
+        `\u00b7 all ${nb.n_seats} as Democratic seats: <b>${fmtPct(hi)}</b>`;
       card.append(note);
+    }
+
+    // The third outcome, named, for any independent whose seat decides the chamber
+    // often enough to matter -- the engine's MATERIAL_PTS decides which, so this
+    // names no race. The card the page is scoped to also gets what each caucus
+    // choice would do; the others get the fact once.
+    //
+    // `decides` is this seat's own share of the undecided draws, not the chamber's
+    // total, so a sentence naming one independent carries only their part of it.
+    const scen = nb && nb.caucus_scenarios;
+    if (scen && !(live && c.pinned)) {
+      const who = {};
+      for (const q of (nb.polling || [])) who[q.race_id] = q.name;
+      const open = cc === s.scope;
+      const chName = chamberName(cc);
+      // Thresholds from the payload. They differ only where one party holds the
+      // tiebreak, and the sentence says so only then.
+      const tb = base.r_threshold < base.threshold
+        ? ` ${base.threshold} for Democrats, ${base.r_threshold} for Republicans, who hold the ` +
+          `Vice President\u2019s tiebreak`
+        : ` ${base.threshold} for either`;
+      for (const [rid, sn] of Object.entries(scen).sort((x, y) => y[1].decides - x[1].decides)) {
+        const name = who[rid] || `the independent in ${rid}`;
+        const third = el('div', `seats third${open ? ' open' : ''}`);
+        third.innerHTML = open
+          ? `<b>Third outcome</b> \u2014 in <b>${fmtPct(sn.decides)}</b> of runs ${name} wins ` +
+            `${rid} and neither party reaches its number:${tb}. ${name}\u2019s vote then ` +
+            `decides who organises the ${chName}. No independent\u2019s win is counted for ` +
+            `either party.` +
+            `<span class="tie">If ${name} sided with Democrats, their chance of control would ` +
+            `be ${fmtPct(sn.caucus_dem.d)}. If ${name} sided with Republicans, theirs would be ` +
+            `${fmtPct(sn.caucus_rep.r)}.</span>`
+          : `<b>Third outcome</b> \u2014 in <b>${fmtPct(sn.decides)}</b> of runs neither party ` +
+            `reaches its number and ${name} (${rid}) decides who controls the ${chName}.`;
+        card.append(third);
+      }
     }
     card.append(cardLinks(cc));
     cards.append(card);
@@ -724,8 +795,8 @@ function renderTogether(s) {
   const cheap = $('#cheapest');
   cheap.replaceChildren();
   const tight = ['senate', 'house']
-    .map(ch => ({ ch, d: Math.abs((forecast.topline[ch].control_prob ?? 0.5) - 0.5) }))
-    .sort((a, b) => a.d - b.d)[0].ch;
+    .filter(ch => forecast.topline[ch].control_prob != null)
+    .sort((a, b) => settled(forecast.topline[a]) - settled(forecast.topline[b]))[0];
   const path = cheapestPath(cheap, { sims, forecast, races: forecast.races, chamber: tight });
   if (!path) return;
   const who = path.behind === 'D' ? 'Democrats' : 'Republicans';
@@ -975,10 +1046,17 @@ function renderMap(s) {
     onFrame: (d, seats) => {
       const parts = chambers.map(ch => {
         const n = seats[ch];
-        const maj = s.data.sims.m.majority[ch];
-        const win = maj != null && n >= maj;
-        return `${chamberName(ch)} <b>${n}</b>` + (maj == null ? ''
-          : ` <span style="color:${win ? C.dem : C.rep}">${win ? 'majority' : `short of ${maj}`}</span>`);
+        const sm = s.data.sims.m;
+        const need = sm.needs[ch];
+        if (!need) return `${chamberName(ch)} <b>${n}</b>`;
+        // Whose chamber this draw is: D at its number, R at its number, or
+        // neither, in which case the independents hold the balance.
+        const r = sm.size[ch] - n - s.data.sims.ind[ch][d];
+        const out = n >= need.D ? ['Democratic control', C.dem]
+          : r >= need.R ? ['Republican control', C.rep]
+          : ['independents decide', C.accent];
+        return `${chamberName(ch)} <b>${n}</b> D` +
+          ` <span style="color:${out[1]}">${out[0]}</span>`;
       });
       $('#hops-read').innerHTML =
         `simulation <b>${(d + 1).toLocaleString()}</b> of ` +
@@ -1324,7 +1402,7 @@ const HEADLINE_SAY = {
   senate_no_democrat_seats: (n, f) => {
     const nb = f.topline.senate && f.topline.senate.no_democrat_bound;
     if (!nb) return [`${n} Senate seats have no Democrat on the ballot.`,
-      'The Senate probability assumes their independents lose.'];
+      'An independent\u2019s win in any of them counts for neither party.'];
     const priced = nb.races.filter(r => (nb.priced || []).includes(r));
     const held = nb.races.filter(r => !priced.includes(r));
     const list = a => (a.length === 1 ? a[0]
@@ -1333,12 +1411,6 @@ const HEADLINE_SAY = {
     for (const q of (nb.polling || [])) by[q.race_id] = q;
     const spread = r => (by[r] && by[r].spread != null
       ? `${by[r].n_polls} polls spanning ${by[r].spread.toFixed(0)}` : 'too few polls');
-
-    // The majority threshold comes from the payload: it is 51 today, it is a
-    // property of the chamber rather than of this sentence, and a note that
-    // hardcodes it lies quietly the first time a vacancy changes the arithmetic.
-    const maj = (f.sims && f.sims.majority && f.sims.majority.senate) || null;
-    const reach = maj ? `P(nobody reaches ${maj})` : 'P(no majority)';
 
     // ONE LINE PER CLAIM, not one paragraph carrying all of them. This was a
     // single 900-character run of prose whose most consequential figure -- what
@@ -1362,24 +1434,28 @@ const HEADLINE_SAY = {
         + `${list(held.map(r => `${r} (${spread(r)})`))}. That prior describes a Democrat who is `
         + `not on the ballot; the polling does not hold together well enough to replace it.`);
     }
-    for (const [rid, sn] of Object.entries(sc).sort((a, b) => b[1].worth_pts - a[1].worth_pts)) {
+    // Each caucus choice through the headline's own three-way split. This line used
+    // to report a "neither" figure that counted every ordinary 50-50 as a
+    // stalemate and said no Vice President breaks it; one does, and the engine's
+    // split now applies that tiebreak everywhere (engine/simulate/tabulate.py).
+    for (const [rid, sn] of Object.entries(sc).sort((a, b) => b[1].decides - a[1].decides)) {
       const who = (by[rid] && by[rid].name) || rid;
-      pts.push(`<b>Caucus, ${who}</b> — wins <b>${fmtPct(sn.p_win, 0)}</b> of runs, and how they `
-        + `then caucus is worth <b>${sn.worth_pts.toFixed(1)} points</b> of Senate control: `
-        + `<b>${fmtPct(sn.caucus_dem.d, 1)}</b> caucusing D, `
-        + `${fmtPct(sn.caucus_rep.d, 1)} caucusing R, ${fmtPct(sn.caucus_neither.d, 1)} with `
-        + `neither. With neither, ${reach} goes ${fmtPct(sn.tie_baseline, 1)} → `
-        + `<b>${fmtPct(sn.caucus_neither.none, 1)}</b>, and no Vice President breaks that.`);
+      pts.push(`<b>Caucus, ${who}</b> — wins <b>${fmtPct(sn.p_win, 0)}</b> of runs and decides `
+        + `the chamber in <b>${fmtPct(sn.decides, 1)}</b>. Sided with Democrats, D control would `
+        + `be <b>${fmtPct(sn.caucus_dem.d, 1)}</b>; sided with Republicans, R control would be `
+        + `<b>${fmtPct(sn.caucus_rep.r, 1)}</b>.`);
     }
-    if (Object.keys(sc).length) {
-      pts.push(`<b>Published figure</b> — takes the ballot feed's stated caucus claim, carried `
-        + `through as-is.`);
+    if (nb.races.length) {
+      pts.push(`<b>Published figure</b> — counts no independent\u2019s win for either party, `
+        + `so a Senate where neither reaches its number is reported as decided by the `
+        + `independents. The ballot feed lists a caucus for each of them; the forecast does `
+        + `not use it.`);
     }
 
     return [
       priced.length
         ? `${priced.length} of ${nb.n_seats} no-Democrat Senate seats priced from polling.`
-        : `The Senate number assumes ${nb.n_seats} independents lose.`,
+        : `${nb.n_seats} independents\u2019 wins count for neither party.`,
       `${nb.races.join(', ')} have no Democrat on the ballot and a named independent running.`
       + `<ul class="pts">${pts.map(x => `<li>${x}</li>`).join('')}</ul>`
       + `<p>Open any of these races for the polling itself.</p>`,
@@ -1595,12 +1671,14 @@ function renderDiagnostics(s) {
     // Governors have no control probability on either side, so the check is the
     // seat distribution alone. Comparing two nulls with `Math.abs(null - null)`
     // would pass by arithmetic accident rather than by agreeing about anything.
-    const probOk = want.control_prob == null
-      ? got.control_prob == null
-      : Math.abs(got.control_prob - want.control_prob) < 1e-12;
+    // All three outcomes, each counted: D, R, and the independents deciding.
+    const probOk = ['control_prob', 'r_control_prob', 'undecided_prob'].every(k =>
+      want[k] == null ? got[k] == null : Math.abs(got[k] - want[k]) < 1e-12);
     rows.push([`${ch} reconstructs from sims.bin.gz`,
       probOk && got.median === want.median && got.p10 === want.p10 && got.p90 === want.p90,
-      (got.control_prob == null ? 'no control stake' : `P=${got.control_prob.toFixed(5)}`) +
+      (got.control_prob == null ? 'no control stake'
+        : `D=${got.control_prob.toFixed(5)} R=${got.r_control_prob.toFixed(5)} ` +
+          `ind=${got.undecided_prob.toFixed(5)}`) +
       ` median=${got.median} ${got.p10}–${got.p90}`]);
   }
   rows.push(['draws decoded', true,

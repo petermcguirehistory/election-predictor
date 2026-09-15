@@ -37,10 +37,28 @@ export function seatStrip(host, { races, size, heldD = 0, majority, chamber, cha
                                   prob = r => r.win_prob, frozen = false, onPick }) {
   host.replaceChildren();
 
+  // AN INDEPENDENT'S SEAT IS NOT ON THE DEMOCRATIC-TO-REPUBLICAN LINE. Where the
+  // independent holds a missing Democrat's slot (`ind_slot` "D"), its margin is
+  // theirs, and ranking it with Democratic seats put Osborn's Nebraska inside the
+  // run of Democratic favourites -- and able to be seat 51, which no Democrat can
+  // win there. It sorts past the safest Republican seat instead, the same place
+  // engine/simulate/tabulate.py's crossing puts it, with P(D) = 0 and the
+  // independent's own chance carried beside it. A "R" slot needs only the label:
+  // its D-slot probability is an ordinary Democrat's, and the loss is the
+  // independent's win.
   const onBallot = races
-    .map(r => ({ r, key: r.locked ? (r.locked_party === 'D' ? 1e6 : -1e6) : (r.median_margin ?? 0) }))
+    .map(r => ({ r, key: r.locked ? (r.locked_party === 'D' ? 1e6 : -1e6)
+                    : r.ind_slot === 'D' ? -2e6 : (r.median_margin ?? 0) }))
     .sort((a, b) => b.key - a.key)
-    .map(({ r }) => ({ kind: 'race', race: r, p: r.locked ? (r.locked_party === 'D' ? 1 : 0) : prob(r) }));
+    .map(({ r }) => ({
+      kind: 'race', race: r,
+      p: r.locked ? (r.locked_party === 'D' ? 1 : 0) : r.ind_slot === 'D' ? 0 : prob(r),
+      ind: r.locked || !r.ind_slot ? null : r.ind_slot === 'D' ? prob(r) : 1 - prob(r),
+    }));
+  // Whose seat a cell is most likely to be, and that chance.
+  const favourite = d => (d.ind != null && d.ind >= 0.5 ? ['IND', d.ind, C.accent]
+    : d.p >= 0.5 ? ['D', d.p, C.dem]
+    : ['R', 1 - d.p - (d.ind ?? 0), C.rep]);
   const heldR = Math.max(0, size - heldD - onBallot.length);
   const seats = [
     ...Array.from({ length: heldD }, () => ({ kind: 'held', party: 'D', p: 1 })),
@@ -101,7 +119,8 @@ export function seatStrip(host, { races, size, heldD = 0, majority, chamber, cha
     // A hairline of overlap, or 435 antialiased edges draw as a grey comb.
     .attr('width', cw + (n > 150 ? 0.4 : -0.6))
     .attr('y', (H - BAND) / 2).attr('height', BAND)
-    .attr('fill', d => (d.kind === 'held' ? `url(#ss-hatch-${chamber}-${d.party})` : seatColour(d.p)));
+    .attr('fill', d => (d.kind === 'held' ? `url(#ss-hatch-${chamber}-${d.party})`
+      : d.ind != null && d.ind >= 0.5 ? C.accent : seatColour(d.p)));
 
   // The pivot seat, outlined and ticked above and below so it survives being one
   // pixel wide.
@@ -158,13 +177,12 @@ export function seatStrip(host, { races, size, heldD = 0, majority, chamber, cha
     const b = document.createElement('button');
     b.type = 'button';
     const r = d.race;
-    const side = d.p >= 0.5 ? 'D' : 'R';
-    const shown = side === 'D' ? d.p : 1 - d.p;
+    const [side, shown, col] = favourite(d);
     b.className = `ss-cell${d.rank === majority ? ' pivot' : ''}${d.rank > majority ? ' past' : ''}`;
-    b.style.setProperty('--seat', seatColour(d.p));
+    b.style.setProperty('--seat', d.ind != null && d.ind >= 0.5 ? C.accent : seatColour(d.p));
     b.innerHTML =
       `<span class="ss-id">${esc(r.race_id)}</span>`
-      + `<span class="ss-line"><span class="ss-p" style="color:${side === 'D' ? C.dem : C.rep}">`
+      + `<span class="ss-line"><span class="ss-p" style="color:${col}">`
       + `${r.locked ? 'settled' : `${side} ${fmtPct(shown, 0)}`}</span>`
       + `<span class="ss-rank">${d.rank}</span></span>`;
     b.setAttribute('aria-label',
@@ -207,7 +225,9 @@ function describe(d, majority) {
   const r = d.race;
   return `<b>${esc(r.race_id)}</b> · seat ${d.rank}${d.rank === majority ? ' (the majority)' : ''}<br>`
     + (r.locked ? 'settled — same-party general'
-      : `D win ${fmtPct(d.p, 0)} · median ${fmtMargin(r.median_margin)}`
+      : (d.ind != null ? `independent win ${fmtPct(d.ind, 0)} · ` : '')
+        + `D win ${fmtPct(d.p, 0)}`
+        + (r.ind_slot === 'D' ? '' : ` · median ${fmtMargin(r.median_margin)}`)
         + `<br><span class="tip-dim">${r.n_polls ? `${r.n_polls} poll${r.n_polls > 1 ? 's' : ''}` : 'prior only'}`
         + ` · held by ${r.incumbent_party === 'UNK' ? 'no recorded party' : r.incumbent_party}</span>`);
 }

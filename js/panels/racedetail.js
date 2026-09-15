@@ -51,6 +51,17 @@ const PARTY_LABEL = { D: 'Democrat', R: 'Republican', I: 'Independent' };
 // A race where nobody on the ballot has filed as the incumbent but the feed
 // still records the seat as defended is NOT called open here, because the model
 // did not treat it as open: it paid the incumbency bonus. The line says both.
+// A margin in the frame's D-slot convention, labelled with who is actually ahead.
+// Where an independent holds a missing party's slot the positive or negative side
+// is theirs, and "D+3.0" for Osborn over Ricketts named a Democrat who is not on
+// the ballot.
+function slotMargin(race, m) {
+  if (m == null) return fmtMargin(m);
+  const pos = race.ind_slot === 'D' ? 'IND' : 'D';
+  const neg = race.ind_slot === 'R' ? 'IND' : 'R';
+  return `${m > 0 ? pos : neg}+${Math.abs(m).toFixed(1)}`;
+}
+
 function ballotBlock(race) {
   const on = race.ballot || [];
   if (!on.length) return '';
@@ -173,17 +184,25 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     body += row('District lean', fmtMargin(race.lean));
     body += row('Estimate it would otherwise carry', fmtMargin(race.prior_mu));
   } else {
+    // WHOSE WIN IT IS. `win_prob` is the frame's D slot, and where an independent
+    // stands in for a missing party (`ind_slot`) that slot -- or its opponent -- is
+    // the independent, not a party. Labelling Osborn's 63% "D favoured" was the
+    // race-level half of the error the Senate topline made.
+    const indName = esc((race.ballot || []).find(c => c.party === 'I')?.name || 'Independent');
+    const dSide = race.ind_slot === 'D' ? { tag: indName, col: C.accent } : { tag: 'D', col: C.dem };
+    const rSide = race.ind_slot === 'R' ? { tag: indName, col: C.accent } : { tag: 'R', col: C.rep };
+    const fav = race.win_prob >= 0.5 ? dSide : rSide;
     body += `<div class="dt-head">
-        <div><span class="dt-big" style="color:${race.win_prob >= 0.5 ? C.dem : C.rep}">
+        <div><span class="dt-big" style="color:${fav.col}">
           ${fmtPct(race.win_prob >= 0.5 ? race.win_prob : 1 - race.win_prob)}</span>
-          <span class="dt-sub">${race.win_prob >= 0.5 ? 'D' : 'R'} favoured</span></div>
-        <div><span class="dt-big">${fmtMargin(race.median_margin)}</span>
+          <span class="dt-sub">${fav.tag} favoured</span></div>
+        <div><span class="dt-big">${slotMargin(race, race.median_margin)}</span>
           <span class="dt-sub">median margin</span></div>
       </div>`;
 
     if (cond != null) {
       body += `<div class="dt-cond">Under the current pins (${condition.n.toLocaleString()} draws):
-        D win <b>${fmtPct(cond)}</b>, against ${fmtPct(race.win_prob)} unconditional.</div>`;
+        ${dSide.tag} win <b>${fmtPct(cond)}</b>, against ${fmtPct(race.win_prob)} unconditional.</div>`;
     }
 
     // --- how mu was built ---
@@ -383,21 +402,30 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
       // paragraph to escape.
       const n = document.createElement('div');
       n.className = 'dt-chart-cap dt-cap-warn';
-      n.innerHTML = `The amber diamonds are <b>${ind.name}</b>, running as an independent and `
-        + `stating they would caucus with the `
-        + `${ind.caucus === 'DEM' ? 'Democrats' : 'Republicans'}. `
+      // No caucus claim. The ballot feed's said all of these independents would sit
+      // with Democrats and the candidates who matter have said otherwise; the
+      // forecast counts their win for neither party, and says only that.
+      const priced = Math.abs(race.independent_adj || 0) > 0;
+      n.innerHTML = `The amber diamonds are <b>${ind.name}</b>, running as an independent. `
+        + `A win would count for neither party. `
         + (ind.avg != null
-            ? `Their polling averages <b>${ind.avg >= 0 ? 'D+' : 'R+'}${Math.abs(ind.avg).toFixed(1)}</b>`
+            ? `Their polling averages <b>${slotMargin(race, ind.avg)}</b>`
               + (ind.spread != null ? ` across a ${ind.spread.toFixed(0)}-point spread` : '') + '. '
             : '')
-        + `<b>The forecast does not use them</b>, for three reasons:`
-        + `<ul class="pts">`
-        + `<li>No major-party opponent to price the race against.</li>`
-        + `<li>The error curve is fitted on Democrat-versus-Republican contests.</li>`
-        + `<li>The prior describes a Democrat who is not on this ballot.</li>`
-        + `</ul>`
-        + `So the line and the fan above show a two-major-party contest, which is not the contest `
-        + `on the ballot here.`;
+        + (priced
+            // Priced: engine/estimate/independents.py takes their polling as the
+            // estimate, because it agrees with itself, and widens it by how far
+            // comparable independent candidacies have landed from their polls.
+            ? `<b>The forecast prices this seat from that polling</b>, and widens it by how far `
+              + `past independent candidacies have landed from their polls.`
+            : `<b>The forecast does not use them</b>, for three reasons:`
+              + `<ul class="pts">`
+              + `<li>The polling does not agree with itself closely enough to stand alone.</li>`
+              + `<li>The error curve is fitted on Democrat-versus-Republican contests.</li>`
+              + `<li>The prior describes a Democrat who is not on this ballot.</li>`
+              + `</ul>`
+              + `So the line and the fan above show a two-major-party contest, which is not the `
+              + `contest on the ballot here.`);
       chartHost.append(n);
     }
 

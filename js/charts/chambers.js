@@ -127,8 +127,12 @@ export function cheapestPath(host, { sims, forecast, races, chamber }) {
 
   // Seats the trailing side does not currently favour, closest first. Their own
   // win probability is the price of each one.
+  // Not an independent's slot: those wins belong to neither party, so they are
+  // not seats either side can pick up.
+  const ind = new Set([...(sims.m.independents[chamber]?.D || []),
+                       ...(sims.m.independents[chamber]?.R || [])]);
   const pool = races
-    .filter(r => r.chamber === chamber && sims.col.has(r.race_id))
+    .filter(r => r.chamber === chamber && sims.col.has(r.race_id) && !ind.has(r.race_id))
     .map(r => ({ ...r, p: behind === 'D' ? r.win_prob : 1 - r.win_prob }))
     .filter(r => r.p < 0.5)
     .sort((a, b) => b.p - a.p)

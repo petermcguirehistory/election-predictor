@@ -117,6 +117,38 @@ export class Sims {
         p.out[s] = p.base + n;
       }
     }
+
+    // A WIN IN AN INDEPENDENT'S SLOT IS NOBODY'S SEAT. The browser twin of
+    // `party_columns` in engine/simulate/tabulate.py -- CHANGE BOTH OR NEITHER.
+    // Where the independent holds the D slot a SET bit is their win, and it
+    // comes back out of the popcount above; where they are the D slot's
+    // opponent a CLEAR bit is theirs. The engine's verify() reconstructs both
+    // columns from these same manifest fields before the payload ships.
+    //
+    // A handful of columns per chamber, so tested a bit at a time rather than
+    // folded into the byte masks.
+    this.ind = {};
+    for (const c of chambers) {
+      const slots = manifest.independents[c] || { D: [], R: [] };
+      const at = r => {
+        const j = this.col.get(r);
+        if (j === undefined) throw new Error(`sims.bin: independent slot ${r} is not a column`);
+        return j;
+      };
+      const inD = slots.D.map(at), inR = slots.R.map(at);
+      const dSeats = this.seats[c];
+      const ind = (this.ind[c] = new Int16Array(n_sims).fill(manifest.ind_baseline[c] || 0));
+      if (!inD.length && !inR.length) continue;
+      for (let s = 0; s < n_sims; s++) {
+        const off = s * row_bytes;
+        let won = 0;
+        for (const j of inD) won += (buf[off + (j >> 3)] >> (7 - (j & 7))) & 1;
+        let lost = 0;
+        for (const j of inR) lost += 1 - ((buf[off + (j >> 3)] >> (7 - (j & 7))) & 1);
+        dSeats[s] -= won;
+        ind[s] += won + lost;
+      }
+    }
     this._bits = new Map();
   }
 
@@ -164,18 +196,31 @@ export class Sims {
   summary(chamber, idx) {
     const seats = this.seats[chamber];
     if (!seats) return null;
-    // A chamber with no entry in `majority` has no collective majority to hold --
-    // governors. It gets counts and an interval, and `control_prob` stays null
+    // A chamber with no entry in `needs` has no collective majority to hold --
+    // governors. It gets counts and an interval, and the probabilities stay null
     // rather than defaulting to a threshold nobody chose. Callers must render the
     // null; a `?? 0` here would put a confident 0% on the page.
-    const thresh = Object.prototype.hasOwnProperty.call(this.m.majority, chamber)
-      ? this.m.majority[chamber] : null;
+    const need = Object.prototype.hasOwnProperty.call(this.m.needs, chamber)
+      ? this.m.needs[chamber] : null;
     const n = idx ? idx.length : this.m.n_sims;
     if (!n) return null;
+    const ind = this.ind[chamber];
+    const size = this.m.size[chamber];
     const vals = new Int16Array(n);
-    for (let i = 0; i < n; i++) vals[i] = seats[idx ? idx[i] : i];
-    let hit = 0;
-    if (thresh !== null) for (let i = 0; i < n; i++) if (vals[i] >= thresh) hit++;
+    // THREE OUTCOMES, COUNTED. D control, R control, and neither party at its
+    // number -- which is the independents deciding, since they can always carry
+    // a party over its line and nobody else can. Counted rather than taken as
+    // 1 - d - r, so each matches the engine's `control` to the last digit.
+    let hit = 0, hitR = 0;
+    for (let i = 0; i < n; i++) {
+      const s = idx ? idx[i] : i;
+      const d = seats[s];
+      vals[i] = d;
+      if (need) {
+        if (d >= need.D) hit++;
+        else if (size - d - ind[s] >= need.R) hitR++;
+      }
+    }
     const sorted = Int16Array.from(vals).sort();
     // ONE HALF OF A PAIR: `seat_quantile` in engine/simulate/tabulate.py is the
     // other, and the two must return the same integer for the same draws.
@@ -190,16 +235,20 @@ export class Sims {
     const lo = sorted[0], hi = sorted[n - 1];
     const counts = new Array(hi - lo + 1).fill(0);
     for (let i = 0; i < n; i++) counts[vals[i] - lo]++;
+    const se = k => Math.sqrt((k / n) * (1 - k / n) / n);
     return {
-      n, threshold: thresh,
-      control_prob: thresh === null ? null : hit / n,
+      n, threshold: need ? need.D : null, r_threshold: need ? need.R : null,
+      control_prob: need ? hit / n : null,
+      r_control_prob: need ? hitR / n : null,
+      undecided_prob: need ? (n - hit - hitR) / n : null,
       median: n % 2 ? sorted[(n - 1) >> 1] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2,
       p10: q(0.10), p90: q(0.90),
       hist: { min: lo, counts },
-      // Monte Carlo standard error on the control probability. At the 500-draw
-      // reporting floor this is ~2.2 points, which is large enough that a
-      // conditional headline must show it rather than imply five-digit precision.
-      se: thresh === null ? null : Math.sqrt((hit / n) * (1 - hit / n) / n),
+      // Monte Carlo standard error on each party's control probability. At the
+      // 500-draw reporting floor this is ~2.2 points, which is large enough that
+      // a conditional headline must show it rather than imply five-digit precision.
+      se: need ? se(hit) : null,
+      se_r: need ? se(hitR) : null,
     };
   }
 

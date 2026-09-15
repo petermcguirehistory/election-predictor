@@ -14,7 +14,9 @@ import { C, svg, vsupScale, diverging, fmtMargin, hoverable, legendSwatch } from
 const MODES = {
   prob:   { label: 'Win probability', domain: 1,
             get: r => (r.win_prob == null ? null : r.win_prob * 2 - 1),
-            fmt: r => `D win ${(r.win_prob * 100).toFixed(0)}%` },
+            fmt: r => (r.ind_slot
+              ? `independent win ${(indWin(r) * 100).toFixed(0)}% · D win ${(dWin(r) * 100).toFixed(0)}%`
+              : `D win ${(r.win_prob * 100).toFixed(0)}%`) },
   margin: { label: 'Median margin', domain: 30,
             get: r => r.median_margin,
             fmt: r => `median ${fmtMargin(r.median_margin)}` },
@@ -24,12 +26,21 @@ const MODES = {
                        : `${(r.median_margin - r.lean >= 0 ? '+' : '')}${(r.median_margin - r.lean).toFixed(1)} vs 2024 lean`) },
 };
 
+// An independent standing in a missing party's slot. `win_prob` is the frame's D
+// slot, so where that slot IS the independent their chance is win_prob and a
+// Democrat's is zero; where they oppose the D slot, their chance is the loss.
+// A seat they are favoured in takes the caveat colour on every mode: the D-to-R
+// scale cannot say "neither", and shading Osborn's Nebraska blue said Democrat.
+const indWin = r => (r.ind_slot === 'D' ? r.win_prob : 1 - r.win_prob);
+const dWin = r => (r.ind_slot === 'D' ? 0 : r.win_prob);
+
 // Both layouts share these, so the two map modes cannot drift apart in what
 // they encode -- only in where they put it.
 function paint(M, vsup, showUncertainty) {
   return d => {
     const r = d.race;
     if (r.locked) return r.locked_party === 'D' ? C.demDeep : C.repDeep;
+    if (r.ind_slot && r.win_prob != null && indWin(r) >= 0.5) return C.accent;
     const v = M.get(r);
     return showUncertainty ? vsup(v, r.sigma_total)
                            : diverging(Math.max(-1, Math.min(1, v / M.domain)));
@@ -43,7 +54,11 @@ function describe(M) {
       (r.locked ? 'settled — same-party general'
                 : `${M.fmt(r)}<br><span class="tip-dim">±${r.sigma_total?.toFixed(1)} pts · ` +
                   `${r.n_polls ? `${r.n_polls} poll${r.n_polls > 1 ? 's' : ''}` : 'prior only'}` +
-                  `${r.boundary_stale ? ' · shape is the 2024 line' : ''}</span>`);
+                  `${r.boundary_stale ? ' · shape is the 2024 line' : ''}</span>` +
+                  (r.ind_slot === 'D' ? '<br><span class="tip-dim">no Democrat on the ballot: the '
+                    + 'margin is the independent\u2019s, whose win counts for neither party</span>'
+                   : r.ind_slot ? '<br><span class="tip-dim">no Republican on the ballot: the '
+                    + 'independent\u2019s win counts for neither party</span>' : ''));
   };
 }
 
@@ -53,6 +68,7 @@ function legend(host, staleCount) {
   key.append(
     legendSwatch('Democratic', C.dem),
     legendSwatch('Republican', C.rep),
+    legendSwatch('Independent favoured', C.accent, 'counts for neither party'),
     legendSwatch('Uncertain', d3.interpolateLab(C.mid, C.surface)(0.42),
                  'colour is suppressed where the model knows less'),
     legendSwatch('2024 boundaries', C.dim, `${staleCount} districts redrawn for 2026; the forecast is on the new lines, this shape is not`, true),
@@ -234,6 +250,7 @@ function stateLegend(host, offCount, chamber, cycle) {
   key.append(
     legendSwatch('Democratic', C.dem),
     legendSwatch('Republican', C.rep),
+    legendSwatch('Independent favoured', C.accent, 'counts for neither party'),
     legendSwatch('Uncertain', d3.interpolateLab(C.mid, C.surface)(0.42),
                  'colour is suppressed where the model knows less'),
     legendSwatch(`Not up in ${cycle}`, C.faint,

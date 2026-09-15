@@ -51,12 +51,18 @@ export function baseline(history, days = 7) {
 // payload states which by leaving `control_prob` null, and this reads it rather
 // than keeping a list of chamber names — the same rule Sims.summary and the
 // trend chart already follow.
-export function series(points, chamber) {
+//
+// `party` picks whose probability. Republicans' is read from `r_control_prob`,
+// never taken as 1 - control_prob: once independents can decide a chamber the
+// two do not add to one. A run that predates the split carries no
+// `r_control_prob`, and a series that would need one is refused rather than
+// filled -- in practice it never is, because the rule change breaks the join.
+export function series(points, chamber, party = 'D') {
   const has = points.every(p => p[chamber]);
   if (!has) return null;
   const prob = points.at(-1)[chamber].control_prob != null;
-  return {
-    kind: prob ? 'prob' : 'count',
-    values: points.map(p => (prob ? p[chamber].control_prob : p[chamber].median)),
-  };
+  const key = party === 'R' ? 'r_control_prob' : 'control_prob';
+  const values = points.map(p => (prob ? p[chamber][key] : p[chamber].median));
+  if (values.some(v => v == null)) return null;
+  return { kind: prob ? 'prob' : 'count', values };
 }

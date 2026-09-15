@@ -306,6 +306,20 @@ p.fml-block code, div.fml-block code { background: none; padding: 0; }
 .topline .seats.asserted a { color: inherit; text-decoration: underline dotted; }
 .topline .seats .muted { color: var(--muted); }
 
+/* The Senate's third outcome. Not a caveat (dashed, dim) and not a forecast line
+   (muted, ruled above): it is a slice of the headline that exists only under an
+   assumption, so it takes the warm left rule the page already uses for "read this
+   before you read the number". On the chamber the page is scoped to it is set a
+   step larger, because there it carries the mechanism and not just the figure. */
+.topline .seats.third {
+  margin-top: .9rem; padding: .1rem 0 .1rem .8rem;
+  border-top: 0; border-left: 2px solid var(--warn);
+  color: var(--ink-dim); line-height: 1.5;
+}
+.topline .seats.third b { color: var(--ink); }
+.topline .seats.third.open { font-size: .92rem; }
+.topline .seats.third .tie { display: block; margin-top: .45rem; color: var(--muted); }
+
 /* ---- placeholder panels ------------------------------------------------ */
 .panel {
   border: 1px dashed var(--line); border-radius: 3px;
