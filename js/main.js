@@ -187,9 +187,10 @@ const SECTION_SCOPE = {
     label: 'All three chambers',
     why: 'The feeds supply every chamber, so what is still to arrive is not a per-chamber fact.' },
   's-seats': { kind: 'follows', can: ['house', 'senate', 'governor'] },
-  // Not governors: the strip exists to put the majority on a seat, and 36
-  // governorships have no majority for a seat to sit on.
-  's-snake': { kind: 'follows', can: ['house', 'senate'] },
+  // Governors too. They were left out because the strip puts the majority on a
+  // seat and 36 governorships have none -- but the strip also answers which
+  // offices lean which way, and that needs no line. Their strip draws none.
+  's-snake': { kind: 'follows', can: ['house', 'senate', 'governor'] },
   // Pooled, and under `all` that is the point of it: every chamber's flips ranked
   // against each other on the one quantity they share.
   's-flips': { kind: 'pooled' },
@@ -873,18 +874,20 @@ function renderSnake(s) {
   const { forecast, sims } = s.data;
   const c = s.condition;
   const live = c.ok && c.pinned;
-  perChamber($('#snake'), chambersFor(s.scope, ['house', 'senate']), (host, ch) => {
-    // A chamber the payload does not size cannot be drawn whole, and a strip of
-    // only the races on the ballot would put the majority on the wrong seat.
-    const size = sims.m.size && sims.m.size[ch];
-    const needs = sims.m.needs[ch];
-    if (!size || !needs) {
+  perChamber($('#snake'), chambersFor(s.scope, ['house', 'senate', 'governor']), (host, ch) => {
+    const races = forecast.races.filter(r => r.chamber === ch);
+    // A chamber with a majority must be drawn whole, or its line lands on the wrong
+    // seat, so it needs its size from the payload. One with no majority to reach --
+    // governors -- has no line to misplace and is drawn as the offices on the
+    // ballot, with `needs` null so the strip outlines nothing.
+    const needs = sims.m.needs[ch] || null;
+    const size = needs ? sims.m.size && sims.m.size[ch] : races.length;
+    if (!size) {
       host.append(el('p', 'chart-note', `No chamber size in this payload for the ${chamberName(ch)}.`));
       return;
     }
     seatStrip(host, {
-      races: forecast.races.filter(r => r.chamber === ch),
-      size, needs, heldD: sims.m.offsets[ch] || 0,
+      races, size, needs, heldD: sims.m.offsets[ch] || 0,
       chamber: ch, chamberLabel: chamberName(ch),
       prob: live ? r => sims.winProb(r.race_id, c.idx) ?? r.win_prob : undefined,
       frozen: live,

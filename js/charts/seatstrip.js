@@ -92,14 +92,17 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
     }
     return null;
   };
-  const dRank = lineAt(needs.D, canD, false);
-  const rRank = lineAt(needs.R, canR, true);
-  const dPivot = seats[dRank - 1], rPivot = seats[rRank - 1];
-  const split = rRank < dRank;
-  const lines = split ? [rRank, dRank] : [dRank];
+  // `needs` is null for offices with no majority -- governors. No line is found,
+  // nothing is outlined, and the note counts favourites only.
+  const dRank = needs ? lineAt(needs.D, canD, false) : null;
+  const rRank = needs ? lineAt(needs.R, canR, true) : null;
+  const dPivot = needs ? seats[dRank - 1] : null, rPivot = needs ? seats[rRank - 1] : null;
+  const split = !!needs && rRank < dRank;
+  const lines = !needs ? [] : split ? [rRank, dRank] : [dRank];
+  const unit = needs ? 'seats' : 'governorships';
   // The independents' seats that pull the lines apart: on the Democratic side of
   // the Democratic line, or the Republican side of the Republican one.
-  const apart = seats.filter(d => (d.race?.ind_slot === 'D' && d.rank < dRank)
+  const apart = !needs ? [] : seats.filter(d => (d.race?.ind_slot === 'D' && d.rank < dRank)
                                || (d.race?.ind_slot === 'R' && d.rank > rRank));
 
   const fav = { D: 0, R: 0, IND: 0 };
@@ -127,8 +130,9 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
   box.append(plot);
   const name = d => (d.kind === 'race' ? d.race.race_id : 'not on the ballot');
   const s = svg(plot, W, H,
-    `${chamberLabel}: ${n} seats ordered safest Democratic to safest Republican; `
-    + (split
+    `${chamberLabel}: ${n} ${unit} ordered safest Democratic to safest Republican`
+    + (!needs ? ', with no majority to reach' : '; ')
+    + (!needs ? '' : split
       ? `Republicans reach ${needs.R} at seat ${rRank}, ${name(rPivot)}; Democrats reach `
         + `${needs.D} at seat ${dRank}, ${name(dPivot)}`
       : `seat ${dRank} is ${name(dPivot)}`));
@@ -146,8 +150,9 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
   // Focus window, on the ballot where possible: a window full of holdovers would
   // magnify seats nobody is voting on. Centred on both lines when they differ.
   const firstRace = heldD, lastRace = heldD + onBallot.length - 1;
-  let lo = Math.max(firstRace, Math.min(...lines) - 1 - FOCUS_HALF);
-  let hi = Math.min(lastRace, Math.max(...lines) - 1 + FOCUS_HALF);
+  const mid = lines.length ? lines : [Math.ceil(n / 2)];
+  let lo = Math.max(firstRace, Math.min(...mid) - 1 - FOCUS_HALF);
+  let hi = Math.min(lastRace, Math.max(...mid) - 1 + FOCUS_HALF);
   if (onBallot.length <= FOCUS_HALF * 2 + 1) { lo = firstRace; hi = lastRace; }
 
   s.append('rect').attr('x', x(lo)).attr('width', x(hi + 1) - x(lo))
@@ -200,7 +205,9 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
   bottom.append(
     lab('← safest Democratic', 'end', 0, 'start'),
     lab('safest Republican →', 'end', n, 'end'));
-  if (split) {
+  if (!needs) {
+    // No line, so nothing to label in the middle.
+  } else if (split) {
     // Adjacent seats, so one label above and one below, each anchored on the side
     // its party counts from, or they would print over each other.
     // Short, and the end labels give way on a phone (theme.css, .ss-split): two
@@ -218,7 +225,7 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
   const fh = document.createElement('h4');
   fh.className = 'ss-fh';
   fh.textContent = lo === firstRace && hi === lastRace
-    ? `All ${focus.length} seats on the ballot, in strip order`
+    ? `All ${focus.length} ${unit} on the ballot, in strip order`
     : `Seats ${lo + 1}–${hi + 1}, nearest the majority, in strip order`;
   host.append(fh);
 
@@ -230,7 +237,7 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
     const r = d.race;
     const [side, shown, col] = favourite(d);
     b.className = `ss-cell${lines.includes(d.rank) ? ' pivot' : ''}`
-      + `${d.rank > Math.max(...lines) ? ' past' : ''}`;
+      + `${lines.length && d.rank > Math.max(...lines) ? ' past' : ''}`;
     b.style.setProperty('--seat', colourOf(d));
     b.innerHTML =
       `<span class="ss-id">${esc(r.race_id)}</span>`
@@ -270,7 +277,10 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
       + `be ${here.length === 1 ? `a ${party} seat` : `${party} seats`}`;
   }).filter(Boolean).join(', and ');
   note.innerHTML =
-    (split
+    (!needs
+      ? `No office is outlined: ${n} governorships confer no majority, so there is no line to `
+        + `reach. `
+      : split
       ? `Republicans reach ${needs.R} at seat <b>${rRank}</b>, ${ref(rPivot)}: win it and every `
         + `seat to its right. Democrats reach ${needs.D} at seat <b>${dRank}</b>, ${ref(dPivot)}: `
         + `win it and every seat to its left. The two are ${dRank - rRank} seat`
@@ -280,10 +290,10 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
       : `Seat <b>${dRank}</b> is ${ref(dPivot)}. Whoever wins it and every seat on their own `
         + `end of the strip has the chamber: ${needs.D} for Democrats`
         + `${needs.R === needs.D ? ' or Republicans' : `, ${needs.R} for Republicans`}. `)
-    + `Democrats are favoured in <b>${fav.D}</b> of ${n} seats, Republicans in <b>${fav.R}</b>`
+    + `Democrats are favoured in <b>${fav.D}</b> of ${n} ${unit}, Republicans in <b>${fav.R}</b>`
     + (fav.IND ? `, an independent in <b>${fav.IND}</b>` : '')
-    + '. That is a count of favourites, not a forecast of the total: the expected number of seats '
-    + 'sums every probability, including the long shots on each side, and is on the seat chart above.'
+    + `. That is a count of favourites, not a forecast of the total: the expected number of ${unit} `
+    + 'sums every probability, including the long shots on each side, and is on the seat chart below.'
     + (frozen
       ? ' <span class="frozen">Colours are counted from your pinned simulations; the order is the '
         + 'unconditional forecast, because re-ordering needs each simulation’s margins.</span>'
@@ -292,7 +302,7 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
 }
 
 function describe(d, { dRank, rRank, split, needs }) {
-  const at = split
+  const at = !needs ? '' : split
     ? (d.rank === dRank ? ` (Democrats reach ${needs.D} here)`
       : d.rank === rRank ? ` (Republicans reach ${needs.R} here)` : '')
     : (d.rank === dRank ? ' (the majority)' : '');

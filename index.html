@@ -82,22 +82,10 @@
           <div class="caveat-block" id="caveats"></div>
         </section>
 
-        <section id="s-seats">
-          <h2>Seat totals</h2>
-          <p class="q">How many seats, and not just who wins?</p>
-          <p>The same simulations, counted a different way: every run ends with a seat total.</p>
-          <div class="seat-modes" id="seat-modes" role="group" aria-label="How to show the seat total">
-            <div class="toggle">
-              <button type="button" data-mode="dots" class="on">Count the outcomes</button>
-              <button type="button" data-mode="curve">Chance of at least</button>
-            </div>
-            <p class="seat-mode-note" id="seat-mode-note"></p>
-          </div>
-          <div id="dotplot"></div>
-        </section>
-
-        <!-- The whole chamber as one row of seats. The seat histogram above says how
-             many; this says which, and puts the majority on a particular race. -->
+        <!-- The whole chamber as one row of seats, straight after the headline: it
+             answers "which seats, and where is the majority" at a glance, which most
+             readers want before a distribution of totals. The seat histogram below says
+             how many; this says which, and puts the majority on a particular race. -->
         <section id="s-snake">
           <h2>Every seat, in order</h2>
           <p class="q">Where does the majority fall, and which seats sit on it?</p>
@@ -116,6 +104,9 @@
                 Republicans 50, and an independent's seat on the Democratic side pushes the two
                 lines one seat apart. A split that falls between them leaves neither party at its
                 number, so the independents decide.</li>
+            <li><b>Governors</b> — the 36 governorships on the ballot, in the same order. No
+                seat is outlined: governorships confer no majority, so there is no line to
+                reach, only how many lean each way.</li>
             <li><b>Not the same as the deciding race</b> — this is one fixed ordering. In each
                 simulation the order is different, so the race that most often casts the deciding
                 vote is a separate count, in <a href="#s-watch">What to watch</a>.</li>
@@ -123,6 +114,20 @@
           <p>Below the strip, the seats nearest that line are drawn large enough to read. Click
              any seat for that race's full working.</p>
           <div id="snake"></div>
+        </section>
+
+        <section id="s-seats">
+          <h2>Seat totals</h2>
+          <p class="q">How many seats, and not just who wins?</p>
+          <p>The same simulations, counted a different way: every run ends with a seat total.</p>
+          <div class="seat-modes" id="seat-modes" role="group" aria-label="How to show the seat total">
+            <div class="toggle">
+              <button type="button" data-mode="dots" class="on">Count the outcomes</button>
+              <button type="button" data-mode="curve">Chance of at least</button>
+            </div>
+            <p class="seat-mode-note" id="seat-mode-note"></p>
+          </div>
+          <div id="dotplot"></div>
         </section>
 
         <!-- The joint outcome. Every other view here is a marginal, and the draws

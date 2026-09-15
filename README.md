@@ -37,8 +37,9 @@ Five tabs, each named for the question it answers, and the scope control above
 them (All races / House / Senate / Governors) applies to every one of them at
 once. On a wide screen the left rail lists the sections of the open tab.
 
-- **Who wins** — the headline probabilities, seat totals, every seat lined up
-  with the majority seat marked, and both chambers together.
+- **Who wins** — the headline probabilities, then every seat lined up from
+  safest Democratic to safest Republican with each party's majority seat marked
+  (governorships too), then seat totals and both chambers together.
 - **Which seats** — the seats most likely to change hands in all three chambers,
   the races the answer rests on, the map, and all 506 as a swarm and a table.
 - **What changed** — what moved the forecast since the last run, which races
