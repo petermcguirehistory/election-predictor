@@ -82,8 +82,10 @@ export class Sims {
         if (ch[i] !== c) throw new Error(`sims.bin: ${c} block broken at column ${i} (${ch[i]})`);
       }
     }
+    // Every column is in a chamber block, except the three-way races' independent
+    // wins, which the builder appends after them and counts in `extra_columns`.
     const covered = chambers.reduce((n, c) => n + manifest.blocks[c][1] - manifest.blocks[c][0], 0);
-    if (covered !== n_races) {
+    if (covered + (manifest.extra_columns || 0) !== n_races) {
       throw new Error(`sims.bin: blocks cover ${covered} of ${n_races} columns`);
     }
 
@@ -136,17 +138,22 @@ export class Sims {
         return j;
       };
       const inD = slots.D.map(at), inR = slots.R.map(at);
+      // A three-way race's own column already means "the Democrat won outright";
+      // its `#IND` column is the independent's win, and adds to them alone.
+      const inX = ((manifest.three_way || {})[c] || []).map(r => at(`${r}#IND`));
       const dSeats = this.seats[c];
       const ind = (this.ind[c] = new Int16Array(n_sims).fill(manifest.ind_baseline[c] || 0));
-      if (!inD.length && !inR.length) continue;
+      if (!inD.length && !inR.length && !inX.length) continue;
       for (let s = 0; s < n_sims; s++) {
         const off = s * row_bytes;
         let won = 0;
         for (const j of inD) won += (buf[off + (j >> 3)] >> (7 - (j & 7))) & 1;
         let lost = 0;
         for (const j of inR) lost += 1 - ((buf[off + (j >> 3)] >> (7 - (j & 7))) & 1);
+        let third = 0;
+        for (const j of inX) third += (buf[off + (j >> 3)] >> (7 - (j & 7))) & 1;
         dSeats[s] -= won;
-        ind[s] += won + lost;
+        ind[s] += won + lost + third;
       }
     }
     this._bits = new Map();

@@ -14,7 +14,7 @@ import { C, svg, vsupScale, diverging, fmtMargin, hoverable, legendSwatch } from
 const MODES = {
   prob:   { label: 'Win probability', domain: 1,
             get: r => (r.win_prob == null ? null : r.win_prob * 2 - 1),
-            fmt: r => (r.ind_slot
+            fmt: r => (r.ind_slot || r.three_way
               ? `independent win ${(indWin(r) * 100).toFixed(0)}% · D win ${(dWin(r) * 100).toFixed(0)}%`
               : `D win ${(r.win_prob * 100).toFixed(0)}%`) },
   margin: { label: 'Median margin', domain: 30,
@@ -31,7 +31,8 @@ const MODES = {
 // Democrat's is zero; where they oppose the D slot, their chance is the loss.
 // A seat they are favoured in takes the caveat colour on every mode: the D-to-R
 // scale cannot say "neither", and shading Osborn's Nebraska blue said Democrat.
-const indWin = r => (r.ind_slot === 'D' ? r.win_prob : 1 - r.win_prob);
+const indWin = r => (r.three_way ? (r.ind_win_prob || 0)
+  : r.ind_slot === 'D' ? r.win_prob : 1 - r.win_prob);
 const dWin = r => (r.ind_slot === 'D' ? 0 : r.win_prob);
 
 // Both layouts share these, so the two map modes cannot drift apart in what
@@ -40,7 +41,7 @@ function paint(M, vsup, showUncertainty) {
   return d => {
     const r = d.race;
     if (r.locked) return r.locked_party === 'D' ? C.demDeep : C.repDeep;
-    if (r.ind_slot && r.win_prob != null && indWin(r) >= 0.5) return C.accent;
+    if ((r.ind_slot || r.three_way) && r.win_prob != null && indWin(r) >= 0.5) return C.accent;
     const v = M.get(r);
     return showUncertainty ? vsup(v, r.sigma_total)
                            : diverging(Math.max(-1, Math.min(1, v / M.domain)));

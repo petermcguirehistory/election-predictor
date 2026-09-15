@@ -1,8 +1,8 @@
 // How this particular race got its number.
 //
 // The arithmetic is reproduced from the payload's own columns, and it agrees
-// with the engine exactly: prior_mu = lean + elasticity x environment + inc_adj
-// + fundraising_adj, and poll_weight = eff_n / (eff_n + 3), both to 0.0.
+// with the engine exactly: prior_mu = lean_weight x lean + elasticity x environment
+// + inc_adj + record_adj + fundraising_adj, and poll_weight = eff_n / (eff_n + 3).
 //
 // That formula is the panel's whole contract, and it went stale once: the
 // fundraising term shipped after this was written and was absent here for ten
@@ -107,6 +107,13 @@ function ballotBlock(race) {
 // 506 races, and the note exists for the sixteen where a reader would otherwise
 // be looking at two claims and no way to tell which one moved the forecast.
 function incumbencyNote(race, adj) {
+  // Governors run on their own fitted prior, where the incumbent is the last
+  // race's winner by name (engine/priors/governor.py), so the feed-versus-filing
+  // notes below do not apply to them.
+  if (race.chamber === 'governor') {
+    return adj ? 'the last elected governor is running again; fitted on past governor races'
+               : 'the last elected governor is not on this ballot';
+  }
   const badged = (race.ballot || []).some(c => c.incumbent);
   const claimed = race.incumbent_running === 'incumbent';
   if (badged && adj) return '';
@@ -191,15 +198,28 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     const indName = esc((race.ballot || []).find(c => c.party === 'I')?.name || 'Independent');
     const dSide = race.ind_slot === 'D' ? { tag: indName, col: C.accent } : { tag: 'D', col: C.dem };
     const rSide = race.ind_slot === 'R' ? { tag: indName, col: C.accent } : { tag: 'R', col: C.rep };
-    const fav = race.win_prob >= 0.5 ? dSide : rSide;
+    // A three-way race has three chances, and the favourite is the largest of them.
+    const pI = race.three_way ? (race.ind_win_prob || 0) : 0;
+    const three = race.three_way
+      ? [[race.win_prob, dSide], [Math.max(0, 1 - race.win_prob - pI), rSide],
+         [pI, { tag: indName, col: C.accent }]].sort((a, b) => b[0] - a[0])[0]
+      : null;
+    const fav = three ? three[1] : race.win_prob >= 0.5 ? dSide : rSide;
+    const favP = three ? three[0] : race.win_prob >= 0.5 ? race.win_prob : 1 - race.win_prob;
     body += `<div class="dt-head">
         <div><span class="dt-big" style="color:${fav.col}">
-          ${fmtPct(race.win_prob >= 0.5 ? race.win_prob : 1 - race.win_prob)}</span>
+          ${fmtPct(favP)}</span>
           <span class="dt-sub">${fav.tag} favoured</span></div>
         <div><span class="dt-big">${slotMargin(race, race.median_margin)}</span>
           <span class="dt-sub">median margin</span></div>
       </div>`;
 
+    if (race.three_way) {
+      body += `<div class="dt-cond">Three-way: D <b>${fmtPct(race.win_prob)}</b> \u00b7 R `
+        + `<b>${fmtPct(Math.max(0, 1 - race.win_prob - pI))}</b> \u00b7 ${indName} <b>${fmtPct(pI)}</b>. `
+        + `Polled at ${race.ind_share.toFixed(0)}% in the questions that include them, and `
+        + `simulated as a third share.</div>`;
+    }
     if (cond != null) {
       body += `<div class="dt-cond">Under the current pins (${condition.n.toLocaleString()} draws):
         ${dSide.tag} win <b>${fmtPct(cond)}</b>, against ${fmtPct(race.win_prob)} unconditional.</div>`;
@@ -211,8 +231,12 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     body += `<h4>How the estimate was built</h4>`;
     // "District lean" was the label on all three chambers, including a statewide
     // Senate race that has no district.
-    body += row(`${race.chamber === 'house' ? 'District' : 'State'} lean, 2024 presidential`,
-                fmtMargin(race.lean));
+    const lw = race.lean_weight ?? 1;
+    body += row(`${race.chamber === 'house' ? 'District' : 'State'} lean, 2024 presidential`
+                + (lw !== 1 ? ` × ${lw.toFixed(2)}` : ''),
+                fmtMargin(race.lean * lw)
+                + (lw !== 1 ? `<span class="dt-note">${fmtMargin(race.lean)} raw; governor races `
+                  + `follow the state's presidential vote less than other offices</span>` : ''));
     body += row(`National swing × this seat's responsiveness (${race.elasticity.toFixed(2)})`,
                 `${elas >= 0 ? '+' : ''}${elas.toFixed(2)}`);
     const incNote = incumbencyNote(race, inc);
@@ -231,6 +255,15 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     // that is tapered away wherever the lean is already decisive: a row reading
     // "0.0" on four hundred safe seats would suggest the model looked at money
     // there and found none, when it did not look.
+    // The governor's own previous margin, and the lean discount that comes with
+    // having one. Zero for every other office, so shown only where it is not.
+    const rec = race.record_adj || 0;
+    if (Math.abs(rec) > 0.005) {
+      body += row("Governor's own record",
+                  `${rec >= 0 ? '+' : ''}${rec.toFixed(1)}`
+                  + `<span class="dt-note">their last margin, and a smaller weight on lean once `
+                  + `they have one</span>`);
+    }
     const fund = race.fundraising_adj || 0;
     if (Math.abs(fund) > 0.005) {
       body += row('Fundraising',
@@ -351,7 +384,7 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     // looking for what a hollow dot means can find it without reading the rest.
     const cap = document.createElement('dl');
     cap.className = 'dt-key';
-    const nLive = polls.filter(x => !(x.x || '').includes('s')).length;
+    const nLive = polls.filter(x => !/[so]/.test(x.x || '')).length;
     const nOld = polls.length - nLive;
     const item = (k, v) => {
       cap.append(Object.assign(document.createElement('dt'), { textContent: k }),
@@ -362,8 +395,11 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
         + 'sponsor and a campaign internal each reduce it.');
     }
     if (nOld) {
-      item('Hollow dots', `<b>${nOld}</b> of a matchup no longer on the ballot. Shown because the `
-        + 'field changed; counted for nothing.');
+      const nOmit = polls.filter(x => (x.x || '').includes('o')).length;
+      item('Hollow dots', `<b>${nOld}</b> not counted: `
+        + [nOld - nOmit && `${nOld - nOmit} of a matchup no longer on the ballot`,
+           nOmit && `${nOmit} head-to-head${nOmit === 1 ? '' : 's'} leaving out the third candidate`]
+          .filter(Boolean).join('; ') + '.');
     }
     if (series.length) {
       const recon = series.filter(pt => pt.r).length;
@@ -444,7 +480,7 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     }
 
     // Who did the polling, since `effective pollsters` names nobody.
-    if (polls.some(x => !(x.x || '').includes('s'))) {
+    if (polls.some(x => !/[so]/.test(x.x || ''))) {
       const th = document.createElement('h4');
       th.className = 'dt-h'; th.textContent = 'Who polled it';
       chartHost.append(th);

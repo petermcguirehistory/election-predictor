@@ -15,6 +15,8 @@ const COLS = [
       ? `0% (IND ${(r.win_prob * 100).toFixed(1)}%)`
       : r.ind_slot === 'R' && r.win_prob < 0.5
         ? `${(r.win_prob * 100).toFixed(1)}% (IND ${((1 - r.win_prob) * 100).toFixed(1)}%)`
+      : r.three_way && (r.ind_win_prob || 0) >= 0.005
+        ? `${(r.win_prob * 100).toFixed(1)}% (IND ${(r.ind_win_prob * 100).toFixed(1)}%)`
         : `${(r.win_prob * 100).toFixed(1)}%`) },
   { k: 'median_margin', label: 'Median margin', num: true,
     get: r => r.median_margin ?? -1e9, fmt: r => (r.locked ? 'settled' : fmtMargin(r.median_margin)) },
@@ -95,7 +97,8 @@ export function raceTable(host, { races, scopeLabel = 'races', onPick }) {
         td.textContent = c.fmt ? c.fmt(r) : c.get(r);
         if (c.num) td.className = 'num';
         if (c.k === 'win_prob') {
-          const indP = r.ind_slot === 'D' ? r.win_prob : r.ind_slot === 'R' ? 1 - r.win_prob : 0;
+          const indP = r.three_way ? (r.ind_win_prob || 0)
+            : r.ind_slot === 'D' ? r.win_prob : r.ind_slot === 'R' ? 1 - r.win_prob : 0;
           td.style.color = indP >= 0.5 ? C.accent : r.win_prob >= 0.5 && r.ind_slot !== 'D' ? C.dem : C.rep;
         }
       }

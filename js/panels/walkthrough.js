@@ -29,7 +29,11 @@ const STEPS = [
     text: r => `${r.race_id} is ${WHAT[r.chamber] || 'a race'}. In the 2024 presidential election it
                 voted <b>${fmtMargin(r.lean)}</b> against the country as a whole. Every race starts
                 here: no polls, no candidates, one number for how this electorate voted when the
-                same choice was put to everyone.` },
+                same choice was put to everyone.`
+                + ((r.lean_weight ?? 1) !== 1
+                  ? ` Governor races follow it less than other offices, so the model counts
+                     <code>${r.lean_weight.toFixed(2)} × ${fmtMargin(r.lean)} =
+                     ${fmtMargin(r.lean * r.lean_weight)}</code>.` : '') },
   { key: 'env', title: 'Add the national environment',
     text: (r, env, f) => `National polling puts this year at
                 <b>D${env >= 0 ? '+' : ''}${env.toFixed(2)}</b>, after subtracting the
@@ -39,11 +43,16 @@ const STEPS = [
                 <code>${r.elasticity.toFixed(2)} × ${env.toFixed(2)} =
                 ${(r.elasticity * env >= 0 ? '+' : '')}${(r.elasticity * env).toFixed(2)}</code>.` },
   { key: 'inc', title: 'Add incumbency',
-    text: r => r.inc_adj
+    text: r => r.chamber === 'governor' && r.inc_adj
+      ? `The last elected governor is running again: <b>${r.inc_adj >= 0 ? '+' : '−'}${Math.abs(r.inc_adj).toFixed(1)}</b>
+         to the ${r.inc_adj >= 0 ? 'Democrats' : 'Republicans'}, fitted on past governor races`
+        + (Math.abs(r.record_adj || 0) > 0.005
+          ? `, and <b>${(r.record_adj >= 0 ? '+' : '−')}${Math.abs(r.record_adj).toFixed(1)}</b> for
+             their own last margin.` : '. No earlier margin is on record for them.')
+      : r.inc_adj
       ? `The sitting member is defending this ${noun(r)}: <b>${r.inc_adj >= 0 ? '+' : '−'}${Math.abs(r.inc_adj).toFixed(1)}</b>
-         to the ${r.inc_adj >= 0 ? 'Democrats' : 'Republicans'}, the measured advantage of being the
-         name voters already know. The same figure in every race — the model makes no claim about
-         which incumbents are unusually strong.`
+         to the ${r.inc_adj >= 0 ? 'Democrats' : 'Republicans'}. The same figure in every House and
+         Senate race, and assumed rather than fitted, unlike the governors' incumbency term.`
       : `No candidate on this ballot holds the seat, so nothing is added. The advantage belongs to
          the incumbent as a person, not to the party holding the seat, so an open seat gets none of
          it however safe it looks.` },
@@ -53,7 +62,8 @@ const STEPS = [
       // districts under a Senate race would be a true number about the wrong set.
       const unpolled = f.coverage.prior_only[r.chamber];
       const polled = f.coverage.poll_driven[r.chamber];
-      return `<code>lean + swing + incumbency = ${fmtMargin(r.prior_mu)}</code> — the estimate
+      return `<code>lean + swing + incumbency${Math.abs(r.record_adj || 0) > 0.005 ? ' + record' : ''}
+              = ${fmtMargin(r.prior_mu)}</code> — the estimate
               before a single poll of this ${noun(r)} is looked at. For <b>${unpolled}</b> of the
               ${unpolled + polled} ${FIELD[r.chamber] || 'these'} races this cycle the working ends
               here, because no one polls them${r.n_polls ? '' : ', and this is one of them'}.`;
@@ -125,8 +135,8 @@ export function walkthrough(host, { races, environment, initial, forecast,
   function draw() {
     const env = environment.margin;
     const marks = {
-      lean: race.lean,
-      env: race.lean + race.elasticity * env,
+      lean: race.lean * (race.lean_weight ?? 1),
+      env: race.lean * (race.lean_weight ?? 1) + race.elasticity * env,
       inc: race.prior_mu,
       prior: race.prior_mu,
       poll: race.poll_margin,

@@ -119,20 +119,29 @@ const ALARM = {
   },
   third_party_share: (n, f) => {
     const rows = (f.freshness.third_party_races || []);
-    const named = rows.filter(r => r.on_ballot);
     return {
       title: `${n} polled race${n === '1' ? '' : 's'} where a third candidate takes a large share`,
       body: `Every race is decided on the D-versus-R margin. In these, a sizeable share of the
              polling goes to neither: ${rows.map(r => `<b>${r.race_id}</b> `
                + `${r.third_pct.toFixed(0)}%`).join(', ')}.`
-        + facts([
-            ['Priced', 'Nothing. The margin is D minus R whatever share goes elsewhere.'],
-            ['What the forecast cannot say', 'That the third candidate wins. Each race is '
-              + 'P(Democrat beats Republican); a third-candidate win has probability zero here.'],
-            named.length && ['On the ballot', named.map(r => `<b>${r.race_id}</b> `
-              + `${r.on_ballot.name}${r.on_ballot.party ? ` (${r.on_ballot.party})` : ''}`)
-              .join(', ')],
-          ]),
+        + (() => {
+            // Which of them the model now simulates as three shares, from the races
+            // themselves: a named candidate on the ballot polling 5%+ in the
+            // questions that include them.
+            const byId = new Map((f.races || []).map(r => [r.race_id, r]));
+            const tw = rows.filter(r => byId.get(r.race_id)?.three_way);
+            const not = rows.filter(r => !byId.get(r.race_id)?.three_way);
+            return facts([
+              tw.length && ['Simulated three-way', tw.map(r => `<b>${r.race_id}</b> `
+                + `${r.on_ballot ? r.on_ballot.name : ''} wins `
+                + `${((byId.get(r.race_id).ind_win_prob || 0) * 100).toFixed(1)}%`).join(', ')],
+              tw.length && ['How', 'Head-to-head questions that leave them out are dropped; their '
+                + 'share is drawn with the error measured on eight three-way Senate races, and '
+                + 'the largest share wins.'],
+              not.length && ['Still D minus R', `${not.map(r => `<b>${r.race_id}</b>`).join(', ')}: the `
+                + 'other share is not a named candidate on the ballot, so no third outcome is drawn.'],
+            ]);
+          })(),
     };
   },
   cross_feed_duplicate: n => ({
@@ -363,28 +372,20 @@ const STRUCTURAL = (f) => [
             moves <em>with</em> the country.`],
           ['Cost', 'Accuracy on paper. Kept anyway, and re-checked on every run.'],
         ]) },
-  ((pa, gov) => ({
-    title: 'The governor error bar was assumed, never measured',
-    body: `Every other uncertainty here was fitted to past results. This one is the House figure `
-      + `multiplied by <b>${pa.bound ? pa.bound.shipped_ratio : '—'}</b>.`
+  ((pf) => ({
+    title: 'The governor prior is fitted, with gaps before 2022',
+    body: `Fitted on ${pf ? pf.n : '—'} governor generals, ${pf ? pf.cycles.join('–') : ''}: the 538 `
+      + `corpus, plus MEDSL's official returns for 2024 and for 2022 races nobody polled.`
       + facts([
-          ['Senate, assumed', '1.625'],
-          ['Senate, measured', '1.465 — 97 races, 3 cycles. Close enough to keep the assumption.'],
-          ['Governors, assumed', `${pa.bound ? pa.bound.shipped_ratio : '—'}`],
-          ['Governors, measured', 'No usable returns. The standard tidy series covers President, '
-            + 'Senate and House only, and has no 2022 state file.'],
-        ])
-      + (pa.bound ? `<p>Unfitted, so the model prices being wrong about it instead. Re-run at `
-          + `every ratio from <b>${(+pa.bound.range[0]).toFixed(2)}</b> to `
-          + `<b>${(+pa.bound.range[1]).toFixed(2)}</b> — the spread the Senate figure showed across `
-          + `its own three cycles:</p>`
-          + facts([
-              ['Median', `${pa.bound.median_values.join(' / ')} governorships at every point in that range`],
-              ['Expected count', `moves ${pa.bound.expected_span} of a seat`],
-            ])
-          + `<p>Most of the ${gov.of} governor races have polls, so this number only governs the `
-          + `handful that do not, and those are not close.</p>` : ''),
-  }))(f.topline.governor.prior_asserted, f.topline.governor),
+          ['Missing', 'Unpolled governor races before 2022. None bears on a 2026 incumbent.'],
+          ['Incumbents with a record', `${pf ? `${pf.with_record} of ${pf.incumbents}` : '—'} running this cycle.`],
+          ['Who counts as incumbent', `The last race's winner, by name, on this ballot — the `
+            + `definition the fit measured. A mid-term successor counts as open. It overrides the `
+            + `race feed where they disagree`
+            + (pf && pf.overrides.length ? ` (${pf.overrides.map(o => o.race_id).join(', ')})` : '')
+            + '.'],
+        ]),
+  }))(f.topline.governor.prior_fitted),
   { title: 'Governors have no control probability, by construction',
     body: `${f.topline.governor.of} governorships confer no collective majority, so there is no
            threshold to clear. A property of the office, not a gap in the model.`

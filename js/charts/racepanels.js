@@ -54,7 +54,7 @@ export function seatHistory(host, { past, race }) {
 // `effective_pollsters` is a single number standing in for a list, and the list
 // is the thing that answers "is this four shops or one shop four times".
 export function pollsterTable(host, { polls }) {
-  const live = polls.filter(p => !(p.x || '').includes('s'));
+  const live = polls.filter(p => !/[so]/.test(p.x || ''));
   if (!live.length) return null;
   const by = new Map();
   for (const p of live) {

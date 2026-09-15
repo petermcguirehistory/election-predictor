@@ -297,13 +297,13 @@ p.fml-block code, div.fml-block code { background: none; padding: 0; }
    The disclosure line under it is the one thing on this card that is not a
    forecast: it says the number's width rests on an asserted sigma. Warm rather
    than red; it is a caveat, not an error. */
-.topline .seats.asserted {
+.topline .seats.prior-fit {
   margin-top: .5rem; padding-top: .5rem;
   border-top: 1px dashed var(--line);
   color: var(--ink-dim);
 }
-.topline .seats.asserted b { color: var(--ink-dim); font-weight: 600; }
-.topline .seats.asserted a { color: inherit; text-decoration: underline dotted; }
+.topline .seats.prior-fit b { color: var(--ink-dim); font-weight: 600; }
+.topline .seats.prior-fit a { color: inherit; text-decoration: underline dotted; }
 .topline .seats .muted { color: var(--muted); }
 
 /* The Senate's third outcome. Not a caveat (dashed, dim) and not a forecast line

@@ -169,9 +169,10 @@ function caption(html) {
 //     three cycles of Senate maps cannot separate 1.46 from the 1.625 shipped.
 //     A measurement that fails to overturn the assumption is still a measurement,
 //     and hiding it is how a page comes to look better tested than it is.
-//   * engine/backtest/governor_sensitivity.py asked whether the governor sigma is
-//     worth fitting before fitting it, found the data does not exist in a usable
-//     shape, and swept the whole range of ignorance instead.
+//   * engine/calibrate/fit_governor_prior.py fits the governor prior on 295 polled
+//     governor generals in the 538 corpus. Until 2026-09-15 this card was a sweep
+//     of an asserted sigma, on the belief that no governor returns were usable;
+//     the corpus had carried them all along.
 //
 // Neither is a reliability curve, because neither could honestly be one: ~100
 // races across three cycles that share a national error apiece is nowhere near
@@ -246,60 +247,51 @@ export function senateRatio(host, { fit }) {
   host.append(note);
 }
 
-export function governorSweep(host, { sweep }) {
+// The governor prior against the form it replaced, held out by cycle. Grouped bars
+// by the kind of race, because the gain is not even: it is largest exactly where
+// the old form was most wrong, a governor running in a state that leans the other
+// way (Scott in Vermont, Hogan in Maryland, Kelly in Kansas).
+export function governorPrior(host, { fit }) {
   host.replaceChildren();
-  const pts = sweep.points;
-  const W = 330, H = 240, m = { t: 14, r: 16, b: 46, l: 44 };
-  const x = d3.scaleLinear().domain(d3.extent(pts, p => p.ratio)).range([m.l, W - m.r]);
-  const lo = Math.min(...pts.map(p => p.p10)), hi = Math.max(...pts.map(p => p.p90));
-  const y = d3.scaleLinear().domain([lo - 1, hi + 1]).range([H - m.b, m.t]);
-  const s = svg(host, W, H, 'Governor seat forecast against the unfitted prior ratio');
+  const groups = [['all', 'all races'], ['incumbents', 'incumbent running'],
+                  ['incumbent_against_lean', 'incumbent vs state lean'], ['open', 'open seat']];
+  const forms = [['M0', 'lean + incumbency', C.faint], ['M2', 'fitted', C.dem]];
+  const W = 330, rowH = 40, m = { t: 8, r: 34, b: 30, l: 150 };
+  const H = groups.length * rowH + m.t + m.b;
+  const max = Math.max(...groups.flatMap(([k]) => forms.map(([f]) => fit.loco_rmse[f][k])));
+  const x = d3.scaleLinear().domain([0, max * 1.05]).range([m.l, W - m.r]);
+  const s = svg(host, W, H, 'Held-out error of the governor prior, old form against fitted');
+  groups.forEach(([k, label], i) => {
+    const y0 = m.t + i * rowH;
+    s.append('text').attr('x', m.l - 8).attr('y', y0 + rowH / 2 + 3).attr('text-anchor', 'end')
+      .attr('fill', C.muted).attr('font-size', 10.5).text(label);
+    forms.forEach(([f, name, col], j) => {
+      const v = fit.loco_rmse[f][k], y = y0 + 6 + j * 14;
+      const bar = s.append('rect').attr('x', m.l).attr('y', y).attr('height', 11)
+        .attr('width', x(v) - m.l).attr('fill', col);
+      hoverable(bar, () => `<b>${name}</b> · ${label}<br>misses by ${v.toFixed(1)} pts, held out`);
+      s.append('text').attr('x', x(v) + 4).attr('y', y + 9).attr('fill', C.muted)
+        .attr('font-size', 10).text(v.toFixed(1));
+    });
+  });
+  s.append('g').attr('transform', `translate(0,${H - m.b})`)
+    .call(d3.axisBottom(x).ticks(4).tickSizeOuter(0))
+    .call(g => { g.selectAll('text').attr('fill', C.muted).attr('font-size', 10.5);
+                 g.selectAll('line,path').attr('stroke', C.line); });
+  s.append('text').attr('x', (m.l + W - m.r) / 2).attr('y', H - 2).attr('text-anchor', 'middle')
+    .attr('fill', C.faint).attr('font-size', 10.5).text('RMSE, points');
 
-  s.append('g').selectAll('line').data(y.ticks(5)).join('line')
-    .attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).attr('stroke', C.line);
-
-  // The 80% interval widens with the ratio and the median does not move at all,
-  // which is the finding: the asserted number governs the width and not the answer.
-  s.append('path').attr('fill', C.dem).attr('fill-opacity', 0.18)
-    .attr('d', d3.area().x(p => x(p.ratio)).y0(p => y(p.p10)).y1(p => y(p.p90))(pts));
-  s.append('path').attr('fill', 'none').attr('stroke', C.dem).attr('stroke-width', 2)
-    .attr('d', d3.line().x(p => x(p.ratio)).y(p => y(p.expected))(pts));
-
-  s.append('line').attr('x1', x(sweep.shipped_ratio)).attr('x2', x(sweep.shipped_ratio))
-    .attr('y1', m.t).attr('y2', H - m.b).attr('stroke', C.accent).attr('stroke-width', 2);
-  s.append('text').attr('x', x(sweep.shipped_ratio) + 5).attr('y', m.t + 8)
-    .attr('fill', C.accent).attr('font-size', 10.5).attr('font-weight', 600)
-    .text(`shipped ${sweep.shipped_ratio}`);
-
-  const dots = s.selectAll('circle').data(pts).join('circle')
-    .attr('cx', p => x(p.ratio)).attr('cy', p => y(p.expected)).attr('r', 3.5)
-    .attr('fill', C.dem).attr('stroke', C.surface).attr('stroke-width', 1.5);
-  hoverable(dots, p =>
-    `ratio <b>${p.ratio}</b> · error width ${p.sigma.toFixed(2)}<br>` +
-    `median ${p.median} · 80% ${p.p10}–${p.p90}<br>` +
-    `<span class="tip-dim">expected ${p.expected.toFixed(2)} governorships</span>`);
-
-  for (const [g, ax] of [
-    [s.append('g').attr('transform', `translate(0,${H - m.b})`), d3.axisBottom(x).ticks(5)],
-    [s.append('g').attr('transform', `translate(${m.l},0)`), d3.axisLeft(y).ticks(5).tickFormat(d3.format('d'))],
-  ]) {
-    g.call(ax.tickSizeOuter(0));
-    g.selectAll('text').attr('fill', C.muted).attr('font-size', 10.5);
-    g.selectAll('line,path').attr('stroke', C.line);
-  }
-  s.append('text').attr('x', (m.l + W - m.r) / 2).attr('y', H - 4)
-    .attr('text-anchor', 'middle').attr('fill', C.faint).attr('font-size', 10.5)
-    .text('assumed governor error ÷ House error');
-
-  // A div, not a p -- this note carries a fact table.
+  const c = fit.coefficients;
   const note = document.createElement('div');
   note.className = 'chart-note';
   note.innerHTML =
-    `Governor ${term('sigma')}: asserted (no usable statewide returns), so swept:`
+    `<span style="color:${C.faint}">Grey</span>: lean + 2.5 for an incumbent, the old form. `
+    + `<span style="color:${C.dem}">Blue</span>: fitted on ${fit.n} races, ${fit.cycles[0]}–${fit.cycles[1]}.`
     + `<table class="fx"><tbody>`
-    + `<tr><th>Range</th><td>×${(+sweep.range[0]).toFixed(2)}–${(+sweep.range[1]).toFixed(2)}</td></tr>`
-    + `<tr><th>Median</th><td><b>${sweep.median_values.join('/')}</b> throughout</td></tr>`
-    + `<tr><th>Expected count</th><td>moves ${sweep.expected_span.toFixed(2)} of a seat</td></tr>`
+    + `<tr><th>Lean</th><td>×${c.lean.toFixed(2)}</td></tr>`
+    + `<tr><th>Incumbent running</th><td>${c.inc >= 0 ? '+' : ''}${c.inc.toFixed(1)} pts</td></tr>`
+    + `<tr><th>Their last margin</th><td>×${c.last.toFixed(2)}</td></tr>`
+    + `<tr><th>${term('sigma')}</th><td>±${fit.sigma.toFixed(1)}</td></tr>`
     + `</tbody></table>`;
   host.append(note);
 }

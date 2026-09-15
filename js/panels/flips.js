@@ -62,7 +62,20 @@ export function flipsPanel(host, { races, chambers, sims, condition, onPick }) {
 
   const rows = held.map(r => {
     const pD = live ? (sims.winProb(r.race_id, idx) ?? r.win_prob) : r.win_prob;
-    return { r, pD, p: r.incumbent_party === 'D' ? 1 - pD : pD, to: gainer(r) };
+    // A three-way race has two ways to flip: the other major party, or the
+    // independent. `win_prob` is the Democrat outright, so both are counted, and
+    // the row names whichever is likelier as the gainer.
+    if (r.three_way && r.ind_win_prob != null) {
+      const pI = live ? (sims.winProb(`${r.race_id}#IND`, idx) ?? r.ind_win_prob) : r.ind_win_prob;
+      const other = r.incumbent_party === 'D' ? { R: Math.max(0, 1 - pD - pI) } : { D: pD };
+      const split = { ...other, I: pI };
+      const p = Object.values(split).reduce((a, b) => a + b, 0);
+      const to = Object.entries(split).sort((a, b) => b[1] - a[1])[0][0];
+      return { r, pD, p, to, split };
+    }
+    const p = r.incumbent_party === 'D' ? 1 - pD : pD;
+    const to = gainer(r);
+    return { r, pD, p, to, split: { [to]: p } };
   }).sort((a, b) => b.p - a.p || a.r.race_id.localeCompare(b.r.race_id));
 
   // ---- per chamber: the expectation, and the range the draws actually give ----
@@ -76,7 +89,7 @@ export function flipsPanel(host, { races, chambers, sims, condition, onPick }) {
     // was being counted as a Democratic gain, which put Osborn's Nebraska into the
     // Democratic net; an independent's win is theirs, and the net between the two
     // parties leaves it out.
-    const to = party => mine.filter(x => x.to === party).reduce((a, x) => a + x.p, 0);
+    const to = party => mine.reduce((a, x) => a + (x.split[party] || 0), 0);
     const toD = to('D'), toR = to('R'), toI = to('I');
     const net = toD - toR;
     const likely = mine.filter(x => x.p >= 0.5).length;
@@ -234,8 +247,12 @@ function flipRange(sims, mine, idx) {
     const c = sims.col.get(r.race_id);
     if (c === undefined) { if (p >= 0.5) fixed++; continue; }
     const flipOnD = r.incumbent_party === 'R' ? 1 : 0;
+    // A three-way race also flips when the independent wins: on a Republican seat
+    // that is a draw the D bit alone would call a hold.
+    const x = r.three_way ? sims.col.get(`${r.race_id}#IND`) : undefined;
     for (let i = 0; i < n; i++) {
-      if (sims.bit(idx ? idx[i] : i, c) === flipOnD) counts[i]++;
+      const s = idx ? idx[i] : i;
+      if (sims.bit(s, c) === flipOnD || (x !== undefined && flipOnD && sims.bit(s, x))) counts[i]++;
     }
   }
   const sorted = counts.sort();

@@ -62,7 +62,10 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
       return {
         kind: 'race', race: r, slot,
         p: r.ind_slot === 'D' ? 0 : slot,
-        ind: r.locked || !r.ind_slot ? null : r.ind_slot === 'D' ? slot : 1 - slot,
+        // A three-way race's independent wins on their own column; its D-slot
+        // probability is already the Democrat outright.
+        ind: r.locked ? null : r.three_way ? (r.ind_win_prob ?? 0)
+          : !r.ind_slot ? null : r.ind_slot === 'D' ? slot : 1 - slot,
       };
     });
   // Whose seat a cell is most likely to be, and that chance.

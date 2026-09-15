@@ -23,7 +23,7 @@ import { raceDetail } from './panels/racedetail.js';
 import { correlationMatrix } from './charts/correlation.js';
 import { hops, motionOK } from './charts/hops.js';
 import { reliability, locoChart, seatMisses, senateRatio,
-         governorSweep } from './charts/calibration.js';
+         governorPrior } from './charts/calibration.js';
 import { trendChart } from './charts/trend.js';
 import { limitsPanel } from './panels/limits.js';
 import { alarmKind } from './alarms.js';
@@ -565,19 +565,15 @@ function renderHeadline(s) {
       const seats = el('div', 'seats');
       seats.innerHTML = `${range} \u00b7 <span class="muted">no control probability</span>`;
       card.append(seats);
-      const pa = base.prior_asserted;
-      if (pa) {
-        const warn = el('div', 'seats asserted');
-        // The bound is the point. "Asserted" alone invites a reader to imagine the
-        // worst; the sweep says what the worst actually is, and it is nothing.
-        const b = pa.bound;
-        warn.innerHTML = `<b>\u00b1${pa.sigma.toFixed(2)} assumed</b>, never measured` +
-          (b
-            ? `; swept &times;${(+b.range[0]).toFixed(2)}\u2013${(+b.range[1]).toFixed(2)}, median ` +
-              `holds at <b>${b.median_values[0]}</b>. `
-            : '. ') +
-          `<a href="#s-limits">why</a>`;
-        card.append(warn);
+      const pf = base.prior_fitted;
+      if (pf) {
+        // Measured, with what it replaced: a held-out error means little alone.
+        const note = el('div', 'seats prior-fit');
+        note.innerHTML = `Governor prior fitted on <b>${pf.n}</b> past races: misses by ` +
+          `<b>${pf.loco_rmse.M2.all.toFixed(1)}</b> pts held out, against ` +
+          `${pf.loco_rmse.M0.all.toFixed(1)} for lean + incumbency. ` +
+          `<a href="#s-calibration">how</a>`;
+        card.append(note);
       }
       card.append(cardLinks(cc));
       cards.append(card);
@@ -1225,12 +1221,10 @@ const CAL_CARDS = [
     source: '97 Senate races, 2018 · 2020 · 2022',
     has: f => f.calibration?.prior?.senate_ratio_fit,
     draw: (host, f) => senateRatio(host, { fit: f.calibration.prior.senate_ratio_fit }) },
-  { id: 'gov-sweep', chambers: ['governor'], title: 'What if the governor uncertainty is wrong?',
-    source: 'the model re-run at six values of the one uncertainty never fitted',
-    // `bound` is the sweep -- named for what the topline card uses it to say
-    // (the worst a fit could do), and it carries every point of it.
-    has: f => f.topline?.governor?.prior_asserted?.bound?.points,
-    draw: (host, f) => governorSweep(host, { sweep: f.topline.governor.prior_asserted.bound }) },
+  { id: 'gov-prior', chambers: ['governor'], title: 'How good is the governor prior?',
+    source: 'polled governor generals, 2000–2022, each cycle held out',
+    has: f => f.topline?.governor?.prior_fitted?.loco_rmse,
+    draw: (host, f) => governorPrior(host, { fit: f.topline.governor.prior_fitted }) },
 ];
 
 function renderCalibration(s) {
@@ -1492,12 +1486,12 @@ const CHIP = {
   stale_priors: n => `${n} districts carry priors from superseded maps`,
   generic_ballot_beyond_corpus_support: d =>
     `Generic ballot ${d} days old \u2014 older than any reading that could be checked against results`,
-  // Not priced, and the group heading says the race notes are. The margin is D
-  // minus R whatever share goes elsewhere, so the chip says so itself.
+  // Where the third share is a named candidate on the ballot the race is simulated
+  // three-way; the rest stay D minus R. The limits panel says which is which.
   third_party_share: n => `${n} polled race${n === '1' ? '' : 's'} where a third candidate `
-    + `takes a large share \u2014 the margin is D minus R and does not price them`,
+    + `takes a large share \u2014 named candidates on the ballot are simulated as a third share`,
   senate_no_democrat_seats: n => `${n} Senate seats have no Democrat on the ballot \u2014 `
-    + `the Senate probability assumes their independents lose`,
+    + `an independent\u2019s win there counts for neither party`,
   // Not "Republican vs independent": half of the eight this was written over are
   // a Democrat against an independent with no Republican running (AZ-03, MA-01,
   // NJ-08, PA-03). Either party can be the absent one.
