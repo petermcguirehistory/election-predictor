@@ -104,12 +104,18 @@
           <p>Every seat in the chamber, lined up as one strip:</p>
           <ul class="pts">
             <li><b>Order</b> — safest Democratic seat at the left, safest Republican at the right,
-                by the race's median margin. Seats not on this year's ballot sit at the ends.</li>
+                by the race's median margin. A seat with no Democrat or no Republican on the ballot
+                sits where the independent's margin puts it. Seats not on this year's ballot sit
+                at the ends.</li>
             <li><b>Colour</b> — <code>P(D wins)</code>. Bright blue or red is a safe seat, grey is a
-                toss-up. Hatched seats are not on the ballot.</li>
-            <li><b>The outlined seat</b> — the seat whose rank equals the majority, 218 in the
-                House and 51 in the Senate. If each side wins every seat on its own end of the
-                strip, this race decides the chamber.</li>
+                toss-up, amber is a seat an independent is favoured in. Hatched seats are not on
+                the ballot.</li>
+            <li><b>The outlined seat</b> — where a party reaches its number: Democrats counting
+                from the left, Republicans from the right, each skipping seats it cannot win. In
+                the House both reach 218 on the same seat. In the Senate, Democrats need 51 and
+                Republicans 50, and an independent's seat on the Democratic side pushes the two
+                lines one seat apart. A split that falls between them leaves neither party at its
+                number, so the independents decide.</li>
             <li><b>Not the same as the deciding race</b> — this is one fixed ordering. In each
                 simulation the order is different, so the race that most often casts the deciding
                 vote is a separate count, in <a href="#s-watch">What to watch</a>.</li>

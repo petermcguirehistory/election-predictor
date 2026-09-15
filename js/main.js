@@ -877,14 +877,14 @@ function renderSnake(s) {
     // A chamber the payload does not size cannot be drawn whole, and a strip of
     // only the races on the ballot would put the majority on the wrong seat.
     const size = sims.m.size && sims.m.size[ch];
-    const majority = sims.m.majority[ch];
-    if (!size || majority == null) {
+    const needs = sims.m.needs[ch];
+    if (!size || !needs) {
       host.append(el('p', 'chart-note', `No chamber size in this payload for the ${chamberName(ch)}.`));
       return;
     }
     seatStrip(host, {
       races: forecast.races.filter(r => r.chamber === ch),
-      size, majority, heldD: sims.m.offsets[ch] || 0,
+      size, needs, heldD: sims.m.offsets[ch] || 0,
       chamber: ch, chamberLabel: chamberName(ch),
       prob: live ? r => sims.winProb(r.race_id, c.idx) ?? r.win_prob : undefined,
       frozen: live,
