@@ -172,18 +172,15 @@ export function flipsPanel(host, { races, chambers, sims, condition, onPick }) {
     const foot = document.createElement('p');
     foot.className = 'chart-note';
     foot.innerHTML =
-      `<b>${below}</b> more held seat${below === 1 ? '' : 's'} flip in fewer than 1 in 100 `
-      + 'simulations and are not listed.'
+      `Not listed: <b>${below}</b> seat${below === 1 ? '' : 's'} under 1%`
       + (noHolder.length
-        ? ` <b>${noHolder.length}</b> race${noHolder.length === 1 ? ' has' : 's have'} no recorded `
-          + `holding party (${noHolder.map(r => esc(r.race_id)).join(', ')}), and a flip is only `
-          + 'defined against a holder, so they are left out.'
+        ? `, and ${noHolder.map(r => esc(r.race_id)).join(', ')} (no holding party to flip from)`
         : '')
+      + '.'
       + (live
         ? ' <span class="frozen">Probabilities and ranges are counted from your pinned simulations. '
           + 'Median margins are the unconditional forecast.</span>'
-        : '')
-      + ' Click any row for that race’s full working.';
+        : '');
     listHost.append(foot);
   }
 

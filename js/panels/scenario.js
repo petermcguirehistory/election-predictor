@@ -203,17 +203,11 @@ export function scenarioPanel(host, { scenarios, environment, chambers, onPick }
   const note = document.createElement('div');
   note.className = 'chart-note';
   note.innerHTML =
-    `Every stop is a full rebuild — each race's estimate recomputed at that `
-    + `${term('generic-ballot')} correction, then fresh simulations under common random numbers. `
-    + `No interpolation. Drag left for a smaller assumed lean toward Democrats, right for a `
-    + `larger.`
+    `Each stop is a full rebuild with common random numbers, not an interpolation.`
     + `<table class="fx"><tbody>`
-    + `<tr><th>Fitted value</th><td><b>+${fitted}</b>, the mean over 13 cycles</td></tr>`
-    + `<tr><th>Standard error</th><td>${se}, so &plusmn;2 SE puts the long-run figure between `
-    + `+${(fitted - 2 * se).toFixed(1)} and +${(fitted + 2 * se).toFixed(1)}</td></tr>`
-    + `<tr><th>Range across cycles</th><td>−1.9 to +6.2 — wider than the SE on the mean</td></tr>`
-    + `<tr><th>Why the sweep spans that</th><td>One election can miss the long-run average by more `
-    + `than the long-run average is itself uncertain</td></tr>`
+    + `<tr><th>Fitted</th><td><b>+${fitted}</b>, mean of 13 cycles</td></tr>`
+    + `<tr><th>±2 SE</th><td>+${(fitted - 2 * se).toFixed(1)} to +${(fitted + 2 * se).toFixed(1)}</td></tr>`
+    + `<tr><th>Single cycles</th><td>−1.9 to +6.2</td></tr>`
     + `</tbody></table>`;
   host.append(note);
   paint();

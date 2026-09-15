@@ -52,7 +52,7 @@ const KIND = {
     title: 'Median Democratic governorships over successive runs',
     // Not "Governors control": there is none to hold, which is the whole reason
     // this panel exists separately from the one above it.
-    note: named => `${named}, the median number won,`,
+    note: named => `${named}, median won`,
     say: (r, c) => `${CH[c].label} median ${r[c].median}, ` +
                    `80% range ${r[c].p10}–${r[c].p90}`,
   },
@@ -200,15 +200,7 @@ function panel(host, pts, series, kind, history) {
   const who = named.length > 1
     ? `${named.slice(0, -1).join(', ')} and ${named.at(-1)}` : named[0];
   note.innerHTML =
-    `${K.note(who)} across ${rows.length} published runs. `
-    + `<code>${joinable} / ${(history.edges ?? []).length}</code> gaps between consecutive runs are `
-    + `drawn solid.`
-    + `<ul class="pts">`
-    + `<li><b>Solid</b> — same model, same sources at both ends. The movement is news about the `
-    + `election.</li>`
-    + `<li><b>Dashed</b> — the build changed across the gap, so part of the step is the model and `
-    + `not the electorate. How much is not recoverable. <b>Hover a break to see what `
-    + `changed.</b></li>`
-    + `</ul>`;
+    `${K.note(who)}, ${rows.length} runs; <b>${joinable}</b> of `
+    + `${(history.edges ?? []).length} gaps solid. Hover a break for what changed.`;
   host.append(note);
 }

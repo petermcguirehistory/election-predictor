@@ -51,12 +51,8 @@ export function reliability(host, { bands }) {
     .attr('text-anchor', 'middle').attr('fill', C.faint).attr('font-size', 10.5)
     .text('share that actually happened');
   host.append(caption(
-    `Take every race the model gave roughly a 70% chance to, and count how many of them actually ` +
-    `happened. If the model is honest about what it knows, about 70% did. Each dot is one band of ` +
-    `forecast probability: across is what the model said, up is what the races in that band ` +
-    `actually did, and the dot's area is how many races are in it. On the dashed line, the two ` +
-    `agree. <b>Below the line the model was overconfident</b> — it claimed 70% and got less. ` +
-    `Above it, it was too cautious.`));
+    `Each dot: races in one probability band, sized by count. On the dashed line, a 70% call came ` +
+    `true 70% of the time. <b>Below it: overconfident.</b>`));
 }
 
 // ---- 2. leave-one-cycle-out ---------------------------------------------
@@ -103,16 +99,10 @@ export function locoChart(host, { loco }) {
     .text('actual spread ÷ predicted spread');
 
   host.append(caption(
-    `A different question from the one on the left: not "were the calls right" but "were the ` +
-    `<em>error bars</em> the right size". Every past poll is scored as how many of the model's own ` +
-    `predicted standard deviations it missed by. If the model has the width right those misses ` +
-    `spread out with a standard deviation of <b>1.0</b>, the dashed line. <b>Above 1.0 the ` +
-    `intervals are too narrow</b> and the model is claiming to know more than it does; below, they ` +
-    `are wider than they need to be. Shown for ` +
-    `<span style="color:${C.dem}">this model</span> against ` +
-    `<span style="color:${C.rep}">the earlier version it replaced</span>, which used one fixed ` +
-    `error width for every race regardless of how much was known about it. The curve is refitted ` +
-    `each time with the cycle being scored held out, so no cycle grades itself.`));
+    `<code>z = miss ÷ predicted σ</code>; honest ` +
+    `intervals give <code>sd(z) = 1.0</code>. <b>Above it: too narrow.</b> ` +
+    `<span style="color:${C.dem}">This model</span> against ` +
+    `<span style="color:${C.rep}">its fixed-width predecessor</span>.`));
 }
 
 // ---- 3. replaying real elections ----------------------------------------
@@ -156,13 +146,9 @@ export function seatMisses(host, { rows }) {
 
   const rms = Math.sqrt(d3.mean(final, r => (r.seats_median - r.seats_actual) ** 2));
   host.append(caption(
-    `The bluntest check there is: run the whole model on a past election and see what it said. The ` +
-    `bar is the range the model gave 80% of its draws to, the tick is what it called most likely, ` +
-    `and the gold dot is what actually happened. Each cycle was replayed through this same engine ` +
-    `with its own calibration removed first, and scored against all 435 districts rather than only ` +
-    `the ones somebody polled. Typical miss <b>${rms.toFixed(1)}</b> seats. ` +
-    `<b>Three cycles is far too few to call this settled</b> — and 2020 is a presidential year ` +
-    `being judged by a midterm model.`));
+    `Bar: 80% of draws. Tick: most likely. Gold: what happened. Typical miss ` +
+    `<b>${rms.toFixed(1)}</b> seats, over <b>three cycles</b> \u2014 too few to settle, and 2020 ` +
+    `was a presidential year.`));
 }
 
 function caption(html) {
@@ -249,19 +235,14 @@ export function senateRatio(host, { fit }) {
   const note = document.createElement('div');
   note.className = 'chart-note';
   note.innerHTML =
-    `The model starts a Senate race with a wider ${term('sigma')} than a House district — `
-    + `<b>${fit.shipped_value}×</b>. That multiplier was assumed. This is the attempt to measure it.`
+    `Senate ${term('sigma')} = House × <b>${fit.shipped_value}</b>, assumed. Measured:`
     + `<table class="fx"><tbody>`
-    + `<tr><th>Each dot</th><td>What one past cycle says the ratio should be</td></tr>`
-    + `<tr><th>The bar</th><td>All three pooled: <b>${fit.ratio.toFixed(2)}</b> over `
-    + `${fit.n_senate} Senate races and ${fit.n_house} House districts</td></tr>`
-    + `<tr><th>Bar width</th><td>The ${term('clustered-se')} `
-    + `(${fit.clustered_se.toFixed(2)}), not the plain one (${fit.se.toFixed(2)})</td></tr>`
-    + `<tr><th>Verdict</th><td>The bar overlaps the shipped ${fit.shipped_value}. The measurement `
-    + `cannot tell the two apart, so it was not adopted.</td></tr>`
-    + `</tbody></table>`
-    + `<p>Shown because a measurement that fails to overturn an assumption is still a `
-    + `measurement. Fitted ${fit.fitted_on || ''}.</p>`;
+    + `<tr><th>Dots</th><td>one cycle each</td></tr>`
+    + `<tr><th>Pooled</th><td><b>${fit.ratio.toFixed(2)}</b>, ${fit.n_senate} Senate races, `
+    + `${fit.n_house} House districts</td></tr>`
+    + `<tr><th>Bar</th><td>${term('clustered-se')} ${fit.clustered_se.toFixed(2)}</td></tr>`
+    + `<tr><th>Verdict</th><td>overlaps ${fit.shipped_value}; not adopted</td></tr>`
+    + `</tbody></table>`;
   host.append(note);
 }
 
@@ -314,15 +295,11 @@ export function governorSweep(host, { sweep }) {
   const note = document.createElement('div');
   note.className = 'chart-note';
   note.innerHTML =
-    `This ${term('sigma')} could not be fitted — no source publishes statewide governor results in `
-    + `the shape the fit needs — so it is asserted, and the model measures what rests on it.`
+    `Governor ${term('sigma')}: asserted (no usable statewide returns), so swept:`
     + `<table class="fx"><tbody>`
-    + `<tr><th>Range tested</th><td><b>×${(+sweep.range[0]).toFixed(2)}–${(+sweep.range[1]).toFixed(2)}</b>, `
-    + `taken from how far the Senate figure moved across its own three cycles</td></tr>`
-    + `<tr><th>Median</th><td><b>${sweep.median_values.join('/')}</b> governorships across the whole sweep</td></tr>`
-    + `<tr><th>Expected count</th><td>shifts <b>${sweep.expected_span.toFixed(2)}</b> of a seat</td></tr>`
-    + `<tr><th>The shaded band</th><td>widens — being wrong here makes the forecast less certain, `
-    + `not differently centred</td></tr>`
+    + `<tr><th>Range</th><td>×${(+sweep.range[0]).toFixed(2)}–${(+sweep.range[1]).toFixed(2)}</td></tr>`
+    + `<tr><th>Median</th><td><b>${sweep.median_values.join('/')}</b> throughout</td></tr>`
+    + `<tr><th>Expected count</th><td>moves ${sweep.expected_span.toFixed(2)} of a seat</td></tr>`
     + `</tbody></table>`;
   host.append(note);
 }

@@ -460,9 +460,7 @@ function renderHeadline(s) {
     const st = stateOf(ach);
     const chName = chamberName(ach);
     const why = shown.length > 1
-      ? ` <span class="icon-why">Drawn for the ${chName}, whose control is the least settled of ` +
-        `the ${NUMBER[shown.length] || shown.length}; the cards beside it carry the ` +
-        `${shown.length === 2 ? 'other' : 'others'}.</span>`
+      ? ` <span class="icon-why">The ${chName}: the least settled chamber.</span>`
       : '';
     if (st.control_prob == null) {
       // Governors. There is no favourite because there is nothing to be
@@ -573,14 +571,11 @@ function renderHeadline(s) {
         // The bound is the point. "Asserted" alone invites a reader to imagine the
         // worst; the sweep says what the worst actually is, and it is nothing.
         const b = pa.bound;
-        warn.innerHTML = `<b>\u00b1${pa.sigma.toFixed(2)} assumed</b> \u2014 the one uncertainty here ` +
-          `never measured against results. ` +
+        warn.innerHTML = `<b>\u00b1${pa.sigma.toFixed(2)} assumed</b>, never measured` +
           (b
-            ? `Swept across the whole range a fit could return ` +
-              `(&times;${(+b.range[0]).toFixed(2)}\u2013${(+b.range[1]).toFixed(2)}): median holds at ` +
-              `<b>${b.median_values[0]}</b>, expected count moves ` +
-              `<b>${b.expected_span.toFixed(2)}</b> of a seat. `
-            : '') +
+            ? `; swept &times;${(+b.range[0]).toFixed(2)}\u2013${(+b.range[1]).toFixed(2)}, median ` +
+              `holds at <b>${b.median_values[0]}</b>. `
+            : '. ') +
           `<a href="#s-limits">why</a>`;
         card.append(warn);
       }
@@ -704,20 +699,16 @@ function renderToplineNote(s, bl) {
   note.replaceChildren();
   if (!bl || !bl.base) {
     note.innerHTML = bl
-      ? `No movement shown: the previous run was produced differently, so the two cannot be `
-        + `compared. `
-      : `No published history yet, so there is nothing to measure movement against. `;
+      ? `No movement: the previous run used a different method. `
+      : `No published history yet. `;
   } else {
     note.innerHTML =
-      `Movement is measured against the run of <b>${SHORT_DATE(bl.base.asof)}</b>, ${bl.days} days `
-      + `back. The series reaches <b>${bl.run.length}</b> runs, as far as `
-      + `${SHORT_DATE(bl.run[0].asof)}`
-      + (bl.blocked
-        ? `, and stops there: ${bl.blocked.state === 'broken'
-            ? 'the build changed'
-            : 'that run recorded no provenance'}. Anything earlier is partly a different model, `
-          + `not a different electorate. `
-        : `, which is every run ever published. `);
+      `Movement since <b>${SHORT_DATE(bl.base.asof)}</b> (${bl.days} days), over ` +
+      `<b>${bl.run.length}</b> comparable runs` +
+      (bl.blocked
+        ? `; before ${SHORT_DATE(bl.run[0].asof)} ${bl.blocked.state === 'broken'
+            ? 'the method changed' : 'runs recorded no provenance'}. `
+        : '. ');
   }
   const a = el('a', null, 'Full history \u2192');
   a.href = '#s-trend';
@@ -725,6 +716,13 @@ function renderToplineNote(s, bl) {
 }
 
 function renderMovement(s) {
+  // No comparable pair is a fact about the runs, not about any one chamber: said
+  // once, not once per chamber.
+  const mv = s.data.forecast.movement;
+  if (mv && !mv.available) {
+    $('#movement').replaceChildren(el('p', 'mv-none', mv.reason));
+    return;
+  }
   perChamber($('#movement'), chambersFor(s.scope, s.data.forecast.meta.chambers),
     (host, ch) => movementPanel(host, {
       movement: s.data.forecast.movement, chamber: ch, chamberLabel: chamberName(ch),
@@ -753,7 +751,7 @@ function mountSeatModes(onChange) {
     if (note) {
       note.textContent = seatMode() === 'curve'
         ? 'Every height is P(at least this many seats). Read across from any seat number.'
-        : 'One dot per percentile of the simulations. Count the dots past the line.';
+        : '100 dots, one per percentile of the simulations: dots past the line ÷ 100 = P(control).';
     }
   };
   box.addEventListener('click', e => {
@@ -782,11 +780,9 @@ function renderTogether(s) {
   const naive = ph * ps;
   const note = el('p', 'chart-note');
   note.innerHTML =
-    `<code>P(House) &times; P(Senate) = ${fmtPct(naive, 1)}</code>, which is what independence `
-    + `would give. The draws say <b>${fmtPct(q.both, 1)}</b> \u2014 a gap of `
-    + `<b>${Math.abs(q.both - naive) * 100 < 0.05 ? '0' : (Math.abs(q.both - naive) * 100).toFixed(1)} `
-    + `points</b>. A national polling miss moves both chambers the same way, so the two are not `
-    + `independent events. Hence one joint draw over all 506 races.`
+    `Democrats take both in <b>${fmtPct(q.both, 1)}</b> of runs, against `
+    + `<code>P(House) &times; P(Senate) = ${fmtPct(naive, 1)}</code> if the chambers were `
+    + `independent. A national polling miss moves both.`
     // `ok` is true whenever there are enough draws, which is true of every run
     // with nothing pinned at all. `pinned` is the question being asked here.
     + (c.pinned && c.ok ? `<br><br><b>Counted over your pinned draws.</b>` : '');
@@ -818,9 +814,8 @@ function renderTogether(s) {
     if (race) open(race);
   });
   const foot = el('p', 'chart-note');
-  foot.innerHTML = `${who} sit at a median of <b>${path.median}</b> and need <b>${path.need}</b> `
-    + `more. Every seat in ${name} they do not currently favour, closest first, each with its own `
-    + `chance of going their way. Click any row.`;
+  foot.innerHTML = `Median <b>${path.median}</b>, <b>${path.need}</b> short. Seats they do not `
+    + `yet favour, closest first.`;
   cheap.append(h4, list, foot);
 }
 
@@ -962,26 +957,14 @@ const MAP_CAPTION = {
   'house:hex': f => {
     const stale = f.races.filter(r => r.chamber === 'house' && r.boundary_stale);
     const states = new Set(stale.map(r => r.state));
-    return `One equal hex per district: 435 seats read as 435 seats, and land area carries no
-      weight. Laid out from Census district centroids under the 118th Congress, so the positions are
-      on <b>2024 boundaries</b>.
-      ${stale.length ? `<b>${stale.length} districts across ${states.size} states are hatched</b>
-      \u2014 those states redrew for 2026, the forecast uses the new lines, and no published shape
-      file exists to place them. Their seat counts and forecasts are right; their positions are
-      not.` : ''}`;
+    return `One equal hex per district, placed on 2024 lines.
+      ${stale.length ? `Hatched: <b>${stale.length} districts in ${states.size} states</b> that
+      redrew for 2026 \u2014 forecast on the new lines, placed on the old.` : ''}`;
   },
-  'house:geo': () => `Real district boundaries on <b>2024 lines</b>, simplified so that a border
-     shared by two districts stays shared. Accurate geography, and a poor election map: area is not
-     votes. A dense urban district almost disappears beside Montana, and each elects one member.
-     Switch to the cartogram to read seats.`,
-  'state:hex': () => `One equal hex per state, all fifty, matching how these offices are awarded.
-     Sizing by population would draw California at 52&times; the area of Wyoming for the same two
-     Senate seats each. States with no race this cycle are grey rather than dropped, so the map
-     stays the whole country.`,
-  'state:geo': () => `Real geography, from the district shapes alone: a state is the union of its
-     districts, so they are drawn, filled with that state's race colour, and the internal seams
-     closed. No state boundary file needed. Area is not votes \u2014 Montana and Rhode Island each
-     elect one senator \u2014 so switch to the cartogram to read seats.`,
+  'house:geo': () => `District boundaries on 2024 lines. Area is not votes: use the cartogram to
+     read seats.`,
+  'state:hex': () => `One hex per state. Grey: no race this cycle.`,
+  'state:geo': () => `State shapes. Area is not votes: use the cartogram to read seats.`,
 };
 
 // The heading names the unit the map is drawn in, which is the district for the
@@ -1070,10 +1053,7 @@ function renderMap(s) {
   // printing it twice would read as a rendering fault.
   $('#map-caption').innerHTML = [...new Set(caption)].join(' ');
   $('#hops-read').innerHTML = s.playing ? '' :
-    `Press <b>Play simulations</b> above to swap the forecast for single runs. Each frame is one ` +
-    `complete election night out of ${s.data.sims.m.n_sims.toLocaleString()}, not an average. ` +
-    `Whole regions swing together between frames: that is the shared national, regional and state ` +
-    `error.`;
+    `<b>Play simulations</b>: whole regions swing together between frames \u2014 shared error.`;
   if (s.playing) {
     hopsCtl.start();
     hopsCtl.observe($('#s-map'), () => store.set({ playing: false }));
@@ -1413,7 +1393,7 @@ const HEADLINE_SAY = {
     const by = {};
     for (const q of (nb.polling || [])) by[q.race_id] = q;
     const spread = r => (by[r] && by[r].spread != null
-      ? `${by[r].n_polls} polls spanning ${by[r].spread.toFixed(0)}` : 'too few polls');
+      ? `${by[r].n_polls} polls, ${by[r].spread.toFixed(0)} pts apart` : 'too few polls');
 
     // ONE LINE PER CLAIM, not one paragraph carrying all of them. This was a
     // single 900-character run of prose whose most consequential figure -- what
@@ -1428,40 +1408,22 @@ const HEADLINE_SAY = {
     const sc = nb.caucus_scenarios || {};
     const pts = [];
     if (priced.length) {
-      pts.push(`<b>Priced from polling</b> — `
-        + `${list(priced.map(r => `${r} (${spread(r)} points)`))}. The polling agrees with `
-        + `itself there.`);
+      pts.push(`<b>Priced from polling</b> — ${list(priced.map(r => `${r} (${spread(r)})`))}.`);
     }
     if (held.length) {
-      pts.push(`<b>Held on the presidential prior</b> — `
-        + `${list(held.map(r => `${r} (${spread(r)})`))}. That prior describes a Democrat who is `
-        + `not on the ballot; the polling does not hold together well enough to replace it.`);
+      pts.push(`<b>On the prior</b> — ${list(held.map(r => `${r} (${spread(r)})`))}: polls too `
+        + `scattered to use.`);
     }
-    // Each caucus choice through the headline's own three-way split. This line used
-    // to report a "neither" figure that counted every ordinary 50-50 as a
-    // stalemate and said no Vice President breaks it; one does, and the engine's
-    // split now applies that tiebreak everywhere (engine/simulate/tabulate.py).
+    // Each material caucus choice through the headline's own three-way split.
     for (const [rid, sn] of Object.entries(sc).sort((a, b) => b[1].decides - a[1].decides)) {
       const who = (by[rid] && by[rid].name) || rid;
-      pts.push(`<b>Caucus, ${who}</b> — wins <b>${fmtPct(sn.p_win, 0)}</b> of runs and decides `
-        + `the chamber in <b>${fmtPct(sn.decides, 1)}</b>. Sided with Democrats, D control would `
-        + `be <b>${fmtPct(sn.caucus_dem.d, 1)}</b>; sided with Republicans, R control would be `
-        + `<b>${fmtPct(sn.caucus_rep.r, 1)}</b>.`);
-    }
-    if (nb.races.length) {
-      pts.push(`<b>Published figure</b> — counts no independent\u2019s win for either party, `
-        + `so a Senate where neither reaches its number is reported as decided by the `
-        + `independents. The ballot feed lists a caucus for each of them; the forecast does `
-        + `not use it.`);
+      pts.push(`<b>If ${who} caucused</b> — with Democrats, D control <b>${fmtPct(sn.caucus_dem.d, 1)}</b>; `
+        + `with Republicans, R control <b>${fmtPct(sn.caucus_rep.r, 1)}</b>.`);
     }
 
     return [
-      priced.length
-        ? `${priced.length} of ${nb.n_seats} no-Democrat Senate seats priced from polling.`
-        : `${nb.n_seats} independents\u2019 wins count for neither party.`,
-      `${nb.races.join(', ')} have no Democrat on the ballot and a named independent running.`
-      + `<ul class="pts">${pts.map(x => `<li>${x}</li>`).join('')}</ul>`
-      + `<p>Open any of these races for the polling itself.</p>`,
+      `${nb.n_seats} Senate seats have no Democrat on the ballot.`,
+      `<ul class="pts">${pts.map(x => `<li>${x}</li>`).join('')}</ul>`,
     ];
   },
   governor_zero_poll_coverage: (n, f) => [
@@ -1642,13 +1604,11 @@ function renderCaveats(s) {
 
   for (const [key, label, why] of [
     ['checks', 'Checks that failed',
-      'The engine checks its own inputs on every run. These did not pass; each says what it '
-      + 'affects.'],
+      'Input checks that did not pass this run.'],
     ['races', 'Individual races',
-      'True of particular contests, and already priced into the numbers above.'],
+      'Already priced into the numbers above.'],
     ['data', 'Data handling',
-      'Records dropped or reconciled before anything was computed. Each says how it was resolved; '
-      + 'no figure on this page depends on the choice having gone the other way.'],
+      'Records dropped or reconciled before anything was computed.'],
   ]) {
     if (!bucket[key].length) continue;
     const g = el('div', 'caveat-group');
@@ -1660,8 +1620,7 @@ function renderCaveats(s) {
   }
 
   const foot = el('p', 'caveat-why');
-  foot.innerHTML = 'These come and go with the data on every run. The structural limits, which do '
-    + 'not, are on the <a href="#s-limits">Can you trust it</a> tab.';
+  foot.innerHTML = 'Structural limits: <a href="#s-limits">Can you trust it</a>.';
   more.append(foot);
   host.append(more);
 }
@@ -1720,12 +1679,10 @@ function renderDiagnostics(s) {
   // browser that meets one there closes the p and leaves the list outside it.
   const rec = el('div', 'chart-note');
   rec.innerHTML =
-    `Pinning a race is done in the browser too, by discarding every run that disagrees. What ` +
-    `survives that is exactly what can be counted from who won:` +
+    `A pin discards every run that disagrees:` +
     `<ul class="pts">` +
-    `<li><b>Recomputed under a pin</b> — ${Sims.recomputable.yes.join(', ')}.</li>` +
-    `<li><b>Frozen at unpinned values</b> — ${Sims.recomputable.no.join(', ')}. These need each ` +
-    `run's margins, which the payload does not carry. Each is labelled where it appears.</li>` +
+    `<li><b>Recomputed</b> — ${Sims.recomputable.yes.join(', ')}.</li>` +
+    `<li><b>Frozen</b> (needs margins, not carried) — ${Sims.recomputable.no.join(', ')}.</li>` +
     `</ul>`;
   host.append(rec);
 }
@@ -1867,22 +1824,18 @@ function renderAll(s, changed) {
       const gb = f.sigma;
       const note = el('p', 'chart-note');
       note.innerHTML =
-        `<b>${r.days} days left.</b> Each tick is an expected reading, spaced by how often that `
-        + `feed has actually published this cycle. The red mark is the silence a feed has to run `
-        + `before the model calls it dead: a deadline, not a forecast.`
+        `<b>${r.days} days left.</b> Ticks: expected readings, at each feed's own pace. Red: the `
+        + `silence after which a feed is called dead.`
         // TWO DIFFERENT AGES, and saying "the generic ballot is 35 days old" while
         // the feed publishes daily reads as a contradiction. The newest poll is
         // days old; the WEIGHTED age of the average is what the model charges
         // for, because the average spans a decaying window rather than the last
         // reading. The distinction is the point of the sentence.
         + (gb && gb.nat_fitted && gb.nat_gb_age_days != null
-            ? `<br><br><b>Two different ages.</b> The newest ${term('generic-ballot')} poll is `
-              + `${f.freshness.generic_ballot_age_days} days old, but the average those polls form `
-              + `spans a decaying window, so its weighted age is `
-              + `<b>${gb.nat_gb_age_days.toFixed(0)} days</b>. The model charges for the second: `
-              + `<code>σ_nat ${gb.nat_fitted.toFixed(2)} → ${gb.nat.toFixed(2)}</code> points. `
-              + `More national polling narrows this forecast faster than anything else on the `
-              + `schedule above.`
+            ? `<br><br>Newest ${term('generic-ballot')} poll: `
+              + `${f.freshness.generic_ballot_age_days} days; weighted age of the average: `
+              + `<b>${gb.nat_gb_age_days.toFixed(0)} days</b>, charged as `
+              + `<code>σ_nat ${gb.nat_fitted.toFixed(2)} → ${gb.nat.toFixed(2)}</code>.`
             : '');
       host.append(note);
     });

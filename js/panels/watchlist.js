@@ -46,12 +46,8 @@ const MODES = {
     // A length from the left, carrying the same share the number reports.
     bar: 'length',
     say: (ch, n, top) =>
-      `Ranked by how often each race casts the vote that makes the majority, counted across every `
-      + `simulation. The job is spread over <b>${n}</b> different ${ch} races and the busiest takes `
-      + `<b>${(top * 100).toFixed(1)}%</b> of them, so this is a list and not one tipping-point `
-      + `race.`,
-    frozen: 'The ranking is frozen while a race is pinned: it needs each run’s margins, and the '
-          + 'payload ships only who won. The win probabilities beside it are live.',
+      `<b>${n}</b> ${ch} races decide at least one run; the busiest, <b>${(top * 100).toFixed(1)}%</b>.`,
+    frozen: 'Ranking frozen under a pin (needs margins); win probabilities are live.',
   },
   // No majority to deliver, so no deciding seat exists to rank by.
   closeness: {
@@ -63,10 +59,7 @@ const MODES = {
     // reports. NOT the ranking quantity: see the note on `drawBar`.
     bar: 'diverging',
     say: () =>
-      `A different question, because the one above has no answer here: 36 separate offices confer `
-      + `no collective majority, so no governor’s race can be the seat that decides control. `
-      + `Ranked instead by distance from an even chance. The bars are each race’s median margin `
-      + `about a centre line, Democrats to the left, matching the swarm under Every race.`,
+      `Ranked by distance from 50%. Bars: median margin, Democrats left.`,
     frozen: null,
   },
 };
@@ -159,7 +152,6 @@ export function watchlist(host, { races, chamber, chamberLabel, tipping, sims, c
   const note = document.createElement('p');
   note.className = 'chart-note';
   note.innerHTML = mode.say(chamberLabel, dist ? dist.length : 0, dist ? dist[0].share : 0)
-    + (live && mode.frozen ? ` <span class="frozen">${mode.frozen}</span>` : '')
-    + ` <b>Click any race for its full working.</b>`;
+    + (live && mode.frozen ? ` <span class="frozen">${mode.frozen}</span>` : '');
   host.append(note);
 }

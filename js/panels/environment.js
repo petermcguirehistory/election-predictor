@@ -50,23 +50,20 @@ export function environmentStrip(host, { environment: e, scenarios, gbAgeDays, o
 
   host.append(tile(
     `<span style="color:${colour}">${lead}+${Math.abs(e.margin).toFixed(1)}</span>`, '',
-    `<b>generic ballot</b>, after subtracting the `
-    + `${e.instrument_bias.toFixed(2)}-point lean it has shown in past cycles `
-    + `(before it: ${e.margin_before_instrument_bias >= 0 ? 'D' : 'R'}`
+    `<b>generic ballot</b>, less a ${e.instrument_bias.toFixed(2)}-pt historical lean `
+    + `(raw ${e.margin_before_instrument_bias >= 0 ? 'D' : 'R'}`
     + `+${Math.abs(e.margin_before_instrument_bias).toFixed(1)})`));
 
-  host.append(tile(e.n_polls, '', `<b>polls</b> in the ${e.window_days}-day window, the newest `
+  host.append(tile(e.n_polls, '', `<b>polls</b> in ${e.window_days} days, newest `
     + `${e.newest_days_old} day${e.newest_days_old === 1 ? '' : 's'} old`));
 
-  host.append(tile(Math.round(e.weighted_age_days), ' days', `<b>weighted age</b> of that average. `
-    + `Each poll counts for less as it ages, so this — not the newest one — is how old the `
-    + `reading really is.`));
+  host.append(tile(Math.round(e.weighted_age_days), ' days', `<b>weighted age</b> of the average, `
+    + `older polls counting less`));
 
   const lev = houseLeverage(scenarios);
   if (lev != null) {
-    const t = tile(`${(lev * 100).toFixed(0)}`, ' pts', `<b>of House control</b> for every point that `
-      + `correction is off \u2014 and the correction is an estimate from past elections, not a `
-      + `measurement of this one.`);
+    const t = tile(`${(lev * 100).toFixed(0)}`, ' pts', `<b>of House control</b> per point that `
+      + `correction is off`);
     // The one tile that is a door rather than a fact: the sweep behind this
     // number is a control, and a reader who doubts the correction should land on
     // it rather than be told the number and left there.

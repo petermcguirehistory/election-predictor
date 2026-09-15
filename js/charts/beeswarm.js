@@ -69,15 +69,13 @@ export function beeswarm(host, { races, colorBy = 'polls', scopeLabel = 'races',
   // `races` minus `rows` are the settled same-party generals: no margin, so no
   // position on a margin axis. Counted out loud rather than silently dropped.
   const off = races.length - rows.length;
-  note.innerHTML = `One dot per race, across ` +
-    (off ? `<b>${rows.length}</b> of ${races.length} ${scopeLabel}. The other ` +
-           `${off} ${off > 1 ? 'are' : 'is'} a settled same-party general — both November ` +
-           `candidates in one party, so there is no two-party margin to plot`
-         : `all <b>${races.length}</b> ${scopeLabel}`) +
-    `.<ul class="pts">` +
-    `<li><b>Shaded band</b> — within 5 points of a tie. <b>${n}</b> races sit in it; overturning ` +
-    `anything wider takes a national polling miss.</li>` +
-    `<li><b>Faded dots</b> — no usable poll. Forecast from the seat's own history.</li>` +
+  note.innerHTML =
+    (off ? `<b>${rows.length}</b> of ${races.length} ${scopeLabel}; ${off} same-party ` +
+           `general${off > 1 ? 's have' : ' has'} no margin to plot.`
+         : `All <b>${races.length}</b> ${scopeLabel}.`) +
+    `<ul class="pts">` +
+    `<li><b>Shaded</b> — within 5 pts of a tie: <b>${n}</b> races.</li>` +
+    `<li><b>Faded</b> — no usable poll.</li>` +
     `</ul>`;
   host.append(note);
 }

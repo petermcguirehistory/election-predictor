@@ -180,12 +180,10 @@ export function playingField(host, { structural }) {
   // --- headline numbers ---------------------------------------------------
   const stats = el('div', 'stat-row pf-stats');
   for (const [n, l] of [
-    [rel(now.bias), `where the ${sf.need}th district sits, against the country`],
-    [`${now.above_national} / ${now.need}`,
-     `districts at least as Democratic as the country, of the ${now.need} needed`],
-    [`${now.gap} seats`, `short of an even map — ${sf.gap_points} points of margin in all`],
-    [`${now.competitive}`,
-     `districts within 5 points of the national vote, down from ${before.competitive}`],
+    [rel(now.bias), `the ${sf.need}th district, against the country`],
+    [`${now.above_national} / ${now.need}`, `districts at or above the national vote`],
+    [`${now.gap} seats`, `short of an even map (${sf.gap_points} pts of margin)`],
+    [`${now.competitive}`, `within 5 pts of the national vote (was ${before.competitive})`],
   ]) {
     const d = el('div', 'stat');
     d.append(el('div', 'n', n), el('div', 'l', l));
@@ -213,31 +211,19 @@ export function playingField(host, { structural }) {
   host.append(keys);
 
   host.append(el('h3', 'pf-h', 'Why the presidential result, and not past House results?'));
-  host.append(el('p', null,
-    `Because one ballot question was put to every voter in all 435 districts on the same day, so ` +
-    `the number means the same thing everywhere.`));
   host.append(el('div', null, pts([
-    `<b>House results are not comparable</b> — they turn on who ran, who was the incumbent, and ` +
-      `who faced no opponent at all.`,
-    `<b>The cost of using them</b> — computed on House results, this same statistic swings 13 ` +
-      `points and changes sign twice in a decade, on maps that barely moved.`,
-    `<b>The dashed line</b> — the same 2024 election counted under the old <b>118th Congress</b> ` +
-      `lines. The national vote is identical by construction, so every difference between the two ` +
-      `curves is the redrawing.`,
+    `<b>Same question, every district, same day</b> — House results turn on who ran; on them this ` +
+      `statistic swings 13 points in a decade.`,
+    `<b>Dashed line</b> — the same election on the 118th Congress lines. The difference is the ` +
+      `redraw.`,
   ])));
 
   // --- what would close it ------------------------------------------------
   host.append(el('h3', 'pf-h', 'What would it take to even the map out?'));
   host.append(el('p', null,
-    `The House is won at the ${sf.need}th seat of ${sf.seats}, so the map is even exactly when ` +
-    `<code>districts above the national vote = ${sf.need}</code>. Today ` +
-    `${now.above_national} are, leaving a gap of <b>${now.gap}</b>.`));
-  host.append(el('div', null, pts([
-    `<b>The table</b> — the ${now.gap} districts already closest to the line, with the shift each ` +
-      `would need.`,
-    `<b>Cheapest means cheapest in vote margin, and nothing else.</b> It carries no claim that any ` +
-      `legislature, commission or court would draw them that way, or could.`,
-  ])));
+    `<code>even ⇔ districts above the national vote = ${sf.need}</code>. Today ` +
+    `${now.above_national}: <b>${now.gap}</b> short. The ${now.gap} closest, and the shift each ` +
+    `needs:`));
   host.append(table('plain', [
     { label: 'District' }, { label: '2024 margin', num: true },
     { label: 'Points needed', num: true },
@@ -248,15 +234,9 @@ export function playingField(host, { structural }) {
   // --- where it came from -------------------------------------------------
   const fromRedraws = sf.gap_added_by_redraws;
   host.append(el('h3', 'pf-h', 'How much of the gap is the mid-decade redraws?'));
-  host.append(el('div', null, pts([
-    `<b>Gap under the 118th lines</b> — ${before.gap} seats.`,
-    `<b>Gap now</b> — ${now.gap} seats, of which <b>${fromRedraws}</b> is the ten mid-decade ` +
-      `redraws.`,
-    `<b>So undoing every mid-decade redraw</b> closes ${fromRedraws} of ${now.gap} and stops ` +
-      `there. The other ${before.gap} were already in the maps drawn after the 2020 census.`,
-  ])));
-  host.append(el('p', 'chart-note',
-    `Each state's count of districts at or above the national vote, before and after.`));
+  host.append(el('p', null,
+    `<b>${fromRedraws}</b> of the ${now.gap}. The gap was ${before.gap} on the 118th lines; the ` +
+    `mid-decade redraws added the rest.`));
   host.append(table('plain', [
     { label: 'State' }, { label: 'Above the nation, 118th', num: true },
     { label: '2026', num: true }, { label: 'Change', num: true },
@@ -270,33 +250,21 @@ export function playingField(host, { structural }) {
   // that ever stops being true.
   const cs = sf.competitive_split;
   const csNote = el('div', 'chart-note',
-    `The redraws also removed seats from near the line. Districts within 5 points of the national ` +
-    `vote:`);
-  csNote.innerHTML += pts([
-    `<b>The ten that redrew</b> — ${cs.redrawn.before.competitive} → ` +
-      `<b>${cs.redrawn.after.competitive}</b>, across the same ${cs.redrawn.after.districts} ` +
-      `districts either way. A redraw does not change how many seats a state has.`,
-    `<b>The other forty</b> — ${cs.elsewhere.before.competitive} → ` +
-      `${cs.elsewhere.after.competitive}, across ${cs.elsewhere.after.districts}.`,
-  ]) + `<p>Which is why most of the cheapest seats in the table above sit outside the states that ` +
-       `redrew: little is left near the line inside them.</p>`;
+    `The redraws also emptied the middle. Within 5 pts of the national vote: redrawn states ` +
+    `<b>${cs.redrawn.before.competitive} → ` +
+    `${cs.redrawn.after.competitive}</b> (${cs.redrawn.after.districts} districts); elsewhere ` +
+    `${cs.elsewhere.before.competitive} → ${cs.elsewhere.after.competitive} ` +
+    `(${cs.elsewhere.after.districts}).`);
   host.append(csNote);
 
   // --- history ------------------------------------------------------------
   host.append(el('h3', 'pf-h', 'Is this map unusually tilted, historically?'));
-  host.append(el('p', null,
-    `Read this table <b>down a group, never across the whole of it</b>: "how far a district leans" ` +
-    `is not measured the same way in every row.`));
   host.append(el('div', null, pts([
-    `<b>Why the rules</b> — 538 rewrote its partisan-lean formula in 2021. ` +
-      `${sf.history[1].label} against ${sf.history[2].label} reads as a ` +
-      `${Math.abs(sf.history[2].bias - sf.history[1].bias).toFixed(1)}-point improvement on the ` +
-      `same district lines. All of it is the change of definition.`,
-    `<b>Rows are grouped by definition</b> and the groups ruled apart, so the safe comparison is ` +
-      `visible rather than taken on trust.`,
-    `<b>The benchmark for this cycle</b> — the last full post-census redraw, every multi-district ` +
-      `state at once after the 2020 census, moved the median district <b>0.03 points</b>. Read ` +
-      `this cycle's ten-state mid-decade round against that.`,
+    `<b>Read down a group, not across</b> — the lean measure changes at each rule. ` +
+      `${sf.history[1].label} → ${sf.history[2].label} reads as ` +
+      `${Math.abs(sf.history[2].bias - sf.history[1].bias).toFixed(1)} pts on the same lines, all ` +
+      `of it 538's 2021 formula change.`,
+    `<b>Benchmark</b> — the whole 2020-census redraw moved the median district 0.03 pts.`,
   ])));
 
   const hist = sf.history.map((h, i) => ({
@@ -314,36 +282,20 @@ export function playingField(host, { structural }) {
     { label: 'Field' }, { label: 'Lines' }, { label: 'Median district vs nation', num: true },
     { label: 'Above the nation', num: true }, { label: 'Measured as' },
   ], hist));
-  host.append(el('p', 'chart-note',
-    `The rules mark where the measure changes, so no trend line is drawn through them. The ` +
-    `forecast-history chart on the What changed tab breaks at its own version changes for the ` +
-    `same reason.`));
 
   // --- what is not drawable ----------------------------------------------
   host.append(el('h3', 'pf-h', 'How much of this is the map, and how much is where people live?'));
-  host.append(el('p', null,
-    `Mostly the second, which no redistricting round reaches. The tell is a gap between two ` +
-    `averages that would agree on a symmetric field:`));
+  host.append(el('p', null, `Mostly where people live:`));
   host.append(el('div', null, pts([
-    `<b>Mean district</b> — ${rel(pk.mean_lean)}. ` +
-      `<b>Median district</b> — ${rel(pk.median_lean)}. ` +
-      `<code>gap = ${Math.abs(pk.mean_lean - pk.median_lean).toFixed(2)} pts</code>, which is the ` +
-      `shape of the distribution rather than any one map.`,
-    `<b>The two tails are not the same size</b> — ${pk.dem_districts} Democratic-leaning ` +
-      `districts average ${rel(pk.dem_mean_lean)} against ${pk.gop_districts} Republican-leaning ` +
-      `at ${rel(pk.gop_mean_lean)}; ${pk.dem_over_30} run deeper than D+30 against ` +
-      `${pk.gop_over_30} deeper than R+30.`,
-    `<b>Why that tilts the median</b> — a seat is won at 50%, so any margin stacked beyond that in ` +
-      `a district a party was always going to win is wasted. Democratic voters are concentrated in ` +
-      `cities, so Democrats waste more, and the median district falls right of the mean.`,
-    `<b>Efficiency gap</b> — the two parties' wasted votes differenced, over all votes cast: ` +
-      `<b>${Math.abs(pk.efficiency_gap).toFixed(1)}% toward ` +
-      `${pk.efficiency_gap < 0 ? 'Republicans' : 'Democrats'}</b> on these districts.`,
+    `<b>Mean vs median district</b> — ${rel(pk.mean_lean)} vs ${rel(pk.median_lean)}: ` +
+      `<code>gap = ${Math.abs(pk.mean_lean - pk.median_lean).toFixed(2)} pts</code>, the shape of ` +
+      `the field, not one map.`,
+    `<b>Tails</b> — ${pk.dem_districts} Democratic-leaning districts average ` +
+      `${rel(pk.dem_mean_lean)}; ${pk.gop_districts} Republican-leaning, ${rel(pk.gop_mean_lean)}. ` +
+      `Margins past 50% are wasted, and Democrats waste more.`,
+    `<b>Efficiency gap</b> — ${Math.abs(pk.efficiency_gap).toFixed(1)}% toward ` +
+      `${pk.efficiency_gap < 0 ? 'Republicans' : 'Democrats'}.`,
   ])));
-  host.append(el('p', 'chart-note',
-    `So the ${cross - sf.need}-seat gap above is the smaller half. The other route to the median ` +
-    `seat is more votes, and the model prices that: ` +
-    `<a href="#s-scenario">the sweep further down</a> puts the House at even odds near D+2.7.`));
 }
 
 // ---- the statewide field --------------------------------------------------
@@ -374,12 +326,11 @@ export function statewideField(host, { statewide, houseBias = null }) {
 
   const stats = el('div', 'stat-row pf-stats');
   for (const [n, l] of [
-    [rel(sw.bias), `where the ${sw.states_needed}th state sits, against the country`],
-    [`${sw.above_national} / ${sw.states_needed}`,
-     `states at least as Democratic as the country, of the ${sw.states_needed} needed for a majority`],
+    [rel(sw.bias), `the ${sw.states_needed}th state, against the country`],
+    [`${sw.above_national} / ${sw.states_needed}`, `states at or above the national vote`],
     [`${(ma.share_of_country * 100).toFixed(1)}%`,
-     `of the country lives in the ${ma.smallest_states} smallest states — by themselves enough to hold the Senate`],
-    [`${ma.ratio}×`, `as many people per senator in the largest state as in the smallest`],
+     `of people live in the ${ma.smallest_states} smallest states — a Senate majority`],
+    [`${ma.ratio}×`, `people per senator, largest state vs smallest`],
   ]) {
     const d = el('div', 'stat');
     d.append(el('div', 'n', n), el('div', 'l', l));
@@ -397,45 +348,27 @@ export function statewideField(host, { statewide, houseBias = null }) {
   host.append(cols);
 
   host.append(el('p', 'chart-note',
-    `The 2024 presidential result by state, scored against the same national vote the district `
-    + `section uses, so the two are directly comparable. Median state <b>${rel(sw.bias)}</b>`
-    + (houseBias == null ? '' : `, median district <b>${rel(houseBias)}</b>`)
-    + `. Two different facts, not two versions of one: the first is where the state borders `
-    + `already were, the second is where the lines were drawn.`));
+    `Median state <b>${rel(sw.bias)}</b>`
+    + (houseBias == null ? '.' : `; median district <b>${rel(houseBias)}</b>, on the same scale.`)));
 
   // The cycle effect, which is not the structure and must not be read as it.
   if (sw.on_ballot) {
     const ob = sw.on_ballot;
     host.append(el('h3', 'pf-h', 'Does that tilt describe this year\'s Senate races?'));
     host.append(el('p', null,
-      `No. The figure above is the standing structure across all fifty states; about a third of the `
-      + `Senate is elected in any one year, and this year's third is not a random sample of it.`));
-    host.append(el('div', null, pts([
-      `<b>On the 2026 ballot</b> — ${ob.states} states, median lean `
-        + `<b>${rel(ob.median_lean)}</b>.`,
-      `<b>Against all fifty</b> — <code>${Math.abs(ob.vs_all_states).toFixed(2)} pts</code> more `
-        + `Republican than the median state.`,
-      `<b>At or above the national vote</b> — ${ob.above_national} of ${ob.states}.`,
-      `<b>Scope</b> — a fact about which seats are up this cycle, not about the Senate. A different `
-        + `number in 2028.`,
-    ])));
+      `No: a third of the Senate is up, and not a random third. This year's `
+      + `${ob.states} states have a median lean of <b>${rel(ob.median_lean)}</b>, `
+      + `${Math.abs(ob.vs_all_states).toFixed(2)} pts right of the median state; `
+      + `${ob.above_national} sit at or above the national vote.`));
   }
 
   host.append(el('h3', 'pf-h', 'Is this permanent?'));
-  host.append(el('p', null, `The arrangement is. The partisan effect is not. Separating the two:`));
   host.append(el('div', null, pts([
-    `<b>The arrangement</b> — equal representation in the Senate is the only provision of the `
-      + `Constitution that Article V puts beyond amendment without the consent of the state being `
-      + `changed. The <code>${ma.ratio}×</code> gap in people per senator between the largest state `
-      + `and the smallest is not open to argument. Contrast the district section above: lines get `
-      + `redrawn, and nine states redrew for this cycle alone.`,
-    `<b>The partisan effect</b> — equal representation per state has no sign of its own. It favours `
-      + `whoever holds the small states, which is contingent: it has changed sign before, and would `
-      + `again if the small states changed.`,
+    `<b>The arrangement is</b> — Article V bars amending equal Senate representation without a `
+      + `state's consent.`,
+    `<b>The partisan effect is not</b> — it favours whoever holds the small states, and has flipped `
+      + `before. This table is all of it:`,
   ])));
-  host.append(el('p', 'chart-note',
-    `The table below is the whole of the partisan effect — the half of this that is not `
-    + `permanent.`));
 
   host.append(table('plain',
     [{ label: '' }, { label: 'Mean lean', num: true }, { label: 'States', num: true }],
@@ -447,11 +380,7 @@ export function statewideField(host, { statewide, houseBias = null }) {
                 `r = ${st.corr_log_size_lean.toFixed(3)}`] },
     ]));
   host.append(el('p', 'pf-vint',
-    `<b>r</b> is the correlation between state size and state lean across all fifty: 0 means size `
-    + `tells you nothing about lean, 1 means it tells you everything. Size is the state's House `
-    + `delegation, which is its share of the country by construction — seats are apportioned from `
-    + `the same census the districts are drawn from, so no separate population file can fall out of `
-    + `step with the rest of the model.`));
+    `<b>r</b> — correlation of state size (House seats) with lean across all fifty; 0 is none.`));
 }
 
 // Fifty states ordered by lean, sized by delegation. Area carries population and

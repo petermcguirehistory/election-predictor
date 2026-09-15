@@ -273,30 +273,22 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
     if (!here.length) return null;
     const party = side === 'D' ? 'Democratic' : 'Republican';
     return `${list(here.map(d => `<b>${esc(d.race.race_id)}</b> (${indName(d)})`))} `
-      + `${here.length === 1 ? 'sits' : 'sit'} on the ${party} side of the strip but would not `
-      + `be ${here.length === 1 ? `a ${party} seat` : `${party} seats`}`;
+      + `${here.length === 1 ? 'sits' : 'sit'} on the ${party} side but would not be `
+      + `${here.length === 1 ? `a ${party} seat` : `${party} seats`}`;
   }).filter(Boolean).join(', and ');
   note.innerHTML =
     (!needs
-      ? `No office is outlined: ${n} governorships confer no majority, so there is no line to `
-        + `reach. `
+      ? 'No majority, so no line. '
       : split
-      ? `Republicans reach ${needs.R} at seat <b>${rRank}</b>, ${ref(rPivot)}: win it and every `
-        + `seat to its right. Democrats reach ${needs.D} at seat <b>${dRank}</b>, ${ref(dPivot)}: `
-        + `win it and every seat to its left. The two are ${dRank - rRank} seat`
-        + `${dRank - rRank === 1 ? '' : 's'} apart because ${gapReason(apart)}. Democrats taking `
-        + `seat ${rRank} but not seat ${dRank} leaves neither party at its number, and the `
-        + `independents decide. `
-      : `Seat <b>${dRank}</b> is ${ref(dPivot)}. Whoever wins it and every seat on their own `
-        + `end of the strip has the chamber: ${needs.D} for Democrats`
-        + `${needs.R === needs.D ? ' or Republicans' : `, ${needs.R} for Republicans`}. `)
-    + `Democrats are favoured in <b>${fav.D}</b> of ${n} ${unit}, Republicans in <b>${fav.R}</b>`
-    + (fav.IND ? `, an independent in <b>${fav.IND}</b>` : '')
-    + `. That is a count of favourites, not a forecast of the total: the expected number of ${unit} `
-    + 'sums every probability, including the long shots on each side, and is on the seat chart below.'
+      ? `Republicans reach ${needs.R} at seat <b>${rRank}</b>, ${ref(rPivot)}; Democrats reach `
+        + `${needs.D} at seat <b>${dRank}</b>, ${ref(dPivot)}. ${gapReason(apart)}, so a split `
+        + `between the two lines leaves the independents deciding. `
+      : `Seat <b>${dRank}</b>: ${ref(dPivot)}. `)
+    + `Favoured: D <b>${fav.D}</b>, R <b>${fav.R}</b>`
+    + (fav.IND ? `, independent <b>${fav.IND}</b>` : '')
+    + ` \u2014 favourites, not expected totals.`
     + (frozen
-      ? ' <span class="frozen">Colours are counted from your pinned simulations; the order is the '
-        + 'unconditional forecast, because re-ordering needs each simulation’s margins.</span>'
+      ? ' <span class="frozen">Colours from your pinned runs; order unconditional.</span>'
       : '');
   host.append(note);
 }

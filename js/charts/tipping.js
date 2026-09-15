@@ -80,14 +80,9 @@ export function tippingChart(host, { distribution, byId, topN = 14, frozen, cham
 
   const note = document.createElement('p');
   note.className = 'chart-note';
-  const top = distribution[0];
-  note.innerHTML =
-    `Each run re-orders the races by its own margins; whichever falls on the majority line is that ` +
-    `run's deciding seat. The job is spread over <b>${distribution.length}</b> different races` +
-    (top ? `, the busiest being <b>${top.race_id}</b> at <b>${(top.share * 100).toFixed(1)}%</b>`
-         : '') +
-    `. Hence a distribution, not a single tipping-point race. ` +
-    (frozen ? `<span class="frozen">Frozen while a race is pinned: redoing this needs each run's ` +
-              `margins, and the payload carries only who won.</span>` : '');
+  // The count and the busiest race are already the list's own note above; this
+  // chart says only what is different about it.
+  if (!frozen) return;
+  note.innerHTML = `<span class="frozen">Frozen under a pin: needs each run's margins.</span>`;
   host.append(note);
 }

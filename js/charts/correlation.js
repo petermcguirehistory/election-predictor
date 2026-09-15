@@ -160,20 +160,14 @@ export function correlationMatrix(host, { sims, races, condition, sigmaState, to
     + `closest ${scopeLabel} of ${races.length}, across `
     + `${live ? condition.n.toLocaleString() : sims.m.n_sims.toLocaleString()} draws.`
     + `<ul class="pts">`
-    + `<li><b>Colour</b> — saturates at the strongest pair here, ${hi.toFixed(2)}. The diagonal is `
-    + `1 and left blank.</li>`
-    + `<li><b>Row order</b> — clustered on the simulated outcomes. <b>No geography was given to `
-    + `the clustering</b>; states appear as blocks because the errors really are shared inside `
-    + `them.</li>`
+    + `<li><b>Colour</b> — saturates at ${hi.toFixed(2)}, the strongest pair.</li>`
+    + `<li><b>Order</b> — clustered on outcomes alone; states still form blocks.</li>`
     + `<li><b>Same state ${mean(sameState).toFixed(2)}, different states `
-    + `${mean(cross).toFixed(2)}</b> on average. The gap is the state-level ${term('sigma')} `
-    + `(${sigmaState} points), and it is why these are not ${races.length} independent coin `
-    + `flips.</li>`
+    + `${mean(cross).toFixed(2)}</b>: the gap is σ<sub>state</sub>.</li>`
     + `</ul>`
     + (live
-        ? ` <br><br><b>Recomputed over your pinned draws</b>, with the clustering order held fixed `
-          + `so the axes do not move. A pinned race is the same in every matching draw, so it `
-          + `correlates with nothing.`
+        ? ` <b>Recomputed over your pinned draws</b>, order held fixed; a pinned race correlates `
+          + `with nothing.`
         : '');
   host.append(note);
 }
