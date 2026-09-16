@@ -58,21 +58,27 @@ export function pollsterTable(host, { polls }) {
   if (!live.length) return null;
   const by = new Map();
   for (const p of live) {
-    const cur = by.get(p.p) || { name: p.p, n: 0, w: 0, h: p.h, last: p.d, flags: new Set() };
+    const cur = by.get(p.p) || { name: p.p, n: 0, w: 0, h: p.h, last: p.d, flags: new Map() };
     cur.n += 1; cur.w += p.w;
     if (p.d > cur.last) cur.last = p.d;
-    for (const f of (p.x || '')) cur.flags.add(f);
+    for (const f of (p.x || '')) cur.flags.set(f, (cur.flags.get(f) || 0) + 1);
     by.set(p.p, cur);
   }
   const rows = [...by.values()].sort((a, b) => b.w - a.w);
   const t = document.createElement('table');
   t.className = 'dt-pollsters';
+  // "unrated" belongs to the pollster, so every one of its polls carries it.
+  // "partisan" and "internal" belong to a single poll, and a row that took the
+  // union of them put one sponsored June poll's tag on a pollster whose
+  // September poll -- 14% of the Texas Senate average -- had no sponsor at all.
+  // A tag that is not true of every poll on the row says how many it is true of.
   const label = { p: 'partisan', i: 'internal', u: 'unrated' };
+  const tag = (f, k, n) => (k === n || f === 'u' ? label[f] : `${label[f]}: ${k} of ${n} polls`);
   t.innerHTML =
     '<thead><tr><th>Pollster</th><th>Polls</th><th>Newest</th><th>House effect</th>'
     + '<th>Share of the average</th></tr></thead><tbody>'
     + rows.map(r => {
-        const flags = [...r.flags].map(f => label[f]).filter(Boolean);
+        const flags = [...r.flags].filter(([f]) => label[f]).map(([f, k]) => tag(f, k, r.n));
         return `<tr><td>${r.name}`
           + (flags.length ? ` <span class="dt-tag">${flags.join(', ')}</span>` : '')
           + `</td><td class="num">${r.n}</td><td class="num">${r.last}</td>`
