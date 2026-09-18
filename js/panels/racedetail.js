@@ -361,9 +361,17 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     const ind = (detail.independent || {})[wanted] || null;
     const past = (detail.past || {})[wanted] || null;
 
+    // PRICED IS READ ONCE, HERE. The heading, the diamond tooltips, the caption
+    // and the weight table all turn on it, and while the caption computed it and
+    // the heading did not, a seat priced entirely from this polling was titled
+    // "why none of it counts" directly above a caption saying the forecast prices
+    // it from that polling. Both sentences shipped, on the race carrying the
+    // largest single assumption on the site.
+    const priced = Math.abs(race.independent_adj || 0) > 0;
     const h = document.createElement('h4');
     h.className = 'dt-h';
     h.textContent = polls.length ? 'The polling, and what the model made of it'
+                 : ind && priced ? 'The polling this seat is priced from'
                  : ind ? 'What has been polled here, and why none of it counts'
                  : 'What the model has said about this race';
     chartHost.append(h);
@@ -373,7 +381,7 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     const draw = () => {
       plot.replaceChildren();
       const r = raceTrend(plot, { polls, history: series, independent: ind, race,
-                                  sigma: race.sigma_total,
+                                  sigma: race.sigma_total, priced,
                                   asof: forecast.meta.asof, full });
       return r || {};
     };
@@ -393,6 +401,11 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     if (polls.length) {
       item('Each dot', 'A poll, at the day its fieldwork ended. Area is weight: age, a partisan '
         + 'sponsor and a campaign internal each reduce it.');
+    }
+    if (ind) {
+      item('Amber diamonds', `Polls of <b>${ind.name}</b> against the one major-party nominee`
+        + (priced ? ', which is what this seat is priced from.'
+                  : ' \u2014 shown, not used.'));
     }
     if (nOld) {
       const nOmit = polls.filter(x => (x.x || '').includes('o')).length;
@@ -441,7 +454,6 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
       // No caucus claim. The ballot feed's said all of these independents would sit
       // with Democrats and the candidates who matter have said otherwise; the
       // forecast counts their win for neither party, and says only that.
-      const priced = Math.abs(race.independent_adj || 0) > 0;
       n.innerHTML = `The amber diamonds are <b>${ind.name}</b>, running as an independent. `
         + `A win would count for neither party. `
         + (ind.avg != null
@@ -450,19 +462,57 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
             : '')
         + (priced
             // Priced: engine/estimate/independents.py takes their polling as the
-            // estimate, because it agrees with itself, and widens it by how far
-            // comparable independent candidacies have landed from their polls.
+            // estimate, given enough of it, and widens it by how far comparable
+            // independent candidacies have landed from their polls.
             ? `<b>The forecast prices this seat from that polling</b>, and widens it by how far `
               + `past independent candidacies have landed from their polls.`
             : `<b>The forecast does not use them</b>, for three reasons:`
               + `<ul class="pts">`
-              + `<li>The polling does not agree with itself closely enough to stand alone.</li>`
+              + `<li>There is not enough of it: fewer than three polls, or one effective poll.</li>`
               + `<li>The error curve is fitted on Democrat-versus-Republican contests.</li>`
               + `<li>The prior describes a Democrat who is not on this ballot.</li>`
               + `</ul>`
               + `So the line and the fan above show a two-major-party contest, which is not the `
               + `contest on the ballot here.`);
       chartHost.append(n);
+
+      // WHO POLLED IT, for a priced seat. These races carry none of the ordinary
+      // `poll_weight` machinery -- n_polls is 0, effective_n is 0 -- so this
+      // panel showed no weights at all while a 19-point move rested on two polls.
+      // Same table as every other race, because the weights are now built the
+      // same way; `h` is the house effect under the name the table reads.
+      if (priced && ind.polls && ind.polls.length) {
+        const th = document.createElement('h4');
+        th.className = 'dt-h'; th.textContent = 'Who polled it';
+        chartHost.append(th);
+        pollsterTable(chartHost, { polls: ind.polls.map(x => ({ ...x, h: x.he })) });
+        const d = ind.diag || {};
+        const dc = document.createElement('p');
+        dc.className = 'dt-chart-cap';
+        // THE NUMBER THE TABLE IS FOR. A reader who sees two shops at 45% each
+        // should be told what that means for how well the average is measured,
+        // because for these races nothing else on the page says it.
+        dc.innerHTML = (d.eff_n != null
+            ? `Those weights come to <b>${d.eff_n.toFixed(1)} effective polls</b>`
+              + (d.se != null ? `, and the average carries a standard error of `
+                              + `<b>${d.se.toFixed(1)} points</b> on that basis` : '') + '. '
+            : '')
+          + `Recency, a partisan sponsor and the pollster\u2019s rating set the weight, as they `
+          + `do for any other race, and a survey asked two ways counts once. `
+          // THE DISCOUNT IS RELATIVE. Weights are normalised, so where every poll
+          // has a sponsor the down-weighting cancels; South Dakota and Idaho are
+          // all sponsored, and saying "down-weighted" there without this would
+          // claim a correction the estimate does not get.
+          + (ind.polls.every(x => (x.x || '').includes('p'))
+              ? `<b>Every poll here has a partisan sponsor</b>, so down-weighting them changes `
+                + `nothing: the average is the sponsors\u2019 average. `
+              : '')
+          + (d.house_adj != null && Math.abs(d.house_adj) >= 0.05
+              ? `House effects shift the average by ${fmtMargin(-d.house_adj)}. ` : '')
+          + `What they cannot correct for is an independent candidacy itself, which is what the `
+          + `extra spread on this seat is for.`;
+        chartHost.append(dc);
+      }
     }
 
     // The seat's own record, which the prior encodes and never displays.

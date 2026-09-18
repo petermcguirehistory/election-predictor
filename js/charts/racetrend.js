@@ -33,7 +33,7 @@
 //     largest disclosed assumption on this site and it belongs on the picture,
 //     in a colour that is not the model's.
 import d3 from '../d3.js';
-import { C, fmtMargin, hoverable, svg } from './util.js';
+import { C, fmtMargin, hoverable, pinLeft, svg } from './util.js';
 
 const W = 680, PH = 218, SH = 132, GAP = 34;
 const M = { t: 14, r: 92, b: 26, l: 44 };
@@ -67,7 +67,8 @@ const surname = full => {
 };
 
 export function raceTrend(host, { polls: allPolls = [], history: allHistory = [],
-                                  independent, race, sigma, asof, full = false }) {
+                                  independent, race, sigma, asof, priced = false,
+                                  full = false }) {
   const indAll = (independent && independent.polls) || [];
   if (!allPolls.length && allHistory.length < 2 && !indAll.length) return null;
 
@@ -126,7 +127,10 @@ export function raceTrend(host, { polls: allPolls = [], history: allHistory = []
                                     .sort((a, b) => b.length - a.length);
   const H = M.t + PH + (cands.length ? GAP + SH : 0) + M.b;
 
-  const s = svg(host, W, H, race.race_id + ': polling, the model estimate, and its uncertainty');
+  // Opened on today, not on the left edge: in the 420px drawer the chart is
+  // wider than the panel, and the polls a reader came for are the recent ones.
+  const s = svg(host, W, H, race.race_id + ': polling, the model estimate, and its uncertainty',
+                x(end));
 
   // ---- panel 1: the margin -------------------------------------------------
   s.append('line').attr('x1', M.l).attr('x2', W - M.r).attr('y1', y(0)).attr('y2', y(0))
@@ -139,6 +143,8 @@ export function raceTrend(host, { polls: allPolls = [], history: allHistory = []
             .tickFormat(v => (v > 0 ? `D+${v}` : v < 0 ? `R+${-v}` : '0')).tickSizeOuter(0));
   ya.selectAll('text').attr('font-size', 10).attr('fill', C.muted);
   ya.selectAll('line,path').attr('stroke', C.line);
+  // Pinned, because this chart opens scrolled. The band covers the margin only.
+  pinLeft(ya, M.l, W, yTop - 10, yBot + 6);
 
   if (sig && lastH) {
     const x0 = x(parse(lastH.a)), x1 = x(ELECTION), mu = lastH.mu;
@@ -222,8 +228,17 @@ export function raceTrend(host, { polls: allPolls = [], history: allHistory = []
         .attr('transform', p => `translate(${x(parse(p.d))},${y(p.m)})`)
         .attr('d', d3.symbol().type(d3.symbolDiamond).size(46))
         .attr('fill', 'none').attr('stroke', C.accent).attr('stroke-width', 1.4),
+      // WAS A FLAT "not used by the forecast", on every diamond, including the
+      // ones a seat is now priced from. Where it is priced the tooltip owes the
+      // reader the same thing an ordinary poll's does: what it weighs.
       p => `<b>${p.p}</b><br>${p.d} &middot; ${independent.name} ${fmtMargin(p.m)}`
-         + `<br><em>not used by the forecast &mdash; no major-party opponent to price it against</em>`);
+         + (p.n ? `<br>n = ${p.n.toLocaleString()}` : '')
+         + ((p.x || '').includes('p') ? '<br>partisan sponsor, down-weighted' : '')
+         + ((p.x || '').includes('u') ? '<br>pollster carries no rating' : '')
+         + (priced && p.w != null
+              ? `<br>weight ${(p.w * 100).toFixed(0)}% of this race\u2019s estimate`
+              : '<br><em>not used by the forecast &mdash; this seat is priced from its '
+                + 'prior</em>'));
     // Beside the newest diamond, not pinned to the top corner where it landed on
     // top of the axis label and the tie marker.
     const lastInd = indPolls[indPolls.length - 1];

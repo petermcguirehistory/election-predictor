@@ -1405,8 +1405,8 @@ const HEADLINE_SAY = {
       pts.push(`<b>Priced from polling</b> — ${list(priced.map(r => `${r} (${spread(r)})`))}.`);
     }
     if (held.length) {
-      pts.push(`<b>On the prior</b> — ${list(held.map(r => `${r} (${spread(r)})`))}: polls too `
-        + `scattered to use.`);
+      pts.push(`<b>On the prior</b> — ${list(held.map(r => `${r} (${spread(r)})`))}: too `
+        + `little polling to price from.`);
     }
     // Each material caucus choice through the headline's own three-way split.
     for (const [rid, sn] of Object.entries(sc).sort((a, b) => b[1].decides - a[1].decides)) {

@@ -182,12 +182,15 @@ const ALARM = {
       title: `${n} race${n === '1' ? '' : 's'} priced from polls of the independent rather `
         + `than the D-vs-R prior`,
       body: `${priced.map(r => `<b>${r}</b>`).join(' and ')}: one major party has no candidate, and
-             the independent's polling agrees with itself closely enough to use.`
+             the independent has been polled enough to price from.`
         + facts([
             ['Estimate', 'The polling average, in place of the prior for a candidate not running.'],
             ['Uncertainty', `Widened by the spread of past independent candidacies around their
               polls — seven since 1998. Too few to correct the mean, enough to size the error.`],
-            ['Qualifies', '3+ polls, all within 10 points of each other.'],
+            ['Qualifies', '3+ polls, adding up to more than one effective poll. How closely '
+              + 'they agree is not a test: across the six past races with a spread, it predicted nothing measurable.'],
+            ['Not corrected', 'Sponsored polls. Where every poll of a race has a sponsor, '
+              + 'down-weighting them changes nothing, and no measured correction exists yet.'],
             ['Counted as', 'Neither party\u2019s seat, when the independent wins. What they say '
               + 'they would caucus with is not used.'],
           ]),
@@ -321,8 +324,8 @@ const ALARM = {
     body: 'The model forecasts a Democratic slot against a Republican slot. Here one of those '
       + 'parties has nobody on the ballot.'
       + facts([
-          ['Priced from polling', 'Where there are 3+ polls within 10 points of each other, the '
-            + 'independent takes the missing party\'s slot.'],
+          ['Priced from polling', 'Where there are 3+ polls, adding up to more than one '
+            + 'effective poll, the independent takes the missing party\'s slot.'],
           ['Otherwise', 'The race keeps its D-vs-R prior, which describes a candidate who is not '
             + 'running.'],
         ]),

@@ -242,7 +242,23 @@ export function scrollAffordance(el) {
   return frame;
 }
 
-export function svg(host, width, height, label) {
+// `focusX` OPENS A SCROLLED CHART ON A GIVEN POINT OF ITS OWN X AXIS, in viewBox
+// units, rather than at scrollLeft 0. A time series in the race drawer needs it:
+// the drawer is a 420px aside, these charts are drawn at a design width of 680,
+// so 43% is behind a scroll -- and every race panel on the site opened three
+// months in the past with the newest poll and the current estimate off-screen.
+// Measured across four races before this: 20-30% of the marks hidden and the
+// rightmost mark hidden in every one, which is the reading a reader came for.
+//
+// NOT THE RIGHT-HAND EDGE, which was the first version of this. A race trend's
+// domain runs to election day, so its last third is empty by construction, and
+// anchoring to the end opened a well-polled race on the fan with ninety polls
+// crushed against the left edge. The anchor is TODAY, which is where a forecast
+// chart's information actually is: `FOCUS_AT` of the window behind it and the
+// rest ahead, so the recent polling and the near fan are on screen together.
+const FOCUS_AT = 0.7;
+
+export function svg(host, width, height, label, focusX = null) {
   const scroll = d3.select(host).append('div').attr('class', 'chart-scroll');
   scroll.node().style.setProperty('--design-w', `${width}px`);
   const s = scroll.append('svg')
@@ -253,7 +269,49 @@ export function svg(host, width, height, label) {
     .style('display', 'block')
     .style('overflow', 'visible');
   scrollAffordance(scroll.node());
+  if (focusX != null) {
+    // After layout and after the caller has drawn: svg() returns before any mark
+    // exists, and an empty chart's scrollWidth is its clientWidth. The browser
+    // clamps scrollLeft to the scrollable range, so an unscrollable chart -- a
+    // wide screen, or a chart that fits -- silently keeps scrollLeft 0.
+    const el = scroll.node();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.scrollLeft = (focusX / width) * el.scrollWidth - FOCUS_AT * el.clientWidth;
+    }));
+  }
   return s;
+}
+
+// A GROUP THAT STAYS PUT WHILE THE CHART SCROLLS UNDER IT. Focusing the race
+// trend on today (see `svg`) fixed one clipping problem by creating another: the
+// y axis lives in the left margin, so scrolling to the recent polls carried
+// "D+20 / 0 / R+20" off the left edge and left a chart whose dots could be read
+// for direction and not for size. The axis is pinned instead, the way a frozen
+// column works in a table, so both the scale and the polls are on screen at once.
+//
+// `baseX` is where the group sits at scrollLeft 0, in viewBox units, and the
+// backdrop is what stops the ticks sitting on top of the marks they scroll over.
+export function pinLeft(g, baseX, designW, bandTop = 0, bandBottom = null) {
+  const node = g.node ? g.node() : g;
+  const scroller = node.closest('.chart-scroll');
+  if (!scroller) return;
+  if (bandBottom != null) {
+    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    r.setAttribute('x', String(-baseX));
+    r.setAttribute('y', String(bandTop));
+    r.setAttribute('width', String(baseX));
+    r.setAttribute('height', String(bandBottom - bandTop));
+    r.setAttribute('fill', C.bg);
+    node.insertBefore(r, node.firstChild);
+  }
+  const apply = () => {
+    // scrollWidth, not clientWidth: the mapping from scrolled pixels to viewBox
+    // units is the whole rendered width over the design width.
+    const units = (scroller.scrollLeft / scroller.scrollWidth) * designW;
+    node.setAttribute('transform', `translate(${baseX + units},0)`);
+  };
+  scroller.addEventListener('scroll', apply, { passive: true });
+  requestAnimationFrame(() => requestAnimationFrame(apply));
 }
 
 // `hatch` renders the texture in CSS -- an SVG `url(#pattern)` reference does
