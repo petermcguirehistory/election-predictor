@@ -131,7 +131,7 @@ function incumbencyNote(race, adj) {
   return 'no incumbent running';
 }
 
-export function raceDetail(host, { race, forecast, sims, condition, onPin, onClose }) {
+export function raceDetail(host, { race, forecast, sims, condition, onPin, onClose, rule }) {
   host.replaceChildren();
   if (!race) { host.hidden = true; host.dataset.race = ''; return; }
   host.hidden = false;
@@ -543,7 +543,7 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     varianceBar(varHost, { sigma: sig, race });
   }
 
-  conditionalReadout(box, { race, sims, forecast });
+  conditionalReadout(box, { race, sims, forecast, rule });
 
   if (sims.col.has(race.race_id)) {
     const b = document.createElement('button');

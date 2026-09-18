@@ -43,7 +43,8 @@ const FOCUS_HALF = 20;
 export const seatColour = p => diverging(Math.max(-1, Math.min(1, p * 2 - 1)));
 
 export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chamberLabel,
-                                  prob = r => r.win_prob, frozen = false, onPick }) {
+                                  prob = r => r.win_prob, frozen = false, onPick,
+                                  rule = 'free', tiebreak = null }) {
   host.replaceChildren();
 
   // AN INDEPENDENT'S SEAT SITS WHERE ITS MARGIN PUTS IT. Nebraska is Osborn against
@@ -97,8 +98,34 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
   };
   // `needs` is null for offices with no majority -- governors. No line is found,
   // nothing is outlined, and the note counts favourites only.
-  const dRank = needs ? lineAt(needs.D, canD, false) : null;
-  const rRank = needs ? lineAt(needs.R, canR, true) : null;
+  // UNDER SIT-OUT THE LINE IS WHERE THE LARGER PARTY CHANGES. Split the strip
+  // after seat k: everything left of it goes to its Democratic side (a Democrat,
+  // or the independent holding the D slot), everything right to its Republican
+  // side. Sitting out, an independent counts for neither, so Democrats control
+  // from the first k where they out-count Republicans (a tie to `tiebreak`), and
+  // Republicans up to the last k where they do. One line, unless a tie with no
+  // tiebreaker -- the House -- leaves a seat between them.
+  const sitOutLines = () => {
+    const owner = (d, left) => (d.kind === 'held' ? d.party
+      : left ? (d.race.ind_slot === 'D' ? 'I' : 'D') : (d.race.ind_slot === 'R' ? 'I' : 'R'));
+    const wins = (dc, rc) => (dc > rc ? 1 : rc > dc ? -1 : tiebreak === 'D' ? 1 : tiebreak === 'R' ? -1 : 0);
+    let dAt = null, rLast = null;
+    for (let k = 0; k <= n; k++) {
+      let dc = 0, rc = 0;
+      for (let i = 0; i < n; i++) {
+        const o = owner(seats[i], i < k);
+        if (o === 'D') dc++; else if (o === 'R') rc++;
+      }
+      const w = wins(dc, rc);
+      if (w === -1) rLast = k;
+      if (w === 1 && dAt == null) dAt = k;
+    }
+    return [dAt, rLast == null ? null : rLast + 1];
+  };
+  const [dRank, rRank] = !needs ? [null, null]
+    : rule === 'sit-out' ? sitOutLines()
+    : [lineAt(needs.D, canD, false), lineAt(needs.R, canR, true)];
+  const sit = rule === 'sit-out';
   const dPivot = needs ? seats[dRank - 1] : null, rPivot = needs ? seats[rRank - 1] : null;
   const split = !!needs && rRank < dRank;
   const lines = !needs ? [] : split ? [rRank, dRank] : [dRank];
@@ -136,8 +163,10 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
     `${chamberLabel}: ${n} ${unit} ordered safest Democratic to safest Republican`
     + (!needs ? ', with no majority to reach' : '; ')
     + (!needs ? '' : split
-      ? `Republicans reach ${needs.R} at seat ${rRank}, ${name(rPivot)}; Democrats reach `
-        + `${needs.D} at seat ${dRank}, ${name(dPivot)}`
+      ? (sit ? `Republicans lead through seat ${rRank - 1}; Democrats lead from seat ${dRank}, `
+               + `${name(dPivot)}`
+             : `Republicans reach ${needs.R} at seat ${rRank}, ${name(rPivot)}; Democrats reach `
+               + `${needs.D} at seat ${dRank}, ${name(dPivot)}`)
       : `seat ${dRank} is ${name(dPivot)}`));
   s.attr('preserveAspectRatio', 'none').style('height', '44px');
 
@@ -184,7 +213,7 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
   const hit = s.append('rect').attr('width', W).attr('height', H)
     .attr('fill', 'transparent').style('cursor', 'pointer');
   const seatAt = e => seats[Math.max(0, Math.min(n - 1, Math.floor(d3.pointer(e)[0] / cw)))];
-  const ctx = { dRank, rRank, split, needs };
+  const ctx = { dRank, rRank, split, needs, sit };
   hit.on('pointermove', e => showTip(e, describe(seatAt(e), ctx)))
     .on('pointerleave', hideTip)
     .on('click', e => { const d = seatAt(e); if (d.kind === 'race' && onPick) onPick(d.race); });
@@ -216,8 +245,10 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
     // Short, and the end labels give way on a phone (theme.css, .ss-split): two
     // line labels either side of the middle leave no room for them at 400px.
     box.classList.add('ss-split');
-    top.append(lab(`D reach ${needs.D}${raceTag(dPivot)}`, 'pivot', dRank - 1, 'start'));
-    bottom.append(lab(`R reach ${needs.R}${raceTag(rPivot)}`, 'pivot', rRank, 'end'));
+    top.append(lab(`${sit ? 'D ahead' : `D reach ${needs.D}`}${raceTag(dPivot)}`, 'pivot',
+                   dRank - 1, 'start'));
+    bottom.append(lab(`${sit ? 'R ahead' : `R reach ${needs.R}`}${raceTag(rPivot)}`, 'pivot',
+                      rRank, 'end'));
   } else {
     top.append(lab(`seat ${dRank}${raceTag(dPivot)}`, 'pivot', dRank - 0.5, 'mid'));
   }
@@ -282,10 +313,18 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
   note.innerHTML =
     (!needs
       ? 'No majority, so no line. '
+      : split && sit
+      ? `Democrats out-number Republicans from seat <b>${dRank}</b>, ${ref(dPivot)}; a split `
+        + `between the lines is a tie with the independents sitting out, and nobody breaks it. `
       : split
       ? `Republicans reach ${needs.R} at seat <b>${rRank}</b>, ${ref(rPivot)}; Democrats reach `
         + `${needs.D} at seat <b>${dRank}</b>, ${ref(dPivot)}. ${gapReason(apart)}, so a split `
         + `between the two lines leaves the independents deciding. `
+      : sit
+      ? `Seat <b>${dRank}</b>: ${ref(dPivot)}. With the independents sitting out, the party `
+        + `holding more seats organises` + (tiebreak ? ` (a tie goes to ${tiebreak === 'R'
+          ? 'Republicans' : 'Democrats'})` : '') + `, so the line falls where Democrats first `
+        + `out-number Republicans. `
       : `Seat <b>${dRank}</b>: ${ref(dPivot)}. `)
     + `Favoured: D <b>${fav.D}</b>, R <b>${fav.R}</b>`
     + (fav.IND ? `, independent <b>${fav.IND}</b>` : '')
@@ -296,11 +335,11 @@ export function seatStrip(host, { races, size, heldD = 0, needs, chamber, chambe
   host.append(note);
 }
 
-function describe(d, { dRank, rRank, split, needs }) {
+function describe(d, { dRank, rRank, split, needs, sit }) {
   const at = !needs ? '' : split
-    ? (d.rank === dRank ? ` (Democrats reach ${needs.D} here)`
-      : d.rank === rRank ? ` (Republicans reach ${needs.R} here)` : '')
-    : (d.rank === dRank ? ' (the majority)' : '');
+    ? (d.rank === dRank ? (sit ? ' (Democrats lead from here)' : ` (Democrats reach ${needs.D} here)`)
+      : d.rank === rRank ? (sit ? ' (Republicans lead to here)' : ` (Republicans reach ${needs.R} here)`) : '')
+    : (d.rank === dRank ? (sit ? ' (control changes here)' : ' (the majority)') : '');
   if (d.kind === 'held') {
     return `<b>Seat ${d.rank}</b>${at} · ${d.party === 'D' ? 'Democratic' : 'Republican'} seat, `
       + `not on the ballot<br><span class="tip-dim">carries over to the next Congress</span>`;

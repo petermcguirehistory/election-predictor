@@ -33,6 +33,7 @@
         <div id="flash" class="flash" hidden></div>
         <div class="viewrow">
           <div class="scope-ctl" id="scope-ctl"></div>
+          <div class="scope-ctl" id="ind-ctl"></div>
           <div id="pins" class="pins"></div>
         </div>
       </div>
@@ -88,9 +89,10 @@
             <li><b>Order</b> — median margin, safest Democratic to safest Republican. Hatched: not
                 on the ballot.</li>
             <li><b>Colour</b> — <code>P(D wins)</code>; amber where an independent is favoured.</li>
-            <li><b>Outlined</b> — where each party reaches its number, Democrats counting from the
-                left and Republicans from the right. A split between two outlines leaves the
-                independents deciding.</li>
+            <li><b>Outlined</b> — where control changes hands. Independents sitting out: where
+                Democrats first out-number Republicans. Free to choose: where each party reaches
+                its number, D from the left and R from the right; a split between two outlines
+                leaves the independents deciding.</li>
           </ul>
           <div id="snake"></div>
         </section>

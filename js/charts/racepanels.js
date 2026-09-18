@@ -95,11 +95,14 @@ export function pollsterTable(host, { polls }) {
 // The drawer already lets a reader pin this race. It never said what pinning it
 // WOULD do, which is the only reason to pin it. Both branches are read from the
 // draws already in the browser -- no new payload, and no formula.
-export function conditionalReadout(host, { race, sims, forecast }) {
+export function conditionalReadout(host, { race, sims, forecast, rule = sims.m.control_rule }) {
   if (!sims.col.has(race.race_id)) return null;
   const ch = race.chamber;
-  const base = forecast.topline[ch];
-  if (!base || base.control_prob == null) return null;
+  const top = forecast.topline[ch];
+  if (!top || top.control_prob == null) return null;
+  // Under the control rule on screen, like every other control number.
+  const v = top.by_rule && top.by_rule[rule];
+  const base = v ? { ...top, control_prob: v.d } : top;
 
   // 500 draws is the floor the payload documents for reporting a conditional at
   // all; below it the Monte Carlo error swamps the answer. A race this lopsided
@@ -110,7 +113,7 @@ export function conditionalReadout(host, { race, sims, forecast }) {
     let idx;
     try { idx = sims.select([{ race_id: race.race_id, party }]); } catch { return null; }
     if (!idx || idx.length < FLOOR) continue;
-    const sum = sims.summary(ch, idx);
+    const sum = sims.summary(ch, idx, rule);
     if (!sum || sum.control_prob == null) continue;
     out.push({ party, n: idx.length, prob: sum.control_prob, se: sum.se, median: sum.median });
   }

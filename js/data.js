@@ -200,7 +200,21 @@ export class Sims {
     return out.subarray(0, k);
   }
 
-  summary(chamber, idx) {
+  // HOW A DRAW'S SEAT COUNT BECOMES CONTROL: +1 D, -1 R, 0 neither. The twin of
+  // `outcome` in engine/simulate/tabulate.py -- CHANGE BOTH OR NEITHER; the
+  // diagnostics panel recounts every rule against the payload.
+  //   free:    each party needs its number; neither at it = the independents decide.
+  //   sit-out: the independents vote with neither, so the larger conference
+  //            organises; a tie goes to `tiebreak` (the Senate's VP), or stays 0.
+  static outcome(d, r, need, rule, tiebreak) {
+    if (rule === 'free') return d >= need.D ? 1 : r >= need.R ? -1 : 0;
+    if (rule === 'sit-out') {
+      return d > r ? 1 : r > d ? -1 : tiebreak === 'D' ? 1 : tiebreak === 'R' ? -1 : 0;
+    }
+    throw new Error(`unknown control rule ${rule}`);
+  }
+
+  summary(chamber, idx, rule = this.m.control_rule) {
     const seats = this.seats[chamber];
     if (!seats) return null;
     // A chamber with no entry in `needs` has no collective majority to hold --
@@ -214,18 +228,20 @@ export class Sims {
     const ind = this.ind[chamber];
     const size = this.m.size[chamber];
     const vals = new Int16Array(n);
-    // THREE OUTCOMES, COUNTED. D control, R control, and neither party at its
-    // number -- which is the independents deciding, since they can always carry
-    // a party over its line and nobody else can. Counted rather than taken as
-    // 1 - d - r, so each matches the engine's `control` to the last digit.
+    // THREE OUTCOMES, COUNTED, under `rule` (see `outcome`): D control, R
+    // control, and neither -- the independents deciding under the free rule, a
+    // tied House under sit-out. Counted rather than taken as 1 - d - r, so each
+    // matches the engine's `control` to the last digit.
+    const tb = (this.m.tiebreak || {})[chamber] ?? null;
     let hit = 0, hitR = 0;
     for (let i = 0; i < n; i++) {
       const s = idx ? idx[i] : i;
       const d = seats[s];
       vals[i] = d;
       if (need) {
-        if (d >= need.D) hit++;
-        else if (size - d - ind[s] >= need.R) hitR++;
+        const o = Sims.outcome(d, size - d - ind[s], need, rule, tb);
+        if (o === 1) hit++;
+        else if (o === -1) hitR++;
       }
     }
     const sorted = Int16Array.from(vals).sort();
@@ -244,7 +260,7 @@ export class Sims {
     for (let i = 0; i < n; i++) counts[vals[i] - lo]++;
     const se = k => Math.sqrt((k / n) * (1 - k / n) / n);
     return {
-      n, threshold: need ? need.D : null, r_threshold: need ? need.R : null,
+      n, rule, threshold: need ? need.D : null, r_threshold: need ? need.R : null,
       control_prob: need ? hit / n : null,
       r_control_prob: need ? hitR / n : null,
       undecided_prob: need ? (n - hit - hitR) / n : null,

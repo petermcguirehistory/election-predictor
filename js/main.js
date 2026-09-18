@@ -40,7 +40,7 @@ import { mountToc } from './toc.js';
 import { mountGlossary, auditTerms, term } from './glossary.js';
 
 const store = {
-  data: null, pins: [], scope: 'all', mapMode: 'prob', vsup: true,
+  data: null, pins: [], scope: 'all', mapMode: 'prob', vsup: true, ind: 'sit-out',
   detail: null, playing: false, layout: 'hex', tab: 'forecast',
   _subs: new Set(),
   subscribe(fn) { this._subs.add(fn); return () => this._subs.delete(fn); },
@@ -68,7 +68,7 @@ const store = {
 // The conditioning panel exists so a reader can construct a scenario; without
 // this they cannot hand it to anybody. Everything that changes what is on screen
 // lives in the hash, so a link carries the view.
-const HASH_KEYS = ['tab', 'scope', 'layout', 'mapMode', 'vsup'];
+const HASH_KEYS = ['tab', 'scope', 'layout', 'mapMode', 'vsup', 'ind'];
 // `scope` MUST match the store's initial value above. writeHash omits a key
 // exactly when it holds its default and readHash supplies the default when the
 // key is absent, so a disagreement between the two means the page opens on one
@@ -76,7 +76,36 @@ const HASH_KEYS = ['tab', 'scope', 'layout', 'mapMode', 'vsup'];
 // finding 40, in the one place it cannot be seen without a link to compare.
 const TAB_MOVED = { map: 'seats', races: 'seats', flips: 'seats', drivers: 'whatif',
                     record: 'trust', method: 'trust' };
-const HASH_DEFAULT = { tab: 'forecast', scope: 'all', layout: 'hex', mapMode: 'prob', vsup: true };
+const HASH_DEFAULT = { tab: 'forecast', scope: 'all', layout: 'hex', mapMode: 'prob', vsup: true,
+                       ind: 'sit-out' };
+// HOW A CHAMBER WHERE NEITHER PARTY REACHES ITS NUMBER IS RESOLVED -- see
+// config.CONTROL_RULES. `sit-out` (the default, and the engine's headline): the
+// independents vote with neither, so the larger party organises and the Senate's
+// tie goes to the Vice President. `free`: they may side with either, and that
+// chamber is the independents' to decide. The diagnostics panel asserts the
+// default here is the payload's headline rule.
+const IND_RULES = [['sit-out', 'Sit out'], ['free', 'Free to choose']];
+
+// The published history under one rule. A run that recorded `by_rule` shows the
+// chosen rule; one that predates it shows what it published, which is how the
+// trend already treats every method change -- the point stays, and the join to
+// it is drawn broken (engine/history.py fingerprints the headline rule).
+function ruledHistory(history, rule) {
+  if (!history) return history;
+  return {
+    ...history,
+    points: history.points.map(p => Object.fromEntries(Object.entries(p).map(([k, v]) =>
+      [k, v && typeof v === 'object' && v.by_rule && v.by_rule[rule] ? ruled(v, rule) : v]))),
+  };
+}
+
+// A topline under one rule. The engine ships every rule in `by_rule` and the
+// headline fields hold its default; this overlays the chosen one so every reader
+// below keeps reading `control_prob` and never has to know which rule it is.
+function ruled(t, rule) {
+  const v = t && t.by_rule && t.by_rule[rule];
+  return v ? { ...t, control_prob: v.d, r_control_prob: v.r, undecided_prob: v.none, rule } : t;
+}
 
 // The hash is the whole view, so reading it has to be TOTAL: a key that is
 // absent means the default, never "leave whatever is there".
@@ -106,6 +135,7 @@ function readHash(s) {
   // no clue why. An unrecognised tab is handled by `tabs.show`, which reports
   // the tab it actually settled on.
   if (!SCOPES.includes(patch.scope)) patch.scope = HASH_DEFAULT.scope;
+  if (!IND_RULES.some(([k]) => k === patch.ind)) patch.ind = HASH_DEFAULT.ind;
   // The page had seven tabs before it had five, and it was public under both. A
   // link to a retired tab opens the tab its sections moved to rather than the
   // first tab, which is what `tabs.show` would otherwise fall back on.
@@ -444,7 +474,9 @@ function renderHeadline(s) {
   const cond = c.pinned
     ? ` <span class="cond">conditional on ${s.pins.length} pinned race${s.pins.length > 1 ? 's' : ''}</span>`
     : '';
-  const stateOf = ch => (c.ok ? sims.summary(ch, c.idx) : null) || forecast.topline[ch];
+  const stateOf = ch => (c.ok ? sims.summary(ch, c.idx, s.ind) : null)
+    || ruled(forecast.topline[ch], s.ind);
+  const free = s.ind === 'free';
 
   // Republicans hold both chambers going in, which is what makes "win" and
   // "hold" the right pair of verbs; it is read off the payload's own threshold
@@ -479,17 +511,20 @@ function renderHeadline(s) {
     } else {
       // Three blocks where the draws have three outcomes. Rounded per block and the
       // Republican block takes the remainder, so the hundred always adds up.
+      // The middle block is whatever the rule leaves undecided: the independents'
+      // choice under `free`, a tied chamber with no tiebreaker under `sit-out`.
       const kd = Math.round(st.control_prob * 100);
       const ku = Math.round(st.undecided_prob * 100);
       const kr = 100 - kd - ku;
+      const mid = free ? 'neither party reached its number and the independents decided'
+                       : 'the two parties tied and nobody breaks the tie';
       iconArray(host, {
         n: 100, k: kd, mid: ku, cols: 20,
         unit: `simulated elections won by Democrats in the ${chName}`,
-        midUnit: 'where neither party reached its number and independents decided',
+        midUnit: `where ${mid}`,
         label: `In <b>100</b> simulated elections, Democrats won the ${chName} in ` +
                `<b>${kd}</b> and Republicans in <b>${kr}</b>` +
-               (ku ? `. In <b>${ku}</b> neither party reached its number, and the ` +
-                     `independents decided` : '') +
+               (ku ? `. In <b>${ku}</b> ${mid}` : '') +
                `.${cond}${why}`,
       });
     }
@@ -520,13 +555,13 @@ function renderHeadline(s) {
   // to, which is not necessarily the previous one: these are published several
   // times a week and twice in a day when a refresh lands mid-session, so a
   // one-run delta is mostly Monte Carlo noise.
-  const bl = baseline(history, 7);
+  const bl = baseline(ruledHistory(history, s.ind), 7);
 
   const cards = $('#toplines');
   cards.replaceChildren();
   for (const cc of forecast.meta.chambers) {
-    const live = c.ok ? sims.summary(cc, c.idx) : null;
-    const base = forecast.topline[cc];
+    const live = c.ok ? sims.summary(cc, c.idx, s.ind) : null;
+    const base = ruled(forecast.topline[cc], s.ind);
     const st = live || base;
     const p = live ? live.control_prob : base.control_prob;
     // The card for the chamber the scope is on is marked, so the row reads as
@@ -599,9 +634,13 @@ function renderHeadline(s) {
     seats.append(document.createTextNode(' D seats \u00b7 '));
     const r = el('span'); r.innerHTML = range; seats.append(r);
     seats.append(document.createTextNode(' \u00b7 '));
-    seats.append(goButton(String(base.threshold), 'tl-inline', 's-snake',
-      { scope: cc }, 'See the seat that sits on the majority line'));
-    seats.append(document.createTextNode(' to control'));
+    // What control takes. A fixed number only when the independents are free:
+    // sitting out, the larger party organises, so 50 D seats can be enough.
+    const tbk = (sims.m.tiebreak || {})[cc];
+    seats.append(goButton(free ? String(base.threshold) : 'more seats than the other party',
+      'tl-inline', 's-snake', { scope: cc }, 'See the seat that sits on the majority line'));
+    seats.append(document.createTextNode(free ? ' to control'
+      : tbk ? ` controls; a tie goes to ${tbk === 'R' ? 'Republicans' : 'Democrats'}` : ' controls'));
     card.append(seats);
 
     // THE WHOLE SPLIT, on every card with control to win. The big number is the
@@ -612,7 +651,8 @@ function renderHeadline(s) {
     split.innerHTML = `Democrats <b>${fmtPct(st.control_prob)}</b> \u00b7 Republicans ` +
       `<b>${fmtPct(st.r_control_prob)}</b>` +
       (st.undecided_prob > 0
-        ? ` \u00b7 independents decide <b>${fmtPct(st.undecided_prob)}</b>` : '');
+        ? ` \u00b7 ${free ? 'independents decide' : 'tied'} <b>${fmtPct(st.undecided_prob)}</b>`
+        : '');
     card.append(split);
 
     // The seats with no Democrat running. Hidden while a scenario is pinned: the
@@ -622,7 +662,7 @@ function renderHeadline(s) {
     // hid this note from the page entirely until 2026-09-15.
     const nb = base.no_democrat_bound;
     if (nb && !(live && c.pinned)) {
-      const hi = nb.ladder[String(nb.n_seats)];
+      const hi = ((nb.ladder_by_rule || {})[s.ind] || nb.ladder)[String(nb.n_seats)];
       const note = el('div', 'seats');
       note.innerHTML = `<b>${nb.n_seats}</b> seats have no Democrat running ` +
         `(${nb.races.join(', ')}); an independent\u2019s win there counts for neither party ` +
@@ -649,19 +689,30 @@ function renderHeadline(s) {
         ? ` ${base.threshold} for Democrats, ${base.r_threshold} for Republicans, who hold the ` +
           `Vice President\u2019s tiebreak`
         : ` ${base.threshold} for either`;
-      for (const [rid, sn] of Object.entries(scen).sort((x, y) => y[1].decides - x[1].decides)) {
+      // Each seat's numbers under the rule on screen. `decides` is the share of
+      // runs where this independent's choice changes who controls -- the same
+      // definition under both rules, so the two sentences below differ only in
+      // what happens if they keep their pledge.
+      const view = sn => ({ ...sn, ...((sn.by_rule || {})[s.ind] || {}) });
+      const rows = Object.entries(scen).map(([rid, sn]) => [rid, view(sn)])
+        .sort((x, y) => y[1].decides - x[1].decides);
+      for (const [rid, sn] of rows) {
         const name = who[rid] || `the independent in ${rid}`;
         const third = el('div', `seats third${open ? ' open' : ''}`);
-        third.innerHTML = open
+        const head = free
           ? `<b>Third outcome</b> \u2014 in <b>${fmtPct(sn.decides)}</b> of runs ${name} wins ` +
-            `${rid} and neither party reaches its number:${tb}. ${name}\u2019s vote then ` +
-            `decides who organises the ${chName}. No independent\u2019s win is counted for ` +
-            `either party.` +
+            `${rid} and neither party reaches its number without them:${tb}.`
+          : `<b>Pivotal seat</b> \u2014 in <b>${fmtPct(sn.decides)}</b> of runs ${name} wins ` +
+            `${rid} and their vote decides who organises the ${chName}. Sitting out, as ` +
+            `pledged, hands it to the larger party` +
+            (tbk ? `, a tie to ${tbk === 'R' ? 'Republicans' : 'Democrats'}` : '') +
+            `; siding with the other party flips it.`;
+        third.innerHTML = open
+          ? head +
             `<span class="tie">If ${name} sided with Democrats, their chance of control would ` +
             `be ${fmtPct(sn.caucus_dem.d)}. If ${name} sided with Republicans, theirs would be ` +
             `${fmtPct(sn.caucus_rep.r)}.</span>`
-          : `<b>Third outcome</b> \u2014 in <b>${fmtPct(sn.decides)}</b> of runs neither party ` +
-            `reaches its number and ${name} (${rid}) decides who controls the ${chName}.`;
+          : head;
         card.append(third);
       }
     }
@@ -766,13 +817,13 @@ function renderTogether(s) {
   const c = s.condition;
   const host = $('#together');
   host.replaceChildren();
-  const q = jointChambers(host, { sims, forecast, idx: c.ok ? c.idx : null });
+  const q = jointChambers(host, { sims, forecast, idx: c.ok ? c.idx : null, rule: s.ind });
   if (!q) return;
 
   // The independence comparison is the reason this chart is here, so it is the
   // sentence under it rather than a note somewhere else.
-  const ph = forecast.topline.house.control_prob;
-  const ps = forecast.topline.senate.control_prob;
+  const ph = ruled(forecast.topline.house, s.ind).control_prob;
+  const ps = ruled(forecast.topline.senate, s.ind).control_prob;
   const naive = ph * ps;
   const note = el('p', 'chart-note');
   note.innerHTML =
@@ -789,8 +840,10 @@ function renderTogether(s) {
   cheap.replaceChildren();
   const tight = ['senate', 'house']
     .filter(ch => forecast.topline[ch].control_prob != null)
-    .sort((a, b) => settled(forecast.topline[a]) - settled(forecast.topline[b]))[0];
-  const path = cheapestPath(cheap, { sims, forecast, races: forecast.races, chamber: tight });
+    .sort((a, b) => settled(ruled(forecast.topline[a], s.ind))
+                    - settled(ruled(forecast.topline[b], s.ind)))[0];
+  const path = cheapestPath(cheap, { sims, forecast, races: forecast.races, chamber: tight,
+                                     rule: s.ind });
   if (!path) return;
   const who = path.behind === 'D' ? 'Democrats' : 'Republicans';
   const name = tight === 'house' ? 'the House' : 'the Senate';
@@ -810,8 +863,12 @@ function renderTogether(s) {
     if (race) open(race);
   });
   const foot = el('p', 'chart-note');
-  foot.innerHTML = `Median <b>${path.median}</b>, <b>${path.need}</b> short. Seats they do not `
-    + `yet favour, closest first.`;
+  foot.innerHTML = (path.lead
+      ? `Median Democratic lead <b>${path.median >= 0 ? '+' : ''}${path.median}</b>; `
+        + `${who} are <b>${path.need}</b> seat${path.need === 1 ? '' : 's'} short, with the `
+        + `independents sitting out.`
+      : `Median <b>${path.median}</b>, <b>${path.need}</b> short.`)
+    + ` Seats they do not yet favour, closest first.`;
   cheap.append(h4, list, foot);
 }
 
@@ -834,14 +891,17 @@ function renderSeats(s) {
   // number, not only the one that wins — so it is offered rather than swapped in.
   const mode = seatMode();
   perChamber($('#dotplot'), chambersFor(s.scope, forecast.meta.chambers), (host, ch) => {
-    const live = c.ok ? sims.summary(ch, c.idx) : null;
+    const live = c.ok ? sims.summary(ch, c.idx, s.ind) : null;
     const kind = forecast.topline[ch].threshold == null ? 'no-line' : 'line';
+    // Under sit-out the line is an outright majority, not control: the larger
+    // party organises, so a Democratic 50 can be enough.
+    const lineLabel = s.ind === 'free' ? undefined : t => `${t}: majority on their own`;
     if (mode === 'curve') {
       seatCurve(host, {
         hist: live ? live.hist : forecast.seats[ch],
         threshold: forecast.topline[ch].threshold ?? null,
         n: live ? live.n : forecast.meta.n_sims,
-        chamber: ch, unit: UNIT[ch] || 'Democratic seats',
+        chamber: ch, unit: UNIT[ch] || 'Democratic seats', lineLabel,
       });
       return;
     }
@@ -853,7 +913,7 @@ function renderSeats(s) {
       n: live ? live.n : forecast.meta.n_sims,
       chamber: ch,
       unit: UNIT[ch] || 'Democratic seats',
-      showNote: !told.has(kind),
+      showNote: !told.has(kind), lineLabel,
     });
     told.add(kind);
   });
@@ -883,6 +943,7 @@ function renderSnake(s) {
       prob: live ? r => sims.winProb(r.race_id, c.idx) ?? r.win_prob : undefined,
       frozen: live,
       onPick: r => open(r),
+      rule: s.ind, tiebreak: (sims.m.tiebreak || {})[ch] ?? null,
     });
   });
 }
@@ -1031,12 +1092,13 @@ function renderMap(s) {
         const sm = s.data.sims.m;
         const need = sm.needs[ch];
         if (!need) return `${chamberName(ch)} <b>${n}</b>`;
-        // Whose chamber this draw is: D at its number, R at its number, or
-        // neither, in which case the independents hold the balance.
+        // Whose chamber this draw is, under the rule on screen: the same
+        // `outcome` the headline counts with.
         const r = sm.size[ch] - n - s.data.sims.ind[ch][d];
-        const out = n >= need.D ? ['Democratic control', C.dem]
-          : r >= need.R ? ['Republican control', C.rep]
-          : ['independents decide', C.accent];
+        const o = s.data.sims.constructor.outcome(n, r, need, s.ind, (sm.tiebreak || {})[ch] ?? null);
+        const out = o === 1 ? ['Democratic control', C.dem]
+          : o === -1 ? ['Republican control', C.rep]
+          : [s.ind === 'free' ? 'independents decide' : 'tied', C.accent];
         return `${chamberName(ch)} <b>${n}</b> D` +
           ` <span style="color:${out[1]}">${out[0]}</span>`;
       });
@@ -1076,8 +1138,17 @@ function renderCorrelation(s) {
 }
 
 function renderScenario(s) {
+  // The sweep under the rule on screen: each stop ships `by_rule`, and the panel
+  // reads `p` -- P(D control) -- so that is the field overlaid.
+  const sc = s.data.scenarios && {
+    ...s.data.scenarios,
+    scenarios: s.data.scenarios.scenarios.map(row => Object.fromEntries(Object.entries(row).map(
+      ([k, v]) => [k, v && typeof v === 'object' && v.by_rule && v.by_rule[s.ind]
+        ? { ...v, p: v.by_rule[s.ind].d, p_r: v.by_rule[s.ind].r, p_none: v.by_rule[s.ind].none }
+        : v]))),
+  };
   scenarioPanel($('#scenario'), {
-    scenarios: s.data.scenarios, environment: s.data.forecast.environment,
+    scenarios: sc, environment: s.data.forecast.environment,
     chambers: s.data.forecast.meta.chambers });
 }
 
@@ -1099,6 +1170,7 @@ function renderDetail(s) {
   raceDetail($('#drawer'), {
     race: s.detail, forecast: s.data.forecast, sims: s.data.sims,
     condition: s.condition, onPin: r => pin(r), onClose: () => store.set({ detail: null }),
+    rule: s.ind,
   });
 }
 
@@ -1149,6 +1221,22 @@ function renderScopeControl(s) {
          v => store.set({ scope: v }), 'Which races to show');
 }
 
+// How a chamber no party reaches its number in is resolved (see IND_RULES). In
+// the chrome beside the scope, because like the scope it changes every control
+// number on every tab.
+function renderIndControl(s) {
+  const host = $('#ind-ctl');
+  host.replaceChildren();
+  const lab = el('span', 'scope-label', 'Independents');
+  lab.title = 'Sit out: winning independents vote with neither party, as pledged, so the party '
+    + 'with more seats organises the chamber (a Senate tie goes to the Vice President). Free to '
+    + 'choose: they may side with either party, and a chamber where neither reaches its number '
+    + 'is theirs to decide.';
+  host.append(lab);
+  toggle(host, IND_RULES, s.ind, v => store.set({ ind: v }),
+         'How independents who win are counted toward control');
+}
+
 // Lives in the page chrome rather than on a tab of its own: a pinned race
 // re-conditions every number on every tab, so the reader has to be able to see
 // that the mode is on, and get out of it, from wherever they happen to be.
@@ -1187,7 +1275,7 @@ function renderPins(s) {
 // do on this page changes the history of what was published.
 function renderTrend(s) {
   trendChart($('#trend'), {
-    history: s.data.history,
+    history: ruledHistory(s.data.history, s.ind),
     chambers: chambersFor(s.scope, s.data.forecast.meta.chambers),
   });
 }
@@ -1408,7 +1496,18 @@ const HEADLINE_SAY = {
       pts.push(`<b>On the prior</b> — ${list(held.map(r => `${r} (${spread(r)})`))}: too `
         + `little polling to price from.`);
     }
-    // Each material caucus choice through the headline's own three-way split.
+    // THE ASSUMPTION THE HEADLINE NOW MAKES, with the number it would be without
+    // it. Both rules are in the payload; this names the one the headline uses and
+    // prints the other, so the choice is never only in the toggle's label.
+    const br = f.topline.senate.by_rule || {};
+    if (br['sit-out'] && br.free) {
+      pts.push(`<b>Headline assumes they sit out</b> — as pledged, voting with neither party, `
+        + `so the larger party organises the Senate and a tie goes to Republicans: D `
+        + `<b>${fmtPct(br['sit-out'].d, 1)}</b> · R <b>${fmtPct(br['sit-out'].r, 1)}</b>. If they `
+        + `are free to choose: D ${fmtPct(br.free.d, 1)} · R ${fmtPct(br.free.r, 1)} · independents `
+        + `decide ${fmtPct(br.free.none, 1)}.`);
+    }
+    // Each material caucus choice, under the headline's rule.
     for (const [rid, sn] of Object.entries(sc).sort((a, b) => b[1].decides - a[1].decides)) {
       const who = (by[rid] && by[rid].name) || rid;
       pts.push(`<b>If ${who} caucused</b> — with Democrats, D control <b>${fmtPct(sn.caucus_dem.d, 1)}</b>; `
@@ -1491,7 +1590,7 @@ const CHIP = {
   third_party_share: n => `${n} polled race${n === '1' ? '' : 's'} where a third candidate `
     + `takes a large share \u2014 named candidates on the ballot are simulated as a third share`,
   senate_no_democrat_seats: n => `${n} Senate seats have no Democrat on the ballot \u2014 `
-    + `an independent\u2019s win there counts for neither party`,
+    + `the headline assumes a winning independent sits out, so the larger party organises`,
   // Not "Republican vs independent": half of the eight this was written over are
   // a Democrat against an independent with no Republican running (AZ-03, MA-01,
   // NJ-08, PA-03). Either party can be the absent one.
@@ -1637,6 +1736,26 @@ function renderDiagnostics(s) {
           `ind=${got.undecided_prob.toFixed(5)}`) +
       ` median=${got.median} ${got.p10}–${got.p90}`]);
   }
+  // EVERY CONTROL RULE, recounted from the draws against the engine's `by_rule`.
+  // The toggle shows these, so a rule this skips is a number the page shows that
+  // nothing reproduced. And the page's default must be the engine's headline.
+  for (const ch of forecast.meta.chambers) {
+    const br = forecast.topline[ch].by_rule;
+    if (!br) continue;
+    for (const [rule, want] of Object.entries(br)) {
+      const got = sims.summary(ch, null, rule);
+      const ok = Math.abs(got.control_prob - want.d) < 1e-9
+        && Math.abs(got.r_control_prob - want.r) < 1e-9
+        && Math.abs(got.undecided_prob - want.none) < 1e-9;
+      rows.push([`${ch} under ${rule} reconstructs`, ok,
+        `D=${got.control_prob.toFixed(5)} R=${got.r_control_prob.toFixed(5)} ` +
+        `neither=${got.undecided_prob.toFixed(5)}`]);
+    }
+  }
+  rows.push(['page default is the headline rule',
+    HASH_DEFAULT.ind === sims.m.control_rule
+      && Object.values(forecast.topline).every(t => !t.control_rule || t.control_rule === HASH_DEFAULT.ind),
+    `page ${HASH_DEFAULT.ind} · engine ${sims.m.control_rule}`]);
   rows.push(['draws decoded', true,
     `${sims.m.n_sims.toLocaleString()} × ${sims.m.n_races} races, ${sims.m.row_bytes} B/draw`]);
   rows.push(['pinnable races', true,
@@ -1782,10 +1901,11 @@ function renderAll(s, changed) {
   // still advertising the scope it had two changes ago.
   if (t('pins')) renderPins(s);
   if (t('scope')) renderScopeControl(s);
+  if (t('ind')) renderIndControl(s);
   if (t('scope')) renderScopeTags(s);
-  if (t('pins', 'detail')) renderDetail(s);
+  if (t('pins', 'detail', 'ind')) renderDetail(s);
 
-  if (t('pins', 'scope')) {
+  if (t('pins', 'scope', 'ind')) {
     paint('s-headline', () => renderHeadline(s));
     paint('s-movement', () => renderMovement(s));
     paint('s-movers', () => {
@@ -1840,17 +1960,17 @@ function renderAll(s, changed) {
     paint('s-watch', () => renderWatch(s));
     paint('s-correlation', () => renderCorrelation(s));
   }
+  if (t('scope', 'ind')) paint('s-trend', () => renderTrend(s));
   if (t('scope')) {
     paint('s-calibration', () => renderCalibration(s));
     paint('s-races', () => renderRaces(s));
-    paint('s-trend', () => renderTrend(s));
     paint('s-walkthrough', () => renderWalkthrough(s));
     paint('s-coverage', () => renderCoverage(s));
   }
   if (t('scope', 'layout', 'mapMode', 'vsup', 'playing')) paint('s-map', () => renderMap(s));
 
+  if (t('ind')) paint('s-scenario', () => renderScenario(s));
   if (!changed) {
-    paint('s-scenario', () => renderScenario(s));
     paint('s-limits', () => renderLimits(s));
     paint('s-field', () => renderField(s));
     paint('s-statewide', () => renderStatewide(s));

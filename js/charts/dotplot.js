@@ -8,7 +8,11 @@
 import d3 from '../d3.js';
 import { C, svg, showTip, hideTip } from './util.js';
 
-export function dotplot(host, { hist, threshold, n, chamber, unit, showNote = true }) {
+// `lineLabel` names what the line is. Under the free rule it is control; under
+// sit-out it is only an outright majority, since the larger party organises and
+// 50 Democratic seats can be enough.
+export function dotplot(host, { hist, threshold, n, chamber, unit, showNote = true,
+                                lineLabel = t => `${t} for control` }) {
   host.replaceChildren();
   const N = 100;
   // Expand the histogram into N equally-weighted quantiles.
@@ -36,7 +40,7 @@ export function dotplot(host, { hist, threshold, n, chamber, unit, showNote = tr
                        (H - m.t - m.b) / maxStack / 2 - 0.6);
 
   const s = svg(host, W, H, hasThresh
-    ? `Quantile dotplot of simulated ${unit}; ${threshold} needed for control`
+    ? `Quantile dotplot of simulated ${unit}; line: ${lineLabel(threshold)}`
     : `Quantile dotplot of simulated ${unit}`);
 
   const dots = [];
@@ -62,7 +66,7 @@ export function dotplot(host, { hist, threshold, n, chamber, unit, showNote = tr
       .attr('x', x(threshold - 0.5)).attr('y', m.t + 2)
       .attr('text-anchor', 'middle').attr('fill', C.ink)
       .attr('font-size', 11).attr('font-weight', 600)
-      .text(`${threshold} for control`);
+      .text(lineLabel(threshold));
   }
 
   const axis = s.append('g').attr('transform', `translate(0,${yBase + 4})`)

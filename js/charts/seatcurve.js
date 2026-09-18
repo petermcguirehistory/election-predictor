@@ -22,7 +22,8 @@ import { C, svg, fmtPct, hoverable } from './util.js';
 
 const W = 720, H = 250, M = { t: 14, r: 54, b: 42, l: 44 };
 
-export function seatCurve(host, { hist, threshold, n, chamber, unit }) {
+export function seatCurve(host, { hist, threshold, n, chamber, unit,
+                                  lineLabel = t => `${t} to control` }) {
   const total = hist.counts.reduce((a, b) => a + b, 0);
   if (!total) return null;
 
@@ -84,7 +85,7 @@ export function seatCurve(host, { hist, threshold, n, chamber, unit }) {
       .text(fmtPct(p, 1));
     s.append('text').attr('x', x(threshold)).attr('y', H - M.b + 26)
       .attr('text-anchor', 'middle').attr('font-size', 10).attr('fill', C.accent)
-      .text(`${threshold} to control`);
+      .text(lineLabel(threshold));
   }
 
   // Every point is readable, not just the majority.

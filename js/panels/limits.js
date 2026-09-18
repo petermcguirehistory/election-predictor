@@ -341,8 +341,18 @@ const ALARM = {
   }),
   senate_no_democrat_seats: n => ({
     title: `${n} Senate seats have no Democrat on the ballot`,
-    body: 'Each has a named independent against the Republican. How those independents are '
-      + 'priced, and what their caucus choice is worth, is set out at the top of the Who wins tab.',
+    body: 'Each has a named independent against the Republican, and all of them have pledged to '
+      + 'caucus with neither party. A win counts for neither party\u2019s seats; what it does to '
+      + 'control depends on how they vote on organising the chamber.'
+      + facts([
+          ['Headline (sit out)', 'They vote with neither, as pledged. The party with more seats '
+            + 'organises: <code>D controls \u21d4 D > R</code>, a tie to the Vice President\u2019s '
+            + 'party. In a 50\u201349\u20131 Senate that is the 50.'],
+          ['Toggle (free to choose)', 'They may side with either. A party needs its number '
+            + '(51 D, 50 R); short of both, the independents decide, reported as its own outcome.'],
+          ['Not modelled', 'Which side each would take. No fitted basis exists; the Who wins tab '
+            + 'shows what each material seat\u2019s choice is worth.'],
+        ]),
   }),
   governor_zero_poll_coverage: () => ({
     title: 'Governor races have no usable polls',

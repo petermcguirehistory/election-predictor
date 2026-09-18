@@ -16,11 +16,27 @@ import { C, svg, fmtPct, hoverable } from './util.js';
 
 const W = 680, H = 420, M = { t: 16, r: 118, b: 44, l: 52 };
 
-export function jointChambers(host, { sims, forecast, idx = null }) {
+// WHAT EACH AXIS COUNTS FOLLOWS THE CONTROL RULE, so the lines are exact. Under
+// `free` a party needs its number, so control is a function of Democratic seats
+// alone and the axes are those. Under `sit-out` the larger party organises, so
+// control is a function of the LEAD -- Democratic seats minus Republican -- and
+// the axes are that; an independent's seat moves neither.
+export function axisFor(sims, chamber, rule) {
+  const d = sims.seats[chamber], ind = sims.ind[chamber], size = sims.m.size[chamber];
+  const tb = (sims.m.tiebreak || {})[chamber] ?? null;
+  if (rule === 'free') {
+    return { val: k => d[k], cut: sims.m.needs[chamber].D, lead: false };
+  }
+  // D controls from a lead of 1, or 0 where Democrats hold the tiebreak.
+  return { val: k => 2 * d[k] + ind[k] - size, cut: tb === 'D' ? 0 : 1, lead: true };
+}
+
+export function jointChambers(host, { sims, forecast, idx = null, rule = 'sit-out' }) {
   const h = sims.seats.house, s = sims.seats.senate;
   if (!h || !s) return null;
   const n = idx ? idx.length : h.length;
-  const majH = sims.m.majority.house, majS = sims.m.majority.senate;
+  const AH = axisFor(sims, 'house', rule), AS = axisFor(sims, 'senate', rule);
+  const majH = AH.cut, majS = AS.cut;
 
   // Count the joint distribution once, and the four quadrants with it.
   const cell = new Map();
@@ -28,10 +44,11 @@ export function jointChambers(host, { sims, forecast, idx = null }) {
   let hLo = Infinity, hHi = -Infinity, sLo = Infinity, sHi = -Infinity;
   for (let i = 0; i < n; i++) {
     const k = idx ? idx[i] : i;
-    const a = h[k], b = s[k];
+    const a = AH.val(k), b = AS.val(k);
     if (a < hLo) hLo = a; if (a > hHi) hHi = a;
     if (b < sLo) sLo = b; if (b > sHi) sHi = b;
-    const key = a * 1000 + b;
+    // Offset so a negative lead keys cleanly.
+    const key = (a + 1000) * 10000 + (b + 1000);
     cell.set(key, (cell.get(key) || 0) + 1);
     const dh = a >= majH, ds = b >= majS;
     if (dh && ds) both++; else if (dh) hOnly++; else if (ds) sOnly++; else neither++;
@@ -65,7 +82,7 @@ export function jointChambers(host, { sims, forecast, idx = null }) {
   // smoothed density: the underlying quantity is a pair of integers, and
   // smoothing it would invent outcomes between seats that cannot happen.
   const marks = [...cell.entries()].map(([k, c]) => ({
-    h: Math.floor(k / 1000), s: k % 1000, c }));
+    h: Math.floor(k / 10000) - 1000, s: (k % 10000) - 1000, c }));
   hoverable(
     g.append('g').selectAll('rect').data(marks).join('rect')
       .attr('x', d => x(d.h) - cw / 2).attr('y', d => y(d.s) - chh / 2)
@@ -73,17 +90,21 @@ export function jointChambers(host, { sims, forecast, idx = null }) {
       .attr('fill', d => (d.h >= majH && d.s >= majS ? C.dem
                         : d.h < majH && d.s < majS ? C.rep : C.accent))
       .attr('opacity', d => 0.18 + 0.82 * Math.sqrt(d.c / peak)),
-    d => `<b>${d.h}</b> House · <b>${d.s}</b> Senate<br>`
+    d => (AH.lead
+         ? `Democrats ${d.h >= 0 ? '+' : ''}${d.h} in the House · ${d.s >= 0 ? '+' : ''}${d.s} in the Senate<br>`
+         : `<b>${d.h}</b> House · <b>${d.s}</b> Senate<br>`)
        + `${fmtPct(d.c / n, 2)} of draws`);
 
   g.append('line').attr('x1', xCut).attr('x2', xCut).attr('y1', M.t).attr('y2', H - M.b)
     .attr('stroke', C.faint).attr('stroke-dasharray', '3,3');
   g.append('text').attr('x', xCut).attr('y', H - M.b + 30).attr('text-anchor', 'middle')
-    .attr('font-size', 9.5).attr('fill', C.faint).text(`${majH} for the House`);
+    .attr('font-size', 9.5).attr('fill', C.faint)
+    .text(AH.lead ? 'House: Democrats ahead' : `${majH} for the House`);
   g.append('line').attr('x1', M.l).attr('x2', W - M.r).attr('y1', yCut).attr('y2', yCut)
     .attr('stroke', C.faint).attr('stroke-dasharray', '3,3');
   g.append('text').attr('x', W - M.r + 5).attr('y', yCut + 3)
-    .attr('font-size', 9.5).attr('fill', C.faint).text(`${majS} Senate`);
+    .attr('font-size', 9.5).attr('fill', C.faint)
+    .text(AS.lead ? (majS === 1 ? 'Senate: D ahead' : 'Senate: D level') : `${majS} Senate`);
 
   const ax = g.append('g').attr('transform', `translate(0,${H - M.b})`)
     .call(d3.axisBottom(x).ticks(6).tickFormat(d3.format('d')).tickSizeOuter(0));
@@ -94,7 +115,7 @@ export function jointChambers(host, { sims, forecast, idx = null }) {
     a.selectAll('line,path').attr('stroke', C.line);
   }
   g.append('text').attr('x', M.l).attr('y', M.t + 2).attr('font-size', 10).attr('fill', C.muted)
-    .text('Democratic Senate seats');
+    .text(AS.lead ? 'Democratic Senate seats minus Republican' : 'Democratic Senate seats');
 
   // Quadrant figures, placed in their own corner rather than in a legend.
   const label = (px, py, pct, txt, col, anchor) => {
@@ -116,13 +137,27 @@ export function jointChambers(host, { sims, forecast, idx = null }) {
 // The seat distribution says how likely control is. It does not say what control
 // would consist of, and "48.1%" is a worse answer to "can they still do it" than
 // a list of the four seats it would take.
-export function cheapestPath(host, { sims, forecast, races, chamber }) {
+//
+// Under `sit-out` the target is a LEAD, not a number: each seat taken from the
+// other party moves it by two, so a party behind by L needs ceil((L + 1) / 2)
+// seats -- one fewer where it holds the tiebreak.
+export function cheapestPath(host, { sims, forecast, races, chamber, rule = 'sit-out' }) {
   const maj = sims.m.majority[chamber];
   if (maj == null) return null;
-  const seats = sims.seats[chamber];
-  const median = d3.median(seats);
-  const behind = median < maj ? 'D' : 'R';
-  const need = behind === 'D' ? maj - median : median - maj + 1;
+  const A = axisFor(sims, chamber, rule);
+  const vals = Array.from({ length: sims.seats[chamber].length }, (_, k) => A.val(k));
+  const median = d3.median(vals);
+  let behind, need;
+  if (!A.lead) {
+    behind = median < maj ? 'D' : 'R';
+    need = behind === 'D' ? maj - median : median - maj + 1;
+  } else {
+    const tb = (sims.m.tiebreak || {})[chamber] ?? null;
+    // D controls at lead >= A.cut; R at lead <= (tb === 'R' ? 0 : -1).
+    const rCut = tb === 'R' ? 0 : -1;
+    behind = median < A.cut ? 'D' : 'R';
+    need = behind === 'D' ? Math.ceil((A.cut - median) / 2) : Math.ceil((median - rCut) / 2);
+  }
   if (need <= 0) return null;
 
   // Seats the trailing side does not currently favour, closest first. Their own
@@ -138,5 +173,5 @@ export function cheapestPath(host, { sims, forecast, races, chamber }) {
     .sort((a, b) => b.p - a.p)
     .slice(0, 8);
   if (!pool.length) return null;
-  return { behind, need, median, maj, pool };
+  return { behind, need, median, maj, pool, lead: A.lead };
 }
