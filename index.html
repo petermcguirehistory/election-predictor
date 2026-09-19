@@ -277,10 +277,16 @@
       <div class="tabpanel" id="tab-trust" data-tab="trust" data-tab-label="Can you trust it" role="tabpanel" tabindex="0" hidden>
 
         <section id="s-calibration">
-          <h2>Out-of-sample checks</h2>
+          <h2>Checks against past elections</h2>
           <p class="q">Has this model been right before?</p>
-          <p>Every check is <b>out of sample</b>: the model is refitted without the election it is
-             scored on.</p>
+          <ul class="pts">
+            <li><b>Refitted without the scored election</b> — pollster ratings, house effects and
+                the polling error curve.</li>
+            <li><b>Fitted with it</b> — the prior's width, the state error term, elasticity and the
+                generic-ballot correction, each pooled over the same cycles the House replays
+                score. Those replays are partly in sample, and read slightly kinder than a clean
+                hold-out would.</li>
+          </ul>
           <!-- Built in js/main.js, because which checks exist depends on the
                chamber: the replays are House, the interval check is the polling
                corpus across all three, and the other two chambers have their own

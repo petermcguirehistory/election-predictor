@@ -511,13 +511,13 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
             : '')
           + `Recency, a partisan sponsor and the pollster\u2019s rating set the weight, as they `
           + `do for any other race, and a survey asked two ways counts once. `
-          // THE DISCOUNT IS RELATIVE. Weights are normalised, so where every poll
-          // has a sponsor the down-weighting cancels; South Dakota and Idaho are
-          // all sponsored, and saying "down-weighted" there without this would
-          // claim a correction the estimate does not get.
+          // THE DISCOUNT IS RELATIVE, so where every poll has a sponsor the
+          // down-weighting cancels; what reaches the estimate there is the
+          // sponsor CORRECTION (engine/calibrate/sponsor_bias.py), inside the
+          // house-effect figure below. Said, because it is the only one working.
           + (ind.polls.every(x => (x.x || '').includes('p'))
-              ? `<b>Every poll here has a partisan sponsor</b>, so down-weighting them changes `
-                + `nothing: the average is the sponsors\u2019 average. `
+              ? `<b>Every poll here has a partisan sponsor</b>, so down-weighting changes nothing; `
+                + `each is instead corrected by its sponsor\u2019s measured lean, included below. `
               : '')
           + (d.house_adj != null && Math.abs(d.house_adj) >= 0.05
               ? `House effects shift the average by ${fmtMargin(-d.house_adj)}. ` : '')

@@ -187,8 +187,13 @@ const ALARM = {
               polls — seven since 1998. Too few to correct the mean, enough to size the error.`],
             ['Qualifies', '3+ polls, adding up to more than one effective poll. How closely '
               + 'they agree is not a test: across the six past races with a spread, it predicted nothing measurable.'],
-            ['Not corrected', 'Sponsored polls. Where every poll of a race has a sponsor, '
-              + 'down-weighting them changes nothing, and no measured correction exists yet.'],
+            ['Sponsored polls', (() => {
+              const t = (f.calibration && f.calibration.sponsor_bias || {}).tiers || {};
+              return 'Corrected toward the sponsor\u2019s measured lean'
+                + (t.with_lean != null ? ` \u2014 ${t.with_lean.toFixed(1)} pts for a shop whose lean `
+                  + `is known, ${t.without_lean.toFixed(1)} for one with no record \u2014` : '')
+                + ' so a race polled only by sponsors is not taken at their word.';
+            })()],
             ['Counted as', 'Neither party\u2019s seat, when the independent wins. What they say '
               + 'they would caucus with is not used.'],
           ]),
@@ -376,11 +381,11 @@ const STRUCTURAL = (f) => [
            why a competitive seat moves further than a safe one.`
       + facts([
           ['Free fit', `Sends 4–6 of the most lopsided districts the <em>opposite</em> way to the
-            country, and scores <em>better</em> on held-out error doing it: those seats are never
-            in doubt, so a wrong answer in them barely registers.`],
+            country.`],
           ['The cap', `Elasticity is capped at the point where the least responsive district still
             moves <em>with</em> the country.`],
-          ['Cost', 'Accuracy on paper. Kept anyway, and re-checked on every run.'],
+          ['Cost', 'None measurable: scored on each past cycle with a fit on the others, the capped '
+            + 'version is as accurate as the free one or better. Re-checked on every run.'],
         ]) },
   ((pf) => ({
     title: 'The governor prior is fitted, with gaps before 2022',

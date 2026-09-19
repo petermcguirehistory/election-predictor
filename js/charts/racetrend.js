@@ -218,7 +218,7 @@ export function raceTrend(host, { polls: allPolls = [], history: allHistory = []
       if (p.dp != null) bits.push(`${p.dn} ${p.dp}% &middot; ${p.rn} ${p.rp}%`
         + (p.tp ? ` &middot; other ${p.tp}%` : ''));
       if (p.n) bits.push(`n = ${p.n.toLocaleString()}`);
-      if (f.includes('p')) bits.push('partisan sponsor, down-weighted');
+      if (f.includes('p')) bits.push('partisan sponsor: down-weighted and corrected for its lean');
       if (f.includes('i')) bits.push('campaign internal, down-weighted');
       if (f.includes('u')) bits.push('pollster carries no rating');
       return `<b>${p.p}</b><br>${p.d} &middot; ${fmtMargin(p.m)}<br>${bits.join('<br>')}`;
@@ -235,7 +235,7 @@ export function raceTrend(host, { polls: allPolls = [], history: allHistory = []
       // reader the same thing an ordinary poll's does: what it weighs.
       p => `<b>${p.p}</b><br>${p.d} &middot; ${independent.name} ${fmtMargin(p.m)}`
          + (p.n ? `<br>n = ${p.n.toLocaleString()}` : '')
-         + ((p.x || '').includes('p') ? '<br>partisan sponsor, down-weighted' : '')
+         + ((p.x || '').includes('p') ? '<br>partisan sponsor: down-weighted and corrected for its lean' : '')
          + ((p.x || '').includes('u') ? '<br>pollster carries no rating' : '')
          + (priced && p.w != null
               ? `<br>weight ${(p.w * 100).toFixed(0)}% of this race\u2019s estimate`
