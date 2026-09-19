@@ -55,14 +55,20 @@ const STEPS = [
          Senate race, and assumed rather than fitted, unlike the governors' incumbency term.`
       : `No candidate on this ballot holds the seat, so nothing is added. The advantage belongs to
          the incumbent as a person, not to the party holding the seat, so an open seat gets none of
-         it however safe it looks.` },
+         it however safe it looks.`,
+    // Fundraising lands on this step too: the dot moves to prior_mu, and without
+    // this clause the step's stated change did not add up to where it lands.
+    after: r => (Math.abs(r.fundraising_adj || 0) > 0.005
+      ? ` Fundraising adds <b>${r.fundraising_adj >= 0 ? '+' : '−'}${Math.abs(r.fundraising_adj).toFixed(2)}</b>
+         where the lean is not already decisive.` : '') },
   { key: 'prior', title: 'That is the prior',
     text: (r, env, f) => {
       // Counted within the race's OWN chamber. Quoting the House's 360 unpolled
       // districts under a Senate race would be a true number about the wrong set.
       const unpolled = f.coverage.prior_only[r.chamber];
       const polled = f.coverage.poll_driven[r.chamber];
-      return `<code>lean + swing + incumbency${Math.abs(r.record_adj || 0) > 0.005 ? ' + record' : ''}
+      return `<code>lean + swing + incumbency${Math.abs(r.record_adj || 0) > 0.005 ? ' + record' : ''}${
+                Math.abs(r.fundraising_adj || 0) > 0.005 ? ' + fundraising' : ''}
               = ${fmtMargin(r.prior_mu)}</code> — the estimate
               before a single poll of this ${noun(r)} is looked at. For <b>${unpolled}</b> of the
               ${unpolled + polled} ${FIELD[r.chamber] || 'these'} races this cycle the working ends
@@ -107,7 +113,12 @@ const STEPS = [
 export function walkthrough(host, { races, environment, initial, forecast,
                                     chambers = ['house'] }) {
   host.replaceChildren();
-  const pool = races.filter(r => chambers.includes(r.chamber) && !r.locked && r.median_margin != null)
+  // Two-party contests only. A seat with an independent in a major party's slot,
+  // or a three-way race, is priced another way (their drawer shows it), and this
+  // walk -- prior, then D-vs-R polls, then "the Democrat's chance" -- would tell
+  // Nebraska's story wrong at every step.
+  const pool = races.filter(r => chambers.includes(r.chamber) && !r.locked && r.median_margin != null
+                                 && !r.ind_slot && !r.three_way)
     .sort((a, b) => (b.n_polls - a.n_polls) || (Math.abs(a.win_prob - 0.5) - Math.abs(b.win_prob - 0.5)));
   let race = pool.find(r => r.race_id === initial) || pool[0];
   let step = 0;
@@ -217,7 +228,8 @@ export function walkthrough(host, { races, environment, initial, forecast,
 
     copy.innerHTML =
       `<div class="wt-step">Step ${step + 1} of ${STEPS.length}</div>` +
-      `<h3>${STEPS[step].title}</h3><p>${STEPS[step].text(race, env, forecast)}</p>`;
+      `<h3>${STEPS[step].title}</h3><p>${STEPS[step].text(race, env, forecast)}${
+        STEPS[step].after ? STEPS[step].after(race) : ''}</p>`;
     prev.disabled = step === 0;
     next.disabled = step === STEPS.length - 1;
   }

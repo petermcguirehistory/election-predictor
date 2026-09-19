@@ -77,7 +77,10 @@ export function dotplot(host, { hist, threshold, n, chamber, unit, showNote = tr
     .attr('text-anchor', 'middle').attr('fill', C.faint).attr('font-size', 11).text(unit);
 
   s.on('pointermove', e => {
-    const v = Math.round(x.invert(e.offsetX ?? 0));
+    // d3.pointer, not offsetX: the scale is in viewBox units and offsetX in CSS
+    // pixels, which differ whenever the chart renders narrower than its design
+    // width -- every phone -- and the tooltip named the wrong seat count.
+    const v = Math.round(x.invert(d3.pointer(e, s.node())[0]));
     const cnt = (stackBy.get(v) || []).length;
     showTip(e, `<b>${v}</b> ${unit}<br>${cnt} of 100 simulations`);
   }).on('pointerleave', hideTip);

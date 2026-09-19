@@ -5,7 +5,7 @@
 // the condition.
 
 import { loadAll, Sims } from './data.js';
-import { C, fmtPct, fmtMargin, chamberName, SCOPES, scopeName, chambersFor } from './charts/util.js';
+import { C, fmtPct, fmtMargin, chamberName, SCOPES, scopeName, chambersFor, sideOf, SIDE } from './charts/util.js';
 import { iconArray } from './charts/iconarray.js';
 import { dotplot } from './charts/dotplot.js';
 import { seatCurve } from './charts/seatcurve.js';
@@ -97,6 +97,13 @@ function ruledHistory(history, rule) {
     points: history.points.map(p => Object.fromEntries(Object.entries(p).map(([k, v]) =>
       [k, v && typeof v === 'object' && v.by_rule && v.by_rule[rule] ? ruled(v, rule) : v]))),
   };
+}
+
+// A chamber's tipping point under one rule: which seat decides control moves with
+// it (the 50th Democratic Senate seat with an independent sitting out).
+function ruledTip(t, rule) {
+  if (!t) return null;
+  return (t.by_rule && t.by_rule[rule]) ? { ...t, ...t.by_rule[rule] } : t;
 }
 
 // A topline under one rule. The engine ships every rule in `by_rule` and the
@@ -471,7 +478,10 @@ function renderHeadline(s) {
   const { forecast, sims, history } = s.data;
   const c = s.condition;
 
-  const cond = c.pinned
+  // Only when the numbers below really are conditional: under the draw floor
+  // stateOf falls back to the unconditional topline, and saying "conditional"
+  // over it mislabelled every number.
+  const cond = c.pinned && c.ok
     ? ` <span class="cond">conditional on ${s.pins.length} pinned race${s.pins.length > 1 ? 's' : ''}</span>`
     : '';
   const stateOf = ch => (c.ok ? sims.summary(ch, c.idx, s.ind) : null)
@@ -770,9 +780,11 @@ function renderMovement(s) {
     $('#movement').replaceChildren(el('p', 'mv-none', mv.reason));
     return;
   }
+  // Under the rule on screen, like the card's delta beside it.
+  const view = mv && mv.by_rule && mv.by_rule[s.ind] ? { ...mv, chambers: mv.by_rule[s.ind] } : mv;
   perChamber($('#movement'), chambersFor(s.scope, s.data.forecast.meta.chambers),
     (host, ch) => movementPanel(host, {
-      movement: s.data.forecast.movement, chamber: ch, chamberLabel: chamberName(ch),
+      movement: view, chamber: ch, chamberLabel: chamberName(ch),
     }));
 }
 
@@ -798,9 +810,17 @@ function mountSeatModes(onChange) {
     if (note) {
       note.textContent = seatMode() === 'curve'
         ? 'Every height is P(at least this many seats). Read across from any seat number.'
-        : '100 dots, one per percentile of the simulations: dots past the line ÷ 100 = P(control).';
+        : store.ind === 'free'
+        ? '100 dots, one per percentile of the simulations: dots past the line ÷ 100 = P(control).'
+        // Under sit-out the line is an outright majority: a Democratic 50 can
+        // control a Senate an independent sits out, so counting dots past 51
+        // understates control -- the card's number is the one that counts it.
+        : '100 dots, one per percentile of the simulations: dots past the line ÷ 100 = P(a '
+          + 'majority on their own). With independents sitting out, fewer seats can be enough; '
+          + 'the card counts that.';
     }
   };
+  mountSeatModes.paint = paint;
   box.addEventListener('click', e => {
     const b = e.target.closest('button[data-mode]');
     if (!b || b.dataset.mode === seatMode()) return;
@@ -822,8 +842,12 @@ function renderTogether(s) {
 
   // The independence comparison is the reason this chart is here, so it is the
   // sentence under it rather than a note somewhere else.
-  const ph = ruled(forecast.topline.house, s.ind).control_prob;
-  const ps = ruled(forecast.topline.senate, s.ind).control_prob;
+  // The product of the marginals over the SAME draws as the joint: comparing a
+  // pinned joint with unconditional marginals measured nothing, and could
+  // report the correlation's effect backwards.
+  const idx = c.ok ? c.idx : null;
+  const ph = sims.summary('house', idx, s.ind).control_prob;
+  const ps = sims.summary('senate', idx, s.ind).control_prob;
   const naive = ph * ps;
   const note = el('p', 'chart-note');
   note.innerHTML =
@@ -880,6 +904,7 @@ function renderSeats(s) {
     senate: `Democratic seats (incl. ${sims.m.senate_heldover} holdovers)`,
     governor: `Democratic governorships (of ${forecast.topline.governor.of})`,
   };
+  if (mountSeatModes.paint) mountSeatModes.paint();     // its note follows the rule
   // The dotplot's own note comes in two versions -- one for a chamber with a
   // majority line and one for a chamber without -- and under `all` the first
   // version was printed twice, word for word. Each version is shown once.
@@ -971,7 +996,7 @@ function renderWatch(s) {
       races: forecast.races.filter(r => r.chamber === ch),
       chamber: ch,
       chamberLabel: chamberName(ch),
-      tipping: forecast.tipping[ch] || null,
+      tipping: ruledTip(forecast.tipping[ch], s.ind),
       sims,
       condition: s.condition,
       onPick: r => open(r),
@@ -979,7 +1004,7 @@ function renderWatch(s) {
     // The distribution behind the ranking, moved here from the retired "Path to a
     // majority". Governors have none, and the list above already says why, so the
     // chart's own no-majority note would only repeat it.
-    const tip = forecast.tipping[ch];
+    const tip = ruledTip(forecast.tipping[ch], s.ind);
     if (!tip || !tip.distribution) return;
     const box = el('div', 'wl-tip');
     box.append(el('h4', 'wl-h', 'How the deciding vote is spread'));
@@ -1195,7 +1220,7 @@ function pin(race) {
   if (!v || v.col < 0) { flash(`${race.race_id} never flips in any simulation — it cannot be pinned.`); return; }
   const dir = race.win_prob >= 0.5 ? 'R' : 'D';           // pin the interesting way first
   if (v[dir.toLowerCase()] < viability._meta.floor) {
-    flash(`${race.race_id} going ${dir} happens in only ${v[dir.toLowerCase()]} of ` +
+    flash(`${race.race_id} going ${SIDE[sideOf(race, dir)].short} happens in only ${v[dir.toLowerCase()]} of ` +
           `${sims.m.n_sims.toLocaleString()} simulations — below the ${viability._meta.floor}-draw reporting floor.`);
     return;
   }
@@ -1253,8 +1278,10 @@ function renderPins(s) {
     return;
   }
   host.append(el('span', 'pins-label', 'Held fixed'));
+  const byId = new Map(s.data.forecast.races.map(r => [r.race_id, r]));
   for (const p of s.pins) {
-    const chip = el('button', 'pin', `${p.race_id} → ${p.party}`);
+    // Named by who actually holds the seat that way: 'NE-SEN → IND', not '→ D'.
+    const chip = el('button', 'pin', `${p.race_id} → ${SIDE[sideOf(byId.get(p.race_id), p.party)].short}`);
     chip.title = 'Click to flip, again to remove';
     chip.onclick = () => pin({ race_id: p.race_id, win_prob: p.party === 'D' ? 0 : 1 });
     host.append(chip);

@@ -27,7 +27,7 @@
 //     model's word for it; "Cornyn is not running" is what a reader wants, and it
 //     is the difference between a seat the party is defending and one it is not.
 import d3 from '../d3.js';
-import { C, fmtMargin, fmtPct } from '../charts/util.js';
+import { C, fmtMargin, fmtPct, sideOf, SIDE } from '../charts/util.js';
 import { loadRaceDetail } from '../data.js';
 import { raceTrend } from '../charts/racetrend.js';
 import { varianceBar } from '../charts/variance.js';
@@ -284,10 +284,20 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
           `<span class="dt-note">${fmtPct(race.pollster_coverage, 0)} of the weight comes from pollsters with enough past results to correct</span>`);
       }
       body += row(`Weight on the polls, n/(n+3)`, race.poll_weight.toFixed(3));
-      body += row('Blended estimate', fmtMargin(race.mu), 'dt-sum');
+      body += row('Blended estimate', slotMargin(race, race.mu), 'dt-sum');
+    } else if (Math.abs(race.independent_adj || 0) > 0.005) {
+      // THE INDEPENDENT'S OWN POLLING, which is the whole of this seat's estimate.
+      // Missing here, the rows read "none usable, so the estimate above stands"
+      // and then printed a μ up to 23 points from it. mu = prior + this row.
+      const ia = race.independent_adj;
+      body += row(`Polls of the independent`, `${ia >= 0 ? '+' : ''}${ia.toFixed(1)}`
+        + `<span class="dt-note">their polling average, ${slotMargin(race, race.mu)}, replaces `
+        + `the prior above, which describes a candidate not on this ballot; the uncertainty below `
+        + `is widened for it</span>`);
+      body += row('Estimate', slotMargin(race, race.mu), 'dt-sum');
     } else {
       body += row('Polls', '—<span class="dt-note">none usable, so the estimate above stands</span>');
-      body += row('Estimate', fmtMargin(race.mu), 'dt-sum');
+      body += row('Estimate', slotMargin(race, race.mu), 'dt-sum');
     }
 
     // --- sigma ---
@@ -392,7 +402,7 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     // looking for what a hollow dot means can find it without reading the rest.
     const cap = document.createElement('dl');
     cap.className = 'dt-key';
-    const nLive = polls.filter(x => !/[so]/.test(x.x || '')).length;
+    const nLive = polls.filter(x => !/[sob]/.test(x.x || '')).length;
     const nOld = polls.length - nLive;
     const item = (k, v) => {
       cap.append(Object.assign(document.createElement('dt'), { textContent: k }),
@@ -409,8 +419,10 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     }
     if (nOld) {
       const nOmit = polls.filter(x => (x.x || '').includes('o')).length;
+      const nOff = polls.filter(x => (x.x || '').includes('b')).length;
       item('Hollow dots', `<b>${nOld}</b> not counted: `
-        + [nOld - nOmit && `${nOld - nOmit} of a matchup no longer on the ballot`,
+        + [nOld - nOmit - nOff && `${nOld - nOmit - nOff} of a matchup since superseded`,
+           nOff && `${nOff} naming a candidate not on the November ballot`,
            nOmit && `${nOmit} head-to-head${nOmit === 1 ? '' : 's'} leaving out the third candidate`]
           .filter(Boolean).join('; ') + '.');
     }
@@ -530,7 +542,7 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     }
 
     // Who did the polling, since `effective pollsters` names nobody.
-    if (polls.some(x => !/[so]/.test(x.x || ''))) {
+    if (polls.some(x => !/[sob]/.test(x.x || ''))) {
       const th = document.createElement('h4');
       th.className = 'dt-h'; th.textContent = 'Who polled it';
       chartHost.append(th);
@@ -549,7 +561,8 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
     const b = document.createElement('button');
     b.className = 'chip dt-pin';
     const pinned = condition.pins?.find(p => p.race_id === race.race_id);
-    b.textContent = pinned ? `Pinned ${pinned.party} — click to change` : 'Hold this race fixed';
+    b.textContent = pinned ? `Pinned ${SIDE[sideOf(race, pinned.party)].short} — click to change`
+                           : 'Hold this race fixed';
     b.onclick = () => onPin(race);
     box.append(b);
   } else {

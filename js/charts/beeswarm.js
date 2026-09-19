@@ -5,7 +5,7 @@
 // makes the model's thinnest claim visible -- only 24 of 435 House districts
 // have a usable poll, and the crowd around the middle is almost all prior.
 import d3 from '../d3.js';
-import { C, svg, fmtMargin, hoverable } from './util.js';
+import { C, svg, fmtMargin, hoverable, sideOf, SIDE } from './util.js';
 
 export function beeswarm(host, { races, colorBy = 'polls', scopeLabel = 'races', onPick }) {
   host.replaceChildren();
@@ -34,12 +34,15 @@ export function beeswarm(host, { races, colorBy = 'polls', scopeLabel = 'races',
     .stop();
   for (let i = 0; i < 160; i++) sim.tick();
 
+  // Coloured by who leads on the median margin -- which, with an independent in
+  // a slot, is the independent (sideOf). The margin axis is the D slot's, so
+  // Osborn sits right of zero, in the accent colour.
+  const lead = d => SIDE[sideOf(d.r, d.r.median_margin > 0 ? 'D' : 'R')].colour();
   const fill = d => {
     if (colorBy === 'polls') {
-      return d.r.n_polls > 0 ? (d.r.median_margin > 0 ? C.dem : C.rep)
-                             : d3.interpolateLab(d.r.median_margin > 0 ? C.dem : C.rep, C.surface)(0.62);
+      return d.r.n_polls > 0 ? lead(d) : d3.interpolateLab(lead(d), C.surface)(0.62);
     }
-    return d.r.median_margin > 0 ? C.dem : C.rep;
+    return lead(d);
   };
 
   const dots = s.selectAll('circle').data(nodes).join('circle')
@@ -49,8 +52,9 @@ export function beeswarm(host, { races, colorBy = 'polls', scopeLabel = 'races',
     .on('click', (e, d) => onPick && onPick(d.r));
 
   hoverable(dots, d =>
-    `<b>${d.r.race_id}</b> · ${d.r.state}<br>median ${fmtMargin(d.r.median_margin)} · ` +
-    `D win ${(d.r.win_prob * 100).toFixed(0)}%<br>` +
+    `<b>${d.r.race_id}</b> · ${d.r.state}<br>median ${fmtMargin(d.r.median_margin)}` +
+    (d.r.ind_slot ? ' (D slot: the independent)' : '') + ' · ' +
+    `${SIDE[sideOf(d.r, 'D')].short} win ${(d.r.win_prob * 100).toFixed(0)}%<br>` +
     `<span class="tip-dim">${d.r.n_polls ? `${d.r.n_polls} poll${d.r.n_polls > 1 ? 's' : ''}` : 'prior only'}</span>`);
 
   s.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', m.t).attr('y2', H - m.b)

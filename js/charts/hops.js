@@ -13,7 +13,7 @@
 // the seat total lurches instead of jittering. That is the state layer, visible.
 //
 // Honours prefers-reduced-motion by not starting, and stops when scrolled away.
-import { C } from './util.js';
+import { C, sideOf, SIDE } from './util.js';
 
 // `groups` is one or more d3 selections whose data carry a `.race` (null where a
 // state holds no race this cycle). Taking a list rather than one selection is
@@ -24,6 +24,8 @@ export function hops(groups, sims, { onFrame, interval = 420 } = {}) {
   const n = sims.m.n_sims;
   const layers = (Array.isArray(groups) ? groups : [groups]).map(sel => ({
     sel, cols: sel.data().map(d => (d.race ? sims.col.get(d.race.race_id) : undefined)),
+    // A three-way race's independent has a column of its own.
+    xcols: sel.data().map(d => (d.race ? sims.col.get(`${d.race.race_id}#IND`) : undefined)),
   }));
   const chambers = Object.keys(sims.seats);
 
@@ -35,7 +37,12 @@ export function hops(groups, sims, { onFrame, interval = 420 } = {}) {
         // Never-flip races are absent from the payload; their outcome is the
         // same in every draw, which is exactly what makes them absent.
         const dem = c === undefined ? d.race.win_prob >= 0.5 : sims.bit(draw, c) === 1;
-        return dem ? C.dem : C.rep;
+        // Coloured by who won, as the readout counts it: an independent's win
+        // is theirs, not the slot's party (sideOf), and a three-way race's
+        // independent wins on its own column.
+        const x = L.xcols[k];
+        if (x !== undefined && sims.bit(draw, x) === 1) return C.accent;
+        return SIDE[sideOf(d.race, dem ? 'D' : 'R')].colour();
       });
     }
     onFrame && onFrame(draw, Object.fromEntries(chambers.map(c => [c, sims.seats[c][draw]])));

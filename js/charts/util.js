@@ -347,3 +347,19 @@ export const scopeName = v => SCOPE_NAME[v] || v;
 // it can do at all. This is the single place the "all means one of each" rule
 // lives; no panel reimplements it.
 export const chambersFor = (scope, can) => (scope === 'all' ? can : can.filter(c => c === scope));
+
+// WHO EACH SIDE OF A RACE IS. A race's column is the D slot winning, and a pin or
+// a branch is written 'D' or 'R' for which way that bit goes. With an independent
+// in the D slot (no Democrat on the ballot) the 'D' side is the independent; in
+// the R slot (no Republican) the 'R' side is. Every label, colour and name the
+// page gives a side goes through here, so no view can call Osborn a Democrat.
+// Three-way races keep D and R: Sims.select holds the independent out of an R pin.
+export function sideOf(race, party) {
+  const slot = race && race.ind_slot;
+  return (slot === 'D' && party === 'D') || (slot === 'R' && party === 'R') ? 'IND' : party;
+}
+export const SIDE = {
+  D: { short: 'D', name: 'Democrats', win: 'Democrats win', colour: () => C.dem },
+  R: { short: 'R', name: 'Republicans', win: 'Republicans win', colour: () => C.rep },
+  IND: { short: 'IND', name: 'the independent', win: 'the independent wins', colour: () => C.accent },
+};

@@ -81,9 +81,10 @@ export function raceTrend(host, { polls: allPolls = [], history: allHistory = []
   const indPolls = indAll.filter(p => inWin(p.d));
   const hidden = (allPolls.length - polls.length) + (indAll.length - indPolls.length);
 
-  // Not live: superseded matchups (s) and questions leaving out a contender on the
-  // ballot (o) -- both carry no weight in the average.
-  const live = polls.filter(p => !/[so]/.test(p.x || ''));
+  // Not live: superseded matchups (s), questions leaving out a contender on the
+  // ballot (o), and polls naming someone not on the November ballot (b) -- none
+  // carries weight in the average.
+  const live = polls.filter(p => !/[sob]/.test(p.x || ''));
   const dates = [...polls.map(p => parse(p.d)), ...history.map(h => parse(h.a)),
                  ...indPolls.map(p => parse(p.d)), ELECTION];
   const lo = full ? d3.min(dates) : new Date(Math.min(from, d3.min(dates) || from));
@@ -200,7 +201,7 @@ export function raceTrend(host, { polls: allPolls = [], history: allHistory = []
 
   const wmax = d3.max(live, p => p.w) || 1;
   const rad = w => 2 + 5 * Math.sqrt(Math.max(w, 0) / wmax);
-  const sup = p => /[so]/.test(p.x || '');
+  const sup = p => /[sob]/.test(p.x || '');
   hoverable(
     s.append('g').selectAll('circle').data(polls).join('circle')
       .attr('cx', p => x(parse(p.d))).attr('cy', p => y(p.m))
@@ -210,7 +211,8 @@ export function raceTrend(host, { polls: allPolls = [], history: allHistory = []
       .attr('opacity', p => (sup(p) ? 0.75 : 0.85)),
     p => {
       const f = p.x || '', bits = [];
-      if ((p.x || '').includes('o')) bits.push('<em>leaves out a third candidate on the ballot &mdash; not counted</em>');
+      if ((p.x || '').includes('b')) bits.push('<em>names a candidate not on the November ballot &mdash; not counted</em>');
+      else if ((p.x || '').includes('o')) bits.push('<em>leaves out a third candidate on the ballot &mdash; not counted</em>');
       else if (sup(p)) bits.push(`<em>superseded &mdash; ${p.k} is no longer the matchup</em>`);
       else bits.push(`weight ${(p.w * 100).toFixed(0)}% of this race polling`);
       if (p.dp != null) bits.push(`${p.dn} ${p.dp}% &middot; ${p.rn} ${p.rp}%`

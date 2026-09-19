@@ -291,6 +291,12 @@ export function governorPrior(host, { fit }) {
     + `<tr><th>Lean</th><td>×${c.lean.toFixed(2)}</td></tr>`
     + `<tr><th>Incumbent running</th><td>${c.inc >= 0 ? '+' : ''}${c.inc.toFixed(1)} pts</td></tr>`
     + `<tr><th>Their last margin</th><td>×${c.last.toFixed(2)}</td></tr>`
+    // The lean discount that comes with having a record: every race with a last
+    // margin runs its lean at lean + this, not at the lean row above alone.
+    + (c.lean_x_has_last != null
+      ? `<tr><th>Lean, where there is a last margin</th><td>×${(c.lean + c.lean_x_has_last).toFixed(2)} `
+        + `(${c.lean.toFixed(2)} ${c.lean_x_has_last >= 0 ? '+' : '−'} ${Math.abs(c.lean_x_has_last).toFixed(2)})</td></tr>`
+      : '')
     + `<tr><th>${term('sigma')}</th><td>±${fit.sigma.toFixed(1)}</td></tr>`
     + `</tbody></table>`;
   host.append(note);

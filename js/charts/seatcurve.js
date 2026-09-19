@@ -71,7 +71,8 @@ export function seatCurve(host, { hist, threshold, n, chamber, unit,
   // The headline, drawn as the construction that produces it.
   if (threshold != null) {
     const at = pts.find(d => d.v === threshold);
-    const p = at ? at.p : 0;
+    // Below every simulated total, every draw clears it; above every one, none.
+    const p = at ? at.p : (threshold < pts[0].v ? 1 : 0);
     s.append('line').attr('x1', x(threshold)).attr('x2', x(threshold))
       .attr('y1', H - M.b).attr('y2', y(p))
       .attr('stroke', C.accent).attr('stroke-dasharray', '3,3');

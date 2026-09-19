@@ -4,7 +4,7 @@
 // has a record the prior never shows, `effective_pollsters: 3.88` names nobody,
 // and a race the reader can pin has a consequence the drawer never stated.
 import d3 from '../d3.js';
-import { C, fmtMargin, fmtPct, hoverable, svg } from './util.js';
+import { C, fmtMargin, fmtPct, hoverable, svg, sideOf, SIDE } from './util.js';
 
 // ---- what this seat actually did -------------------------------------------
 // NOT A LINE. Redistricting means a 2018 TX-34 and a 2026 TX-34 share a name and
@@ -54,7 +54,7 @@ export function seatHistory(host, { past, race }) {
 // `effective_pollsters` is a single number standing in for a list, and the list
 // is the thing that answers "is this four shops or one shop four times".
 export function pollsterTable(host, { polls }) {
-  const live = polls.filter(p => !/[so]/.test(p.x || ''));
+  const live = polls.filter(p => !/[sob]/.test(p.x || ''));
   if (!live.length) return null;
   const by = new Map();
   for (const p of live) {
@@ -125,10 +125,13 @@ export function conditionalReadout(host, { race, sims, forecast, rule = sims.m.c
   d.innerHTML =
     '<div class="dt-cond-h">What this race does to the chamber</div>'
     + out.map(o => {
-        const col = o.party === 'D' ? C.dem : C.rep;
-        const who = o.party === 'D' ? 'Democrats' : 'Republicans';
+        // Named by who holds the seat that way: on Osborn's Nebraska the 'D' side
+        // is Osborn, and on a three-way race the 'R' side excludes the
+        // independent's wins (Sims.select).
+        const side = SIDE[sideOf(race, o.party)];
+        const col = side.colour();
         return `<div class="dt-cond-row">`
-          + `<span class="dt-cond-k">If ${who} win ${race.race_id}</span>`
+          + `<span class="dt-cond-k">If ${side.win} ${race.race_id}</span>`
           + `<span class="dt-cond-v" style="color:${col}">${fmtPct(o.prob, 1)}`
           + (o.se ? `<span class="dt-cond-se"> &plusmn;${(o.se * 100).toFixed(1)}</span>` : '')
           + `</span>`

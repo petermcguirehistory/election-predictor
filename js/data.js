@@ -184,17 +184,26 @@ export class Sims {
   select(pins) {
     const n = this.m.n_sims;
     if (!pins || !pins.length) return null;           // null means "all draws"
+    // THE OTHER SIDE IS THE OTHER CANDIDATE, NOT "THE D SLOT LOST". In a
+    // three-way race a clear D bit includes the independent winning, so an R pin
+    // also requires the race's #IND column clear -- otherwise 'RI-GOV -> R' held
+    // a pool half of which was Block's wins. engine/dashboard/sims.pins counts
+    // `r` the same way.
     const cols = pins.map(p => {
       const c = this.col.get(p.race_id);
       if (c === undefined) {
         throw new Error(`${p.race_id} never flips — it is not in the payload and cannot be pinned`);
       }
-      return { c, want: p.party === 'D' ? 1 : 0 };
+      const x = p.party === 'D' ? undefined : this.col.get(`${p.race_id}#IND`);
+      return { c, want: p.party === 'D' ? 1 : 0, x };
     });
     const out = new Int32Array(n);
     let k = 0;
     outer: for (let s = 0; s < n; s++) {
-      for (const { c, want } of cols) if (this.bit(s, c) !== want) continue outer;
+      for (const { c, want, x } of cols) {
+        if (this.bit(s, c) !== want) continue outer;
+        if (x !== undefined && this.bit(s, x) === 1) continue outer;
+      }
       out[k++] = s;
     }
     return out.subarray(0, k);

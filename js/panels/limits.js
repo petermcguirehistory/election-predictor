@@ -60,8 +60,6 @@ const ALARM = {
             &times;${f.calibration.prior.stale_multiplier.toFixed(2)}, measured by replaying 2022
             with exactly this mistake introduced.`],
           ['Not priced', 'The central estimates. Those are still built on the wrong electorate.'],
-          ['Status', `<em>Not currently firing</em> — every district is on its own 2026 lines. The
-            machinery stays wired up for the next redraw that outruns the data.`],
         ]),
   }),
   ballot_poll_unresolved: n => ({
@@ -361,9 +359,8 @@ const ALARM = {
           ['Usual cause', `Candidate resolution. The FEC is a federal agency and holds no roster of
             state candidates, so a poll naming two people cannot be looked up there.`],
           ['Normal path', 'The race feed, which carries governor candidates by name.'],
-          ['If it has stopped', `Every governor race runs on its prior alone, and the seat counts
-            on this page should be read that way.`],
-          ['Status', '<em>Not currently firing.</em>'],
+          ['Effect', `Every governor race runs on its prior alone, and the seat counts on this
+            page should be read that way.`],
         ]),
   }),
 };
