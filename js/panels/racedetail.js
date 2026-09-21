@@ -19,9 +19,11 @@
 //
 //   * `incumbent` is a fact about a NAMED PERSON, settled against FEC filings by
 //     engine/registry/ballot.py, and `incumbent_running` is the party-level claim
-//     the model's 2.5-point bonus actually follows. They disagree in 16 races. The
-//     block shows the first and the incumbency row shows the second, and where
-//     they part company the row says so rather than either being quietly dropped.
+//     the model's 2.5-point bonus actually follows. They disagree in a dozen-odd
+//     races, and which ones changes with the feed -- a count written here would be
+//     wrong within the week, so checks.incumbency_cross_check keeps it. The block
+//     shows the first and the incumbency row shows the second, and where they part
+//     company the row says so rather than either being quietly dropped.
 //
 //   * a race with no incumbent names who holds the seat anyway. "Open" is the
 //     model's word for it; "Cornyn is not running" is what a reader wants, and it
@@ -45,8 +47,11 @@ const PARTY_COLOUR = { D: C.dem, R: C.rep };
 const PARTY_LABEL = { D: 'Democrat', R: 'Republican', I: 'Independent' };
 
 // Who is on the ballot, who among them holds the seat, and -- when none of them
-// does -- who does. The third is the one the payload cannot always answer: the
-// FEC covers no state office, so a governor's seat can only be given a party.
+// does -- who does. The third comes from two different places. For a federal
+// seat it is the FEC's filing record. The FEC covers no state office, so for a
+// governorship it is a hand-kept roster (engine/registry/data/governor_2026.csv)
+// that the run re-derives against the race feed and the returns corpus; this
+// panel is the reason it exists, because "R-held" is not an answer to "who?".
 //
 // A race where nobody on the ballot has filed as the incumbent but the feed
 // still records the seat as defended is NOT called open here, because the model
@@ -93,9 +98,18 @@ function ballotBlock(race) {
   } else if (race.holder_name) {
     note = `Open seat — ${esc(race.holder_name)}${held} holds it and is not on the November
       ballot.${redrawn}`;
-  } else if (race.chamber === 'governor') {
-    note = `${openSeat} — governors are not federal offices, so no filing record here
-      names the sitting governor.`;
+  } else if (race.governor_name && race.governor_on_ballot) {
+    // South Dakota, and only South Dakota. Larry Rhoden became governor when
+    // Kristi Noem resigned, and he is on this ballot -- so the seat is neither
+    // open nor, to the model, defended: the incumbency coefficient was fitted
+    // on the last election's WINNER running again, and that was Noem.
+    note = `${esc(race.governor_name)}${held} is the sitting governor and is on this ballot,
+      having taken office mid-term rather than by winning the last election. The incumbency
+      adjustment below is fitted on that winner running again — so the model scored this
+      seat open and paid no bonus.`;
+  } else if (race.governor_name) {
+    note = `Open seat — ${esc(race.governor_name)}${held} is the sitting governor and is not
+      on the November ballot.`;
   } else {
     note = `${openSeat} — nobody has filed with the FEC as its incumbent.`;
   }
@@ -103,16 +117,19 @@ function ballotBlock(race) {
 }
 
 // What the INCUMBENCY ROW has to say beyond its own number. The adjustment is
-// driven by a party column and the ballot block by names; they agree in 490 of
-// 506 races, and the note exists for the sixteen where a reader would otherwise
+// driven by a party column and the ballot block by names; they agree in almost
+// every race, and the note exists for the handful where a reader would otherwise
 // be looking at two claims and no way to tell which one moved the forecast.
 function incumbencyNote(race, adj) {
   // Governors run on their own fitted prior, where the incumbent is the last
   // race's winner by name (engine/priors/governor.py), so the feed-versus-filing
   // notes below do not apply to them.
   if (race.chamber === 'governor') {
-    return adj ? 'the last elected governor is running again; fitted on past governor races'
-               : 'the last elected governor is not on this ballot';
+    if (adj) return 'the last elected governor is running again; fitted on past governor races';
+    return race.governor_on_ballot
+      ? 'the sitting governor is on this ballot but did not win the last election, and the '
+        + 'bonus is fitted on that winner running again'
+      : 'the last elected governor is not on this ballot';
   }
   const badged = (race.ballot || []).some(c => c.incumbent);
   const claimed = race.incumbent_running === 'incumbent';

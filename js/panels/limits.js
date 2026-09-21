@@ -162,6 +162,24 @@ const ALARM = {
           ['Resolution', 'Both copies kept, and named rather than guessed at.'],
         ]),
   }),
+  governor_roster_disagrees: n => ({
+    title: `The list of sitting governors disagrees with its sources in `
+      + `${n} state${n === '1' ? '' : 's'}`,
+    body: `Who is governor right now is typed out by hand, because no source this model reads `
+      + `carries it.`
+      + facts([
+          ['Why by hand', `The FEC covers no state office. The race feed answers a party \u2014
+            <em>R holds this seat</em> \u2014 and never a person. The returns corpus names the
+            winner of the last election, which stops being the governor the moment one leaves
+            mid-term.`],
+          ['How it is kept honest', `Every run re-derives each row: its party against the feed's
+            seat holder, its name against the corpus winner. A row claiming a mid-term succession
+            is checked the other way \u2014 the corpus must <em>not</em> name that person.`],
+          ['What this alarm means', `<b>${n}</b> row${n === '1' ? '' : 's'} failed that. Either
+            the list has gone stale, or a source has. The forecast is unaffected: these names are
+            a label and never a model input.`],
+        ]),
+  }),
   incumbency_feed_uncovered: n => ({
     title: `${n} federal race${n === '1' ? '' : 's'} with no ballot-feed answer on whether the `
       + `incumbent is running`,
@@ -399,6 +417,10 @@ const STRUCTURAL = (f) => [
             + `race feed where they disagree`
             + (pf && pf.overrides.length ? ` (${pf.overrides.map(o => o.race_id).join(', ')})` : '')
             + '.'],
+          ['Who the sitting governor is', `Typed out for all 36, because nothing this model reads `
+            + `names one: the FEC covers no state office and the feed answers a party. Each row is `
+            + `re-derived every run — its party against the feed, its name against the corpus `
+            + `winner — so a stale one shows up as a failed check rather than a wrong name.`],
         ]),
   }))(f.topline.governor.prior_fitted),
   { title: 'Governors have no control probability, by construction',

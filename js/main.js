@@ -1476,6 +1476,7 @@ const RANK = {
   independent_priced: 'races',
   cross_feed_duplicate: 'data',
   incumbency_feed_uncovered: 'data',
+  governor_roster_disagrees: 'data',
   pres_source_margin_mismatch: 'data',
   ballot_poll_unresolved: 'checks',
   banned_name_near_miss: 'checks',
@@ -1608,6 +1609,9 @@ const CHIP = {
     + `source's published margin contradicts its own vote counts \u2014 the counts are used`,
   incumbency_feed_uncovered: n => `${n} federal race${n === '1' ? '' : 's'} with no `
     + `ballot-feed answer on whether the incumbent is running \u2014 filings used instead`,
+  governor_roster_disagrees: n => `${n} sitting governor${n === '1' ? '' : 's'} the hand roster `
+    + `names differently from the race feed or the returns corpus \u2014 a name on the page may `
+    + `be out of date`,
   thin_poll_average: n => `${n} races rest on roughly one poll`,
   stale_priors: n => `${n} districts carry priors from superseded maps`,
   generic_ballot_beyond_corpus_support: d =>

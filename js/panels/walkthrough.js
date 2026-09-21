@@ -53,6 +53,10 @@ const STEPS = [
       ? `The sitting member is defending this ${noun(r)}: <b>${r.inc_adj >= 0 ? '+' : '−'}${Math.abs(r.inc_adj).toFixed(1)}</b>
          to the ${r.inc_adj >= 0 ? 'Democrats' : 'Republicans'}. The same figure in every House and
          Senate race, and assumed rather than fitted, unlike the governors' incumbency term.`
+      : r.governor_on_ballot
+      ? `The sitting governor is on this ballot, but took office mid-term rather than by winning
+         the last election — and the fitted bonus is defined on that winner running again. So
+         nothing is added here, and the seat is scored as open.`
       : `No candidate on this ballot holds the seat, so nothing is added. The advantage belongs to
          the incumbent as a person, not to the party holding the seat, so an open seat gets none of
          it however safe it looks.`,
