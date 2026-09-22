@@ -2,8 +2,13 @@
 //
 // Answers the question a topline cannot: how much is actually in play. The
 // pile-up near zero is the competitive band, and colouring by poll coverage
-// makes the model's thinnest claim visible -- only 24 of 435 House districts
-// have a usable poll, and the crowd around the middle is almost all prior.
+// makes the model's thinnest claim visible -- most House districts have no
+// usable poll, so the crowd around the middle is almost all prior.
+//
+// HOW MANY is not written here. It was, and it said 24 of 435 for long enough
+// that the answer had reached 76 -- a comment three times out on the very fact
+// the chart exists to show. The count is on the coverage readout, which reads it
+// off the payload every time the page loads.
 import d3 from '../d3.js';
 import { C, svg, fmtMargin, hoverable, sideOf, SIDE } from './util.js';
 

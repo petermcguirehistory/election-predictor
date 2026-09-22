@@ -3,12 +3,16 @@
 // One statistic, drawn twice, because it has two readings and people arrive
 // wanting different ones:
 //
-//   VERTICALLY   at the 218th seat the field sits 3.26 points right of the
-//                nation. That is the popular-vote margin an election has to
-//                clear to reach the median seat.
-//   HORIZONTALLY 206 districts sit at or above the national vote and 218 are
-//                needed. That is a 12-seat gap. That is what a MAP would have to
-//                change.
+//   VERTICALLY   at the 218th seat, how far right of the nation the field sits.
+//                That is the popular-vote margin an election has to clear to
+//                reach the median seat.
+//   HORIZONTALLY how many districts sit at or above the national vote, against
+//                the 218 needed. That is a seat gap, and it is what a MAP would
+//                have to change.
+//
+// Neither figure is written down here. They move when the presidential source
+// changes its lines -- Missouri reverting a redraw moved both -- and the panel
+// draws them from `forecast.structural` on every load.
 //
 // Both are the same distance measured along two axes of one curve, so the left
 // chart shows the whole field and the right one zooms on the crossing and

@@ -6,8 +6,10 @@
 //
 // Shading defaults to a value-suppressing uncertainty palette: certain districts
 // get fine gradations, uncertain ones collapse toward neutral. That is deliberate.
-// 360 of 435 House districts have no usable poll, and a map that renders them as
-// confidently as the 75 that do is lying by omission.
+// Most House districts have no usable poll, and a map that renders them as
+// confidently as the polled ones is lying by omission. How many of each is a
+// number the coverage readout draws from the payload; written down here it would
+// only date the file.
 import d3 from '../d3.js';
 import { C, svg, vsupScale, diverging, fmtMargin, hoverable, legendSwatch } from './util.js';
 
