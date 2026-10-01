@@ -1746,7 +1746,9 @@ function renderCaveats(s) {
   const host = $('#caveats'); host.replaceChildren();
 
   const bucket = { headline: [], races: [], data: [], checks: [] };
-  for (const a of f.freshness.alarms) {
+  // Standing notes are facts about the races (config.STANDING_KINDS) and file into
+  // the same buckets; they stopped being alarms, not stopped being said.
+  for (const a of [...f.freshness.alarms, ...(f.freshness.notes || [])]) {
     // `redraw_reverted_MO` carries a LIST OF STATES in its name, and the payload
     // carries the same list as data two keys away. Rendered from
     // forecast.redraw_ratchet below instead.

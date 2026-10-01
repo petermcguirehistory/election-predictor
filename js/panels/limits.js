@@ -517,7 +517,12 @@ export function limitsPanel(host, { forecast }) {
     return list;
   };
 
-  const alarms = [];
+  const alarms = [], notes = [];
+  for (const a of forecast.freshness.notes || []) {
+    const k = alarmKind(a);
+    const fn = ALARM[k.key];
+    if (fn) notes.push(fn(k.arg, forecast, k.sub));
+  }
   for (const a of forecast.freshness.alarms) {
     // Rendered from forecast.redraw_ratchet after this loop, because the states it
     // concerns are data in the payload and were only ever recoverable from the
@@ -539,14 +544,15 @@ export function limitsPanel(host, { forecast }) {
       title: `${rr.reverted.join(', ')}: the presidential source has dropped a redraw`,
       body: `The source has previously shown ${rr.reverted.join(', ')} on 2026 lines, and this
              export puts ${rr.reverted.length > 1 ? 'them' : 'it'} back in agreement with the
-             118th-Congress baseline. Districts do not un-redraw mid-cycle, so a redraw
-             disappearing is read as the source losing information, not as news about the map. ` +
+             118th-Congress baseline. One bad export must not move a state's priors, so a fresh
+             reversion is held; one the source keeps for ${rr.hold_days || 7} days is taken as the
+             map in use, as Missouri's was after its Supreme Court reinstated the 2022 lines. ` +
             (h.length ? `<b>${h.join(', ')}</b> ${h.length > 1 ? 'are' : 'is'} held at the last
              export that showed the redraw, so those priors are that snapshot rather than this
              week's. ` : '') +
             (u.length ? `<b>${u.join(', ')}</b> ${u.length > 1 ? 'have' : 'has'} no stored
              snapshot, so this week's numbers stand and those priors are on 2024 lines. ` : '') +
-            `A hold releases itself the moment the source publishes the redraw again.`,
+            `A hold also releases the moment the source publishes the redraw again.`,
     });
   }
   for (const r of forecast.electoral_systems.unresolved) {
@@ -560,7 +566,12 @@ export function limitsPanel(host, { forecast }) {
 
   const h1 = document.createElement('h3');
   h1.textContent = 'Live alarms — computed this run';
+  const hn = document.createElement('h3');
+  hn.textContent = 'Standing notes — facts about this year\u2019s races, priced into the numbers';
   const h2 = document.createElement('h3');
   h2.textContent = 'Structural limits — these do not clear on their own';
-  host.append(h1, make(alarms, 'alarm'), h2, make(STRUCTURAL(forecast), 'structural'));
+  host.append(h1, alarms.length ? make(alarms, 'alarm')
+                                : Object.assign(document.createElement('p'), {
+                                    className: 'caveat-why', textContent: 'None this run.'}),
+              hn, make(notes, 'alarm'), h2, make(STRUCTURAL(forecast), 'structural'));
 }
