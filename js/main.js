@@ -29,6 +29,7 @@ import { limitsPanel } from './panels/limits.js';
 import { alarmKind } from './alarms.js';
 import { playingField, statewideField } from './panels/playingfield.js';
 import { walkthrough } from './panels/walkthrough.js';
+import { pipeline, pollsterChart, errorCurves, sponsorChart } from './panels/method.js';
 import { watchlist } from './panels/watchlist.js';
 import { flipsPanel } from './panels/flips.js';
 import { movementPanel } from './panels/movement.js';
@@ -75,7 +76,7 @@ const HASH_KEYS = ['tab', 'scope', 'layout', 'mapMode', 'vsup', 'ind'];
 // scope and an empty hash reads back as another — the lossy round trip of
 // finding 40, in the one place it cannot be seen without a link to compare.
 const TAB_MOVED = { map: 'seats', races: 'seats', flips: 'seats', drivers: 'whatif',
-                    record: 'trust', method: 'trust' };
+                    record: 'trust' };
 const HASH_DEFAULT = { tab: 'forecast', scope: 'all', layout: 'hex', mapMode: 'prob', vsup: true,
                        ind: 'sit-out' };
 // HOW A CHAMBER WHERE NEITHER PARTY REACHES ITS NUMBER IS RESOLVED -- see
@@ -253,6 +254,21 @@ const SECTION_SCOPE = {
   's-calibration': { kind: 'follows', can: ['house', 'senate', 'governor'] },
   's-trend': { kind: 'follows', can: ['house', 'senate', 'governor'] },
   's-walkthrough': { kind: 'pooled' },
+  // The fitted machinery is one fit across chambers (pollster ratings, the
+  // sponsor correction) or is drawn for all three side by side (the error curve),
+  // so none of these narrows to a scope.
+  's-pipeline': { kind: 'fixed', can: ['house', 'senate', 'governor'],
+    label: 'All three chambers',
+    why: 'Every race goes through the same pipeline.' },
+  's-pollsters': { kind: 'fixed', can: ['house', 'senate', 'governor'],
+    label: 'All three chambers',
+    why: 'A pollster is rated once, on its polls of every office.' },
+  's-errorcurve': { kind: 'fixed', can: ['house', 'senate', 'governor'],
+    label: 'All three chambers',
+    why: 'The three curves are drawn side by side so they can be compared.' },
+  's-sponsor': { kind: 'fixed', can: ['house', 'senate', 'governor'],
+    label: 'All three chambers',
+    why: 'The correction is fitted once, on sponsored polls of every office.' },
   's-limits': { kind: 'fixed', can: ['house', 'senate', 'governor'],
     label: 'All three chambers' },
   's-coverage': { kind: 'pooled' },
@@ -1373,6 +1389,57 @@ function renderWalkthrough(s) {
   });
 }
 
+// ---- how it works --------------------------------------------------------
+// The charts are in panels/method.js; the sentences under them are here, built
+// from what each chart returns, so a caption cannot quote a different number
+// from the marks above it.
+function renderPollsters(s) {
+  const f = s.data.forecast, P = f.method.pollsters, L = f.method.live;
+  $('#pollster-def').innerHTML =
+    `<li><b>h</b>, the ${term('house-effect')}: the shop's lean against other polls of the same `
+    + `race, shrunk toward zero by how little history it has: `
+    + `<code>h = raw · τ²/(τ² + se²)</code>, τ = ${P.tau.toFixed(2)}, over `
+    + `${P.n_cells.toLocaleString('en-US')} pollster-race cells.</li>`
+    + `<li><b>weight</b>: its error against results, relative to other polls of the same races, `
+    + `clipped to ×${P.weight_clip[0]}–×${P.weight_clip[1]}. A shop with no history gets `
+    + `×${P.unrated_weight}, its newcomers' measured error.</li>`
+    + `<li><b>s</b>: +1 for a Democratic sponsor, −1 for a Republican one, 0 for none. `
+    + `<a href="#s-sponsor">Sponsored polls</a>.</li>`;
+  const r = pollsterChart($('#pollsters'), f);
+  $('#pollsters-note').innerHTML =
+    `<b>${r.live} of ${r.n}</b> rated shops are polling 2026; `
+    + `<b>${L.rated.toLocaleString('en-US')} of ${L.polls.toLocaleString('en-US')}</b> polls in this `
+    + `forecast (${Math.round(100 * L.rated / L.polls)}%) resolve to a rating. Held out by cycle, `
+    + `removing house effects cuts pooled error <code>${P.rmse.pooled_rmse_raw.toFixed(2)} → `
+    + `${P.rmse.pooled_rmse_debiased.toFixed(2)}</code> points.`;
+}
+
+function renderErrorCurve(s) {
+  const E = s.data.forecast.method.error_curve;
+  const r = errorCurves($('#errorcurve'), s.data.forecast);
+  const h = r.house;
+  $('#errorcurve-note').innerHTML =
+    `Polls taken today are <b>${E.days_left} days</b> out. A House poll then misses by `
+    + `±${h.one.toFixed(1)}; no average gets below ±${h.floor.toFixed(1)}. Correcting each `
+    + `pollster's lean takes its term from ±${h.house_raw.toFixed(1)} to `
+    + `±${h.house_deb.toFixed(1)}. Fitted on ${E.n_polls.toLocaleString('en-US')} polls, `
+    + `${E.cycles[0]}–${E.cycles[1]}, out to ${E.corpus_max_days} days.`;
+}
+
+function renderSponsor(s) {
+  const S = s.data.forecast.method.sponsor, t = S.tiers;
+  const r = sponsorChart($('#sponsor'), s.data.forecast);
+  $('#sponsor-note').innerHTML =
+    `Toward the sponsor in <b>${r.positive} of ${r.n}</b> cycles, net of each pollster's own `
+    + `${term('house-effect')}. Applied as:`
+    + `<ul class="pts"><li><b>+${t.with_lean.bias.toFixed(2)}</b> ± ${t.with_lean.se.toFixed(2)} `
+    + `when the pollster is rated (${t.with_lean.races} races)</li>`
+    + `<li><b>+${t.without_lean.bias.toFixed(2)}</b> ± ${t.without_lean.se.toFixed(2)} when it is `
+    + `not, since nothing else removes its lean (${t.without_lean.races} races)</li></ul>`
+    + `Held-out error <code>${S.held_out_rmse.uncorrected.toFixed(2)} → `
+    + `${S.held_out_rmse.corrected.toFixed(2)}</code> points.`;
+}
+
 function renderLimits(s) {
   limitsPanel($('#limits'), { forecast: s.data.forecast });
 }
@@ -1910,6 +1977,8 @@ function applyAvailability(s) {
   $('#s-scenario').hidden = !s.data.scenarios;
   $('#s-field').hidden = !s.data.forecast.structural;
   $('#s-statewide').hidden = !s.data.forecast.structural?.statewide;
+  for (const id of ['s-pipeline', 's-pollsters', 's-errorcurve', 's-sponsor'])
+    $(`#${id}`).hidden = !s.data.forecast.method;
 }
 
 // Which store keys each panel actually reads. `changed` undefined means the first
@@ -2008,6 +2077,10 @@ function renderAll(s, changed) {
     paint('s-headline', () => renderCaveats(s), 's-headline:caveats');
     paint('s-headline', () => renderEnvironment(s), 's-headline:environment');
     paint('s-diag', () => renderDiagnostics(s));
+    paint('s-pipeline', () => pipeline($('#pipeline'), s.data.forecast));
+    paint('s-pollsters', () => renderPollsters(s));
+    paint('s-errorcurve', () => renderErrorCurve(s));
+    paint('s-sponsor', () => renderSponsor(s));
   }
 
   flush(s.tab);

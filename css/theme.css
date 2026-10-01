@@ -1341,3 +1341,6 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
 /* The tipping bars under the watchlist: the same share, for more races. */
 .wl-tip { margin-top: 1.8rem; max-width: 34rem; }
 .diag-more #diagnostics { margin-top: 1rem; }
+
+/* How it works: the error curves' chamber headings sit under a list, not a chart. */
+#errorcurve .three-col { margin-top: 1.2rem; }

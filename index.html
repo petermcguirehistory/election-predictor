@@ -274,6 +274,59 @@
 
       </div>
 
+      <div class="tabpanel" id="tab-method" data-tab="method" data-tab-label="How it works" role="tabpanel" tabindex="0" hidden>
+
+        <section id="s-pipeline">
+          <h2>The model, end to end</h2>
+          <p class="q">What happens between a poll and a seat count?</p>
+          <ul class="pts">
+            <li><b>Two estimates of each margin</b> — a corrected poll average, and a
+                <span class="term" data-term="prior" tabindex="0" role="button">prior</span> built
+                without polls. Every race has a prior; most have no polls.</li>
+            <li><b>Blended</b> by how much polling there is, then <b>simulated</b> with errors
+                shared nationally, by region and by state, and <b>counted</b>.</li>
+          </ul>
+          <div id="pipeline"></div>
+          <p class="chart-note">Each box links to the section that shows what was fitted for it.</p>
+        </section>
+
+        <section id="s-pollsters">
+          <h2>Pollster ratings</h2>
+          <p class="q">How much does each pollster count, and which way is it corrected?</p>
+          <p class="fml-block"><code>poll′ = margin − h<sub>pollster</sub> − s · sponsor</code></p>
+          <ul class="pts" id="pollster-def"></ul>
+          <div id="pollsters"></div>
+          <p class="chart-note" id="pollsters-note"></p>
+        </section>
+
+        <section id="s-errorcurve">
+          <h2>Polling error</h2>
+          <p class="q">How wrong is a poll, and how much of that can more polls fix?</p>
+          <ul class="pts">
+            <li><b>One poll</b> <code>√(σ_nat² + σ_reg² + V_race(d) + V_house(d) + V_noise(d))</code></li>
+            <li><b>Floor</b> <code>√(σ_nat² + σ_reg² + V_race(d))</code>. No number of polls goes below it.</li>
+            <li><b>d</b>: days between fieldwork and the election. Shaded: past the corpus, extrapolated.</li>
+          </ul>
+          <div id="errorcurve"></div>
+          <p class="chart-note" id="errorcurve-note"></p>
+        </section>
+
+        <section id="s-sponsor">
+          <h2>Sponsored polls</h2>
+          <p class="q">Do polls paid for by a party lean toward it?</p>
+          <div id="sponsor"></div>
+          <p class="chart-note" id="sponsor-note"></p>
+        </section>
+
+        <section id="s-walkthrough">
+          <h2>One race, step by step</h2>
+          <p class="q">How does a single seat get its number?</p>
+          <p>Every race goes through the same seven steps. Pick one and step through.</p>
+          <div id="walkthrough"></div>
+        </section>
+
+      </div>
+
       <div class="tabpanel" id="tab-trust" data-tab="trust" data-tab-label="Can you trust it" role="tabpanel" tabindex="0" hidden>
 
         <section id="s-calibration">
@@ -314,12 +367,6 @@
           <div id="coverage-split"></div>
         </section>
 
-        <section id="s-walkthrough">
-          <h2>One race, step by step</h2>
-          <p class="q">How does a single seat get its number?</p>
-          <p>Every race goes through the same seven steps. Pick one and step through.</p>
-          <div id="walkthrough"></div>
-        </section>
 
         <section id="s-diag">
           <h2>Payload diagnostics</h2>
