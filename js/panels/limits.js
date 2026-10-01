@@ -297,13 +297,41 @@ const ALARM = {
           ['Usual cause', 'The filing data is missing or failed to load.'],
         ]),
   }),
-  fundraising_share_level_out_of_range: () => ({
-    title: "This cycle's fundraising level is outside the fitted cycles",
-    body: 'The fundraising term is centred on each cycle\'s own average, so a level shift '
-      + 'cancels out. A level this far outside the fitted cycles still says the data may be a '
-      + 'different kind of thing.'
+  fundraising_spread_out_of_range: () => ({
+    title: "This cycle's fundraising shares are spread unlike past filings of the same date",
+    body: 'The fundraising term reads how far apart the two parties\' money is in competitive '
+      + 'districts. Filings of the same date in 2022 set the expected spread; this one is more '
+      + 'than three standard errors from it.'
       + facts([
           ['Effect', 'The term is applied anyway.'],
+          ['Usual cause', 'A partial or changed FEC file.'],
+        ]),
+  }),
+  governor_roster_fallback: () => ({
+    title: 'The live list of sitting governors could not be read',
+    body: 'Who holds each governorship comes from Wikipedia\'s maintained list, fetched every '
+      + 'run. This run could not parse it, so the names are from the last copy that parsed.'
+      + facts([
+          ['Effect', 'A governor who changed since that copy is not reflected.'],
+          ['Usual cause', 'Wikipedia unreachable, or the list\'s table changed shape.'],
+        ]),
+  }),
+  governor_changed: n => ({
+    title: `${n} governorship${n === '1' ? '' : 's'} changed hands since the last run`,
+    body: 'A sitting governor named today is not the one named yesterday. Raised once, the day '
+      + 'it appears; the new name is used, and held to the race feed\'s party and the '
+      + 'election record like any succession.'
+      + facts([
+          ['Effect', 'The race panel names the new governor.'],
+        ]),
+  }),
+  internal_without_sponsor: n => ({
+    title: `${n} campaign internal${n === '1' ? '' : 's'} with no sponsor party`,
+    body: 'A campaign\'s own poll is corrected for the lean toward its side, like any sponsored '
+      + 'poll. These say they are internal but not whose, so no correction can be applied.'
+      + facts([
+          ['Effect', 'Weighted as a whole poll, uncorrected.'],
+          ['Usual cause', 'A feed began setting the internal flag without the party.'],
         ]),
   }),
   prior_sigma_no_provenance: () => ({

@@ -1548,7 +1548,10 @@ const RANK = {
   ballot_poll_unresolved: 'checks',
   banned_name_near_miss: 'checks',
   fundraising_absent: 'checks',
-  fundraising_share_level_out_of_range: 'checks',
+  fundraising_spread_out_of_range: 'checks',
+  internal_without_sponsor: 'checks',
+  governor_roster_fallback: 'checks',
+  governor_changed: 'checks',
   prior_sigma_no_provenance: 'checks',
   prior_sigma_stale: 'checks',
   prior_sigma_stale_acknowledgement: 'checks',
@@ -1721,8 +1724,13 @@ const CHIP = {
     + `a pollster flagged for fabricated data \u2014 not removed`,
   fundraising_absent: () => 'Fundraising term not applied \u2014 House priors rest on '
     + 'presidential lean alone',
-  fundraising_share_level_out_of_range: () => "This cycle's fundraising level is outside the "
-    + 'cycles the fundraising term was fitted on',
+  fundraising_spread_out_of_range: () => "This cycle's fundraising shares are spread unlike "
+    + 'past filings of the same date',
+  governor_roster_fallback: () => 'The live list of sitting governors could not be read '
+    + '\u2014 names are from the last good copy',
+  governor_changed: n => `${n} governorship${n === '1' ? '' : 's'} changed hands since the last run`,
+  internal_without_sponsor: n => `${n} campaign internal${n === '1' ? '' : 's'} with no sponsor `
+    + `party \u2014 weighted as a whole poll and corrected for no lean`,
   prior_sigma_no_provenance: () => 'The prior error bar does not record what it was fitted '
     + 'against \u2014 whether it is stale cannot be checked',
   prior_sigma_stale: n => `The prior error bar was fitted against ${n} input${n === '1' ? '' : 's'} `
@@ -1762,6 +1770,11 @@ function renderCaveats(s) {
         + `old lines \u2014 its priors are held at the last export that had the redraw`
       : `${st} was redrawn for 2026, but the presidential source has reverted it to the `
         + `old lines and there is no stored snapshot \u2014 its priors are on 2024 boundaries`);
+  }
+  for (const r of (f.redraw_ratchet && f.redraw_ratchet.released) || []) {
+    bucket.races.push(`${r.state} redrew for 2026, then went back to its old lines: the `
+      + `presidential source has shown them since ${r.since}, and after ${f.redraw_ratchet.hold_days} `
+      + `days the model takes that as the map in use \u2014 its priors are on those lines`);
   }
   for (const r of f.electoral_systems.unresolved) {
     bucket.races.push(`${r}: November ballot not established \u2014 forecast anyway, and named`);

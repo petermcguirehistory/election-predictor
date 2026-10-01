@@ -235,7 +235,15 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
       body += `<div class="dt-cond">Three-way: D <b>${fmtPct(race.win_prob)}</b> \u00b7 R `
         + `<b>${fmtPct(Math.max(0, 1 - race.win_prob - pI))}</b> \u00b7 ${indName} <b>${fmtPct(pI)}</b>. `
         + `Polled at ${race.ind_share.toFixed(0)}% in the questions that include them, and `
-        + `simulated as a third share.</div>`;
+        + `simulated as a third share.`
+        // How far a third candidate lands from their polling is measured on eight
+        // races, which bound its spread only to a factor of three; the run prices
+        // both ends from the same draws (engine/simulate/draw.py:_sensitivity).
+        + ((s => s ? ` How far such a share misses its polling is measured on only eight `
+            + `races: at the smallest miss they allow, ${indName} wins ${fmtPct(s.narrow.p_ind)}; `
+            + `at the largest, ${fmtPct(s.wide.p_ind)}.` : '')(
+            (forecast.three_way_sensitivity || {})[race.race_id]))
+        + `</div>`;
     }
     if (cond != null) {
       body += `<div class="dt-cond">Under the current pins (${condition.n.toLocaleString()} draws):
@@ -526,15 +534,14 @@ export function raceDetail(host, { race, forecast, sims, condition, onPin, onClo
               + (d.se != null ? `, and the average carries a standard error of `
                               + `<b>${d.se.toFixed(1)} points</b> on that basis` : '') + '. '
             : '')
-          + `Recency, a partisan sponsor and the pollster\u2019s rating set the weight, as they `
+          + `Recency and the pollster\u2019s rating set the weight, as they `
           + `do for any other race, and a survey asked two ways counts once. `
-          // THE DISCOUNT IS RELATIVE, so where every poll has a sponsor the
-          // down-weighting cancels; what reaches the estimate there is the
-          // sponsor CORRECTION (engine/calibrate/sponsor_bias.py), inside the
-          // house-effect figure below. Said, because it is the only one working.
+          // A sponsor is CORRECTED, not discounted (engine/calibrate/sponsor_bias.py),
+          // and the correction sits inside the house-effect figure below. Said
+          // where every poll has one, because there it is doing all the work.
           + (ind.polls.every(x => (x.x || '').includes('p'))
-              ? `<b>Every poll here has a partisan sponsor</b>, so down-weighting changes nothing; `
-                + `each is instead corrected by its sponsor\u2019s measured lean, included below. `
+              ? `<b>Every poll here has a partisan sponsor</b>; `
+                + `each is corrected by its sponsor\u2019s measured lean, included below. `
               : '')
           + (d.house_adj != null && Math.abs(d.house_adj) >= 0.05
               ? `House effects shift the average by ${fmtMargin(-d.house_adj)}. ` : '')

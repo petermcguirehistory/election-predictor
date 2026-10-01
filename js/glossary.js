@@ -62,7 +62,7 @@ export const GLOSSARY = {
   },
   'partisan-poll': {
     term: 'partisan',
-    def: 'A poll sponsored by a campaign, party or aligned group. Kept, down-weighted, and corrected for the lean toward its sponsor that such polls show against nonpartisan ones.',
+    def: 'A poll sponsored by a campaign, party or aligned group. Kept, and corrected for the lean toward its sponsor that such polls show against nonpartisan ones. Once corrected it counts like any other poll: measured on past elections, it is then as accurate as a nonpartisan one.',
   },
   'vsup': {
     term: 'uncertainty suppression',

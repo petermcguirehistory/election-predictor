@@ -245,7 +245,7 @@ footer p{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--in
   <div class="kicker">
     <span class="eyebrow">Build Scope &middot; v0.4</span>
     <span class="tag">Greenfield</span>
-    <span class="tag">73 days to polls</span>
+    <span class="tag"><!--n:days_to_election-->33<!--/n--> days to polls</span>
     <span class="tag">Hardened</span>
     <span class="tag">P0 shipped</span>
     <span class="tag">Plan committed</span>
@@ -253,6 +253,17 @@ footer p{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--in
   <h1>2026 Midterm<br>Forecast Engine</h1>
   <p class="thesis">A daily probabilistic forecast for all 506 races on the 2026 ballot, and a dashboard that starts at &ldquo;who controls the House&rdquo; and drills to &ldquo;which three polls moved NE&#8209;02, and what does the majority look like if it flips.&rdquo;</p>
 </header>
+
+<div class="callout">
+  <span class="h">The model today &middot; <!--n:asof-->2026-10-01<!--/n--></span>
+  <p>House <strong><!--n:house_d-->76.4<!--/n-->% D</strong> (median <!--n:house_median-->226<!--/n--> seats),
+  Senate <strong><!--n:senate_d-->61.0<!--/n-->% D</strong> under the <!--n:control_rule-->sit-out<!--/n--> rule,
+  governors median <!--n:governor_median-->21<!--/n--> D; <!--n:races_polled-->140<!--/n--> of 506 races carry a usable poll.
+  This box and the masthead count are rewritten by every run (<code>engine/prose.py</code>). Everything else
+  on this page is the scope as drafted on 22 August 2026 and its dated record of what shipped &mdash; the
+  findings log in README carries everything since, and the dashboard&#8217;s &ldquo;How it works&rdquo; tab
+  draws the model as it now stands.</p>
+</div>
 
 <div class="readout">
   <div><span class="n">Nov 3</span><span class="l">Election Day 2026</span></div>
@@ -895,8 +906,8 @@ POST /runs/{date}/conditional
     <h2>Road to parity</h2>
     <p class="lede">Calibration before coverage. The model&#8217;s biggest defect was not missing signal &mdash; it was overconfidence in the signal it already had. <strong>All seven workstreams are now closed</strong>, and the ordering paid for itself twice: the backtest&#8217;s own headline finding turned out to be an artefact of its stand&#8209;in prior, and one workstream&#8217;s scoped mechanism was rejected on measurement rather than argued about.</p>
     <div class="callout">
-      <span class="h">Where it ended up</span>
-      <p>Per&#8209;district calibration sd(z) <strong>0.85&ndash;1.08</strong> on three replayed elections, against <strong>1.74&ndash;2.03</strong> for the flat sigma the engine shipped with. Four things were tested and <em>cut</em> on evidence: fundraising, candidate quality, demographic covariance and inverse&#8209;variance poll weighting. An end&#8209;to&#8209;end audit pass then closed nine findings and four more it turned up, three of them live defects. Live forecast <strong>House 67.1% D</strong>, <strong>Senate 21.4% D</strong> &mdash; the Senate having moved on a one&#8209;seat holdover correction that is decisive at a threshold of 51.</p>
+      <span class="h">Where it stood on 24 August 2026</span>
+      <p>Per&#8209;district calibration sd(z) <strong>0.85&ndash;1.08</strong> on three replayed elections, against <strong>1.74&ndash;2.03</strong> for the flat sigma the engine shipped with. Four things were tested and <em>cut</em> on evidence: fundraising, candidate quality, demographic covariance and inverse&#8209;variance poll weighting. An end&#8209;to&#8209;end audit pass then closed nine findings and four more it turned up, three of them live defects. The forecast that day: <strong>House 67.1% D</strong>, <strong>Senate 21.4% D</strong> &mdash; the Senate having moved on a one&#8209;seat holdover correction that is decisive at a threshold of 51.</p>
     </div>
 
     <div class="callout">
@@ -938,7 +949,7 @@ POST /runs/{date}/conditional
 
       <div class="phase"><div><span class="pid">D</span></div>
         <div><h4>Fundamentals for the unpolled districts</h4>
-          <p>411 of 435 House districts have no candidate polling; their forecast is a prior wearing a probability. Adds fundraising (FEC data already in hand), candidate quality, and district elasticity.</p>
+          <p><!--n:house_unpolled-->350<!--/n--> of 435 House districts have no candidate polling; their forecast is a prior wearing a probability. Adds fundraising (FEC data already in hand), candidate quality, and district elasticity.</p>
           <div class="gate">DONE, PARTLY BY REJECTION &nbsp;Elasticity beats it and transfers across three cycles. Fundraising and candidate quality were CUT on measurement &mdash; neither transfers between cycles.</div></div></div>
 
       <div class="phase"><div><span class="pid">F</span></div>
