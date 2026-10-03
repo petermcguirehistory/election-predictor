@@ -245,7 +245,7 @@ footer p{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--in
   <div class="kicker">
     <span class="eyebrow">Build Scope &middot; v0.4</span>
     <span class="tag">Greenfield</span>
-    <span class="tag"><!--n:days_to_election-->32<!--/n--> days to polls</span>
+    <span class="tag"><!--n:days_to_election-->31<!--/n--> days to polls</span>
     <span class="tag">Hardened</span>
     <span class="tag">P0 shipped</span>
     <span class="tag">Plan committed</span>
@@ -255,10 +255,10 @@ footer p{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--in
 </header>
 
 <div class="callout">
-  <span class="h">The model today &middot; <!--n:asof-->2026-10-02<!--/n--></span>
-  <p>House <strong><!--n:house_d-->76.3<!--/n-->% D</strong> (median <!--n:house_median-->226<!--/n--> seats),
-  Senate <strong><!--n:senate_d-->61.0<!--/n-->% D</strong> under the <!--n:control_rule-->sit-out<!--/n--> rule,
-  governors median <!--n:governor_median-->21<!--/n--> D; <!--n:races_polled-->143<!--/n--> of 506 races carry a usable poll.
+  <span class="h">The model today &middot; <!--n:asof-->2026-10-03<!--/n--></span>
+  <p>House <strong><!--n:house_d-->76.0<!--/n-->% D</strong> (median <!--n:house_median-->226<!--/n--> seats),
+  Senate <strong><!--n:senate_d-->62.1<!--/n-->% D</strong> under the <!--n:control_rule-->sit-out<!--/n--> rule,
+  governors median <!--n:governor_median-->21<!--/n--> D; <!--n:races_polled-->144<!--/n--> of 506 races carry a usable poll.
   This box and the masthead count are rewritten by every run (<code>engine/prose.py</code>). Everything else
   on this page is the scope as drafted on 22 August 2026 and its dated record of what shipped &mdash; the
   findings log in README carries everything since, and the dashboard&#8217;s &ldquo;How it works&rdquo; tab
@@ -949,7 +949,7 @@ POST /runs/{date}/conditional
 
       <div class="phase"><div><span class="pid">D</span></div>
         <div><h4>Fundamentals for the unpolled districts</h4>
-          <p><!--n:house_unpolled-->347<!--/n--> of 435 House districts have no candidate polling; their forecast is a prior wearing a probability. Adds fundraising (FEC data already in hand), candidate quality, and district elasticity.</p>
+          <p><!--n:house_unpolled-->346<!--/n--> of 435 House districts have no candidate polling; their forecast is a prior wearing a probability. Adds fundraising (FEC data already in hand), candidate quality, and district elasticity.</p>
           <div class="gate">DONE, PARTLY BY REJECTION &nbsp;Elasticity beats it and transfers across three cycles. Fundraising and candidate quality were CUT on measurement &mdash; neither transfers between cycles.</div></div></div>
 
       <div class="phase"><div><span class="pid">F</span></div>
