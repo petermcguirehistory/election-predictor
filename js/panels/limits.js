@@ -260,6 +260,18 @@ const ALARM = {
           ['Usual cause', 'Both race-poll feeds failing, or candidate matching failing wholesale.'],
         ]),
   }),
+  poll_future_dated: n => ({
+    title: `${n} poll${n === '1' ? ' is' : 's are'} dated after today`,
+    body: 'A poll counts from the day its fieldwork ends, so one dated in the future is left out '
+      + 'of its race\'s average until that day, then counts as brand new.'
+      + facts([
+          ['Already repaired', `A VoteHub poll dated after VoteHub published it takes the date of
+            the same release's other questions, or its own start date. These rows had nothing to
+            test against.`],
+          ['Likely cause', 'A typo in the feed\'s date — the month or the year.'],
+          ['Effect', 'The race runs without this poll today, and over-weights it on the day it reappears.'],
+        ]),
+  }),
   race_feed_union_empty: () => ({
     title: 'The second race-poll feed contributed nothing',
     body: 'Race polls come from two feeds, merged with duplicates removed. ElectIndex added no '

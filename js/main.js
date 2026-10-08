@@ -1542,6 +1542,7 @@ const RANK = {
   independent_candidate_races: 'races',
   independent_priced: 'races',
   cross_feed_duplicate: 'data',
+  poll_future_dated: 'data',
   incumbency_feed_uncovered: 'data',
   governor_roster_disagrees: 'data',
   pres_source_margin_mismatch: 'data',
@@ -1712,6 +1713,8 @@ const CHIP = {
   cross_feed_duplicate: n => `${n} poll${n === '1' ? '' : 's'} share a race, fieldwork `
     + `date and a margin, sample size or pollster name with a poll from the other feed \u2014 `
     + `both kept`,
+  poll_future_dated: n => `${n} poll${n === '1' ? ' is' : 's are'} dated after today and left `
+    + `out until then`,
   feed_stopped: (d, f, feed) => `${feed} has published nothing new for ${d} days`,
   feed_not_refetched: (d, f, feed) => `${feed} not downloaded for ${d} days`,
   house_zero_poll_coverage: () => 'House races have no usable polls',
