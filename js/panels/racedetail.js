@@ -44,7 +44,7 @@ const esc = s => String(s).replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const PARTY_COLOUR = { D: C.dem, R: C.rep };
-const PARTY_LABEL = { D: 'Democrat', R: 'Republican', I: 'Independent' };
+const PARTY_LABEL = { D: 'Democrat', R: 'Republican', I: 'Independent', L: 'Libertarian' };
 
 // Who is on the ballot, who among them holds the seat, and -- when none of them
 // does -- who does. The third comes from two different places. For a federal
@@ -67,6 +67,33 @@ function slotMargin(race, m) {
   return `${m > 0 ? pos : neg}+${Math.abs(m).toFixed(1)}`;
 }
 
+// Why a four-name ballot has a two-name forecast. Alaska ranks; the seat is
+// decided in the final round, and that round is what the model estimates.
+function rcvNote(race, on, also) {
+  if (race.electoral_system !== 'rcv' || !also.length) return '';
+  const wi = (race.also_on_ballot || []).filter(c => c.write_in);
+  const pair = on.map(c => esc(c.name)).join(' and ');
+  // The example is the transfer that matters most in THIS race: the party with
+  // the most eliminated candidates. Rates from engine/calibrate/rcv_transfers.py
+  // (R>DR and D>DR), fixed: they are counts of certified 2022 and 2024 ballots.
+  const nR = also.filter(c => c.party === 'R').length;
+  const nD = also.filter(c => c.party === 'D').length;
+  const ind = race.ind_slot === 'D' ? on.find(c => c.party === 'I') : null;
+  const example = nD > nR
+    ? `about half of an eliminated Democrat's voters reached the Democratic finalist, one in
+       nine the Republican, and a third ranked neither${ind ? `. ${esc(ind.name)} takes the
+       Democratic finalist's share here: no Alaska contest yet has eliminated a Democrat with
+       an independent and a Republican left, so how those voters rank the two is assumed,
+       not counted` : ''}`
+    : `about two in three of an eliminated Republican's voters reached the Republican
+       finalist, one in ten the Democrat, and a quarter ranked neither`;
+  return `<p class="dt-holder">Voters rank all ${on.length + also.length} candidates, and the
+    seat is decided in the final round, between the last two left. The forecast is that round:
+    ${pair}. A poll of first choices is carried there by moving each eliminated candidate's
+    voters the way voters moved on Alaska's 2022 and 2024 ballots, where ${example}.${wi.length
+      ? ` Certified write-ins: ${wi.map(c => esc(c.name)).join(', ')}.` : ''}</p>`;
+}
+
 function ballotBlock(race) {
   const on = race.ballot || [];
   if (!on.length) return '';
@@ -75,14 +102,17 @@ function ballotBlock(race) {
   const held = heldBy ? ` (${heldBy})` : '';
   const openSeat = `Open seat${heldBy ? `, ${heldBy}-held` : ''}`;
 
+  // A ranked-choice ballot carries more names than the feed's two slots; the
+  // certified list supplies the rest (`also_on_ballot`), printed candidates only.
+  const also = (race.also_on_ballot || []).filter(c => !c.write_in);
   let html = '<ul class="dt-ballot">';
-  for (const c of on) {
+  for (const c of [...on, ...also]) {
     html += `<li><span class="dt-chip" style="background:${PARTY_COLOUR[c.party] || C.muted}"></span>
       <span class="dt-name">${esc(c.name)}</span>
       <span class="dt-party">${PARTY_LABEL[c.party] || c.party}</span>
       ${c.incumbent ? '<span class="dt-inc">incumbent</span>' : ''}</li>`;
   }
-  html += '</ul>';
+  html += '</ul>' + rcvNote(race, on, also);
 
   if (on.some(c => c.incumbent)) return html;
 

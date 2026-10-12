@@ -256,8 +256,8 @@ footer p{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--in
 
 <div class="callout">
   <span class="h">The model today &middot; <!--n:asof-->2026-10-11<!--/n--></span>
-  <p>House <strong><!--n:house_d-->78.9<!--/n-->% D</strong> (median <!--n:house_median-->228<!--/n--> seats),
-  Senate <strong><!--n:senate_d-->63.4<!--/n-->% D</strong> under the <!--n:control_rule-->sit-out<!--/n--> rule,
+  <p>House <strong><!--n:house_d-->78.7<!--/n-->% D</strong> (median <!--n:house_median-->228<!--/n--> seats),
+  Senate <strong><!--n:senate_d-->64.5<!--/n-->% D</strong> under the <!--n:control_rule-->sit-out<!--/n--> rule,
   governors median <!--n:governor_median-->21<!--/n--> D; <!--n:races_polled-->150<!--/n--> of 506 races carry a usable poll.
   This box and the masthead count are rewritten by every run (<code>engine/prose.py</code>). Everything else
   on this page is the scope as drafted on 22 August 2026 and its dated record of what shipped &mdash; the
@@ -960,7 +960,7 @@ POST /runs/{date}/conditional
       <div class="phase"><div><span class="pid">G</span></div>
         <div><h4>Ranked&#8209;choice and top&#8209;two handling</h4>
           <p>Correctness, not accuracy. AK&#8209;SEN sits in the competitive band today and is decided by sign&#8209;of&#8209;margin, which is simply the wrong rule for it. Also ME, LA, CA, WA.</p>
-          <div class="gate">DONE, one named exception &nbsp;RCV and runoffs turned out to be EQUIVALENT &mdash; the polls used in ME and AK are head&#8209;to&#8209;head finals, which is the RCV final round. Louisiana&#8217;s jungle primary had already ended. California&#8217;s eight same&#8209;party generals are enumerated. WA&#8209;05 is named and forecast anyway.</div></div></div>
+          <div class="gate">DONE, one named exception &nbsp;Runoffs and Maine&#8217;s RCV turned out to be EQUIVALENT &mdash; its polls are head&#8209;to&#8209;head finals, which is the RCV final round. ALASKA WAS NOT, found 2026&#8209;10&#8209;11: its top four put three Republicans on the governor&#8217;s ballot and four names on every ballot, and most of its polls are first rounds. Those are now carried to the final round at transfer rates counted on every 2022 and 2024 Alaska ballot (an eliminated Republican&#8217;s voters: 65% to the Republican finalist, 10% to the Democrat, 25% neither), with parties from the certified candidate list; on the ten surveys that report both rounds the measured rates miss their own final rounds by 2.0 points against 5.3 for counting a party&#8217;s votes whole. Maine&#8217;s governor is plurality, not RCV. Louisiana&#8217;s jungle primary had already ended. California&#8217;s eight same&#8209;party generals are enumerated. WA&#8209;05 is named and forecast anyway.</div></div></div>
 
       </div>
 
