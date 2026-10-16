@@ -11,7 +11,7 @@
 // number the coverage readout draws from the payload; written down here it would
 // only date the file.
 import d3 from '../d3.js';
-import { C, svg, vsupScale, diverging, fmtMargin, hoverable, legendSwatch } from './util.js';
+import { C, svg, vsupScale, diverging, fmtMargin, hoverable, legendSwatch, pollNote } from './util.js';
 
 const MODES = {
   prob:   { label: 'Win probability', domain: 1,
@@ -56,7 +56,7 @@ function describe(M) {
     return `<b>${r.race_id}</b> · ${r.state}<br>` +
       (r.locked ? 'settled — same-party general'
                 : `${M.fmt(r)}<br><span class="tip-dim">±${r.sigma_total?.toFixed(1)} pts · ` +
-                  `${r.n_polls ? `${r.n_polls} poll${r.n_polls > 1 ? 's' : ''}` : 'prior only'}` +
+                  `${pollNote(r)}` +
                   `${r.boundary_stale ? ' · shape is the 2024 line' : ''}</span>` +
                   (r.ind_slot === 'D' ? '<br><span class="tip-dim">no Democrat on the ballot: the '
                     + 'margin is the independent\u2019s, whose win counts for neither party</span>'
@@ -240,7 +240,7 @@ function stateDescribe(M, chamber, cycle) {
     return `<b>${r.race_id}</b> · ${d.state}<br>` +
       (r.locked ? 'settled — same-party general' : `${M.fmt(r)}<br>`) +
       `<span class="tip-dim">σ ${r.sigma_total?.toFixed(1)} · ` +
-      `${r.n_polls ? `${r.n_polls} poll${r.n_polls > 1 ? 's' : ''}` : 'prior only'}` +
+      `${pollNote(r)}` +
       (d.list.length > 1
         ? `<br>${d.list.length} races here — showing the closest, ${r.race_id}`
         : '') + '</span>';

@@ -30,7 +30,7 @@
 // which the payload does not carry, so it stays at the unconditional forecast and
 // the note says so.
 import d3 from '../d3.js';
-import { C, svg, diverging, fmtMargin, fmtPct, showTip, hideTip } from './util.js';
+import { C, svg, diverging, fmtMargin, fmtPct, showTip, hideTip, pollNote } from './util.js';
 
 const esc = s => String(s).replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -350,6 +350,6 @@ function describe(d, { dRank, rRank, split, needs, sit }) {
       : (d.ind != null ? `independent win ${fmtPct(d.ind, 0)} · ` : '')
         + `D win ${fmtPct(d.p, 0)} · median ${fmtMargin(r.median_margin)}`
         + (r.ind_slot === 'D' ? ' (the independent’s)' : '')
-        + `<br><span class="tip-dim">${r.n_polls ? `${r.n_polls} poll${r.n_polls > 1 ? 's' : ''}` : 'prior only'}`
+        + `<br><span class="tip-dim">${pollNote(r)}`
         + ` · held by ${r.incumbent_party === 'UNK' ? 'no recorded party' : r.incumbent_party}</span>`);
 }

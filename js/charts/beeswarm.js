@@ -10,7 +10,7 @@
 // the chart exists to show. The count is on the coverage readout, which reads it
 // off the payload every time the page loads.
 import d3 from '../d3.js';
-import { C, svg, fmtMargin, hoverable, sideOf, SIDE } from './util.js';
+import { C, svg, fmtMargin, hoverable, sideOf, SIDE, pollNote } from './util.js';
 
 export function beeswarm(host, { races, colorBy = 'polls', scopeLabel = 'races', onPick }) {
   host.replaceChildren();
@@ -60,7 +60,7 @@ export function beeswarm(host, { races, colorBy = 'polls', scopeLabel = 'races',
     `<b>${d.r.race_id}</b> · ${d.r.state}<br>median ${fmtMargin(d.r.median_margin)}` +
     (d.r.ind_slot ? ' (D slot: the independent)' : '') + ' · ' +
     `${SIDE[sideOf(d.r, 'D')].short} win ${(d.r.win_prob * 100).toFixed(0)}%<br>` +
-    `<span class="tip-dim">${d.r.n_polls ? `${d.r.n_polls} poll${d.r.n_polls > 1 ? 's' : ''}` : 'prior only'}</span>`);
+    `<span class="tip-dim">${pollNote(d.r)}</span>`);
 
   s.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', m.t).attr('y2', H - m.b)
     .attr('stroke', C.ink).attr('stroke-width', 1).attr('stroke-opacity', 0.5);

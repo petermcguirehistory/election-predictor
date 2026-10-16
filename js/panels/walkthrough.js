@@ -9,7 +9,7 @@
 // and it is added to three shared normals, so a bell drawn over mu +- sigma
 // would be a picture of a distribution this model deliberately does not use.
 import d3 from '../d3.js';
-import { C, svg, fmtMargin, fmtPct, chamberName } from '../charts/util.js';
+import { C, svg, fmtMargin, fmtPct, chamberName, pollNote } from '../charts/util.js';
 
 // The seven steps are the same arithmetic in every chamber; only the noun for
 // the thing being contested changes. It is taken from the race rather than
@@ -134,7 +134,7 @@ export function walkthrough(host, { races, environment, initial, forecast,
   for (const r of pool.slice(0, 60)) {
     const o = document.createElement('option');
     o.value = r.race_id;
-    o.textContent = `${r.race_id} — ${r.n_polls ? `${r.n_polls} poll${r.n_polls > 1 ? 's' : ''}` : 'prior only'}`;
+    o.textContent = `${r.race_id} — ${pollNote(r)}`;
     sel.append(o);
   }
   sel.value = race.race_id;

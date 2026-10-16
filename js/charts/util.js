@@ -22,6 +22,15 @@ export const fmtPct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 export const fmtMargin = m =>
   m == null ? '—' : `${m > 0 ? 'D' : 'R'}+${Math.abs(m).toFixed(1)}`;
 
+// How many polls a race's number rests on, for the hover cards. A seat priced
+// from an independent's own polling carries them as `ind_n_polls`: its `n_polls`
+// counts D-vs-R ballot polls, of which there are none, and reading that alone
+// called Nebraska "prior only" while its estimate was its polls and nothing else.
+export function pollNote(r) {
+  const n = r.n_polls || r.ind_n_polls || 0;
+  return n ? `${n} poll${n > 1 ? 's' : ''}` : 'prior only';
+}
+
 // Diverging ramp, two hues about a neutral grey. Equal steps per arm.
 const rampD = d3.interpolateLab(C.mid, '#8fb6ea');
 const rampR = d3.interpolateLab(C.mid, '#ef8d82');
