@@ -48,6 +48,123 @@
 
       <div class="page-main">
 
+      <!-- Election night. Hidden until data/results.json exists, so on every other
+           day the tab is pruned and the page is what it always was. The returns
+           are fetched every few minutes by engine/ingest/results.py and scored
+           there; this tab only reads the score. -->
+      <div class="tabpanel" id="tab-night" data-tab="night" data-tab-label="Tonight" role="tabpanel" tabindex="0" hidden>
+
+        <section id="s-night" data-toc="Against the forecast" hidden>
+          <h2>Tonight, against the forecast</h2>
+          <p class="q">As the calls come in, which did the model have right, and how surprised is it?</p>
+          <ul class="pts">
+            <li><b>Right</b> — the side the model favoured won. Counted on every call, and separately on
+                the calls it gave either side at least a 2% chance in, which are the only ones it could
+                have got wrong.</li>
+            <li><b>Surprise</b> — <code>Brier = mean (p − outcome)²</code> on the called races, beside
+                <code>mean p(1 − p)</code>, the Brier score the model expected on those same races. A
+                calibrated model is surprised exactly as often as it said it would be.</li>
+            <li><b>Given the calls</b> — each chamber re-read from only the simulations in which every
+                called race went the way it was called: the page's own conditioning, with tonight's
+                results as the pins.</li>
+          </ul>
+          <div id="night"></div>
+        </section>
+
+        <section id="s-night-tug" data-toc="The tug of war" hidden>
+          <h2>The tug of war</h2>
+          <p class="q">Seat by seat, as the calls land: who has what, and where the model expects the rest to fall.</p>
+          <div id="night-tug"></div>
+          <div id="night-upsets"></div>
+        </section>
+
+        <section id="s-night-map" data-toc="The country, tonight" hidden>
+          <h2>The country, tonight</h2>
+          <p class="q">Where the model's favourite has won, where it has not, and where every uncalled seat stands now.</p>
+          <ul class="pts">
+            <li><b>Solid</b> — called, and the model favoured the winner.</li>
+            <li><b>Ringed in gold</b> — called against the model's favourite.</li>
+            <li><b>Shaded</b> — uncalled; the colour is the win probability re-read from tonight's calls
+                and counts, so it moves as results land. Hover for the forecast beside it.</li>
+          </ul>
+          <div id="night-map"></div>
+        </section>
+
+        <section id="s-night-progress" data-toc="How the night is going" hidden>
+          <h2>How the night is going</h2>
+          <p class="q">Against what the model expected this morning: is tonight a typical draw, or a tail, and which way has it been moving?</p>
+          <div id="night-progress"></div>
+        </section>
+
+        <section id="s-night-ladders" data-toc="The record books" hidden>
+          <h2>The record books</h2>
+          <p class="q">How far back do you have to go to find a night like this one?</p>
+          <ul class="pts">
+            <li><b>Seats</b> — the Democratic total, against every past total that was a high-water mark
+                going back from today.</li>
+            <li><b>Midterm gain</b> — tonight’s change from the seats held going in, against every past
+                midterm gain that was a high-water mark; and beside it, the same for either party.</li>
+          </ul>
+          <div id="night-ladders"></div>
+        </section>
+
+        <section id="s-night-predict" hidden>
+          <h2>Predicting the rest</h2>
+          <p class="q">Given what has been called and counted, where does every uncalled race stand now?</p>
+          <p class="fml-block">μ<sub>rest</sub> | obs = μ<sub>rest</sub> + Σ<sub>ro</sub> (Σ<sub>oo</sub> + τ²I)<sup>−1</sup> (obs − μ<sub>o</sub>)</p>
+          <ul class="pts">
+            <li><b>Observed</b> — the counted margin in every race at least 20% in, and the sign alone in
+                every called race without a count. A count's doubt grows with the share still out: about
+                ±1 point when fully counted, ±6 at 87% in, ±18 at 60%, ±31 at 30%.</li>
+            <li><b>Why early counts cannot stampede it</b> — the gap between votes counted first and votes
+                counted last is the same kind of gap everywhere in a state, and much of the country counts
+                the same kind first. That shared early-count lean is a latent term in the conditioning, not
+                independent noise, so three hundred half-counted races cannot together pin the national swing
+                to their early-vote lean. As the counts complete the term vanishes and the count is the
+                result.</li>
+            <li><b>Moved</b> — every uncalled race, through the covariance the model itself put between
+                races: the shared national term, the regional term and the state term. A Florida
+                district running five points left of its forecast moves the rest of Florida most, the
+                South next, and everything a little.</li>
+            <li><b>Why not just keep the matching simulations</b> — that is what holding a call fixed
+                does, and it is exact; but every close call halves the pool, and by mid-evening nothing
+                survives. This conditions the joint as a Gaussian instead, and control is recounted from
+                fresh draws of it.</li>
+          </ul>
+          <div id="night-predict"></div>
+        </section>
+
+        <section id="s-night-swing" hidden>
+          <h2>Where tonight sits on the shared error</h2>
+          <p class="q">Are the races moving together, and which way?</p>
+          <p class="fml-block">shared error ≈ mean over mostly-counted races of (counted margin − forecast margin)</p>
+          <ul class="pts">
+            <li>The model's largest single error term is the one every race shares — the national
+                swing, with a fitted standard deviation it states in points. The mean residual across
+                mostly-counted races is a direct reading of it.</li>
+            <li>Early returns are whichever votes a state counts first, so a race's margin is read only
+                once most of its expected vote is in, and the mean is shown at two thresholds with the
+                count behind each.</li>
+            <li>To see the correlation matrix itself under tonight's calls, hold them fixed with the button
+                above and open <a href="#s-correlation">Shared error</a>.</li>
+          </ul>
+          <div id="night-swing"></div>
+        </section>
+
+        <section id="s-night-calls" hidden>
+          <h2>Every call so far</h2>
+          <p class="q">Most surprising first: the probability the model gave the eventual winner.</p>
+          <div id="night-calls"></div>
+        </section>
+
+        <section id="s-night-counting" hidden>
+          <h2>Still counting</h2>
+          <p class="q">Uncalled races with votes in, closest forecast first.</p>
+          <div id="night-counting"></div>
+        </section>
+
+      </div>
+
       <div class="tabpanel" id="tab-forecast" data-tab="forecast" data-tab-label="Who wins" role="tabpanel" tabindex="0">
 
         <section id="s-headline" data-toc="The forecast">
@@ -390,6 +507,7 @@
 </main>
 
 <aside id="drawer" class="drawer" hidden aria-live="polite"></aside>
+<aside id="night-list" class="drawer wide" hidden aria-live="polite"></aside>
 
 <footer class="wrap">
   Built from the run in <code>runs/</code> by <code>python -m engine.dashboard.build</code>.

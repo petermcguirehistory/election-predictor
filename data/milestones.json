@@ -1,0 +1,509 @@
+{
+ "built": "2026-11-03",
+ "sources": [
+  "Wikipedia, Party divisions of United States Congresses (seats at the seating of each Congress; independents caucusing with Democrats counted in the caucus from 2001)",
+  "Wikipedia, Political party strength in U.S. states (governorships by year)"
+ ],
+ "baseline": {
+  "senate": 47,
+  "house": 215,
+  "governor": 24,
+  "governor_up_d": 18
+ },
+ "ladders": {
+  "senate": {
+   "seats": [
+    {
+     "value": 47,
+     "year": 2024,
+     "label": "after 2024"
+    },
+    {
+     "value": 50,
+     "year": 2022,
+     "label": "after 2022"
+    },
+    {
+     "value": 55,
+     "year": 2012,
+     "label": "after 2012"
+    },
+    {
+     "value": 58,
+     "year": 2008,
+     "label": "after 2008"
+    },
+    {
+     "value": 61,
+     "year": 1976,
+     "label": "after 1976"
+    },
+    {
+     "value": 64,
+     "year": 1966,
+     "label": "after 1966"
+    },
+    {
+     "value": 68,
+     "year": 1964,
+     "label": "after 1964"
+    },
+    {
+     "value": 69,
+     "year": 1938,
+     "label": "after 1938"
+    },
+    {
+     "value": 76,
+     "year": 1936,
+     "label": "after 1936"
+    }
+   ],
+   "gain": [
+    {
+     "value": 2,
+     "year": 2022,
+     "label": "2022"
+    },
+    {
+     "value": 6,
+     "year": 2006,
+     "label": "2006"
+    },
+    {
+     "value": 8,
+     "year": 1986,
+     "label": "1986"
+    },
+    {
+     "value": 15,
+     "year": 1958,
+     "label": "1958"
+    }
+   ],
+   "gain_any": [
+    {
+     "value": 2,
+     "year": 2022,
+     "label": "2022 (D)"
+    },
+    {
+     "value": 3,
+     "year": 2018,
+     "label": "2018 (R)"
+    },
+    {
+     "value": 9,
+     "year": 2014,
+     "label": "2014 (R)"
+    },
+    {
+     "value": 10,
+     "year": 1994,
+     "label": "1994 (R)"
+    },
+    {
+     "value": 15,
+     "year": 1958,
+     "label": "1958 (D)"
+    }
+   ]
+  },
+  "house": {
+   "seats": [
+    {
+     "value": 215,
+     "year": 2024,
+     "label": "after 2024"
+    },
+    {
+     "value": 222,
+     "year": 2020,
+     "label": "after 2020"
+    },
+    {
+     "value": 235,
+     "year": 2018,
+     "label": "after 2018"
+    },
+    {
+     "value": 257,
+     "year": 2008,
+     "label": "after 2008"
+    },
+    {
+     "value": 258,
+     "year": 1992,
+     "label": "after 1992"
+    },
+    {
+     "value": 267,
+     "year": 1990,
+     "label": "after 1990"
+    },
+    {
+     "value": 269,
+     "year": 1982,
+     "label": "after 1982"
+    },
+    {
+     "value": 277,
+     "year": 1978,
+     "label": "after 1978"
+    },
+    {
+     "value": 292,
+     "year": 1976,
+     "label": "after 1976"
+    },
+    {
+     "value": 295,
+     "year": 1964,
+     "label": "after 1964"
+    },
+    {
+     "value": 333,
+     "year": 1936,
+     "label": "after 1936"
+    }
+   ],
+   "gain": [
+    {
+     "value": 41,
+     "year": 2018,
+     "label": "2018"
+    },
+    {
+     "value": 48,
+     "year": 1974,
+     "label": "1974"
+    },
+    {
+     "value": 50,
+     "year": 1958,
+     "label": "1958"
+    },
+    {
+     "value": 54,
+     "year": 1930,
+     "label": "1930"
+    },
+    {
+     "value": 75,
+     "year": 1922,
+     "label": "1922"
+    },
+    {
+     "value": 93,
+     "year": 1874,
+     "label": "1874"
+    }
+   ],
+   "gain_any": [
+    {
+     "value": 9,
+     "year": 2022,
+     "label": "2022 (R)"
+    },
+    {
+     "value": 41,
+     "year": 2018,
+     "label": "2018 (D)"
+    },
+    {
+     "value": 64,
+     "year": 2010,
+     "label": "2010 (R)"
+    },
+    {
+     "value": 80,
+     "year": 1938,
+     "label": "1938 (R)"
+    },
+    {
+     "value": 120,
+     "year": 1894,
+     "label": "1894 (R)"
+    }
+   ]
+  },
+  "governor": {
+   "seats": [
+    {
+     "value": 24,
+     "year": 2026,
+     "label": "2026"
+    },
+    {
+     "value": 26,
+     "year": 2010,
+     "label": "2010"
+    },
+    {
+     "value": 29,
+     "year": 2008,
+     "label": "2008"
+    },
+    {
+     "value": 30,
+     "year": 1992,
+     "label": "1992"
+    },
+    {
+     "value": 34,
+     "year": 1984,
+     "label": "1984"
+    },
+    {
+     "value": 35,
+     "year": 1983,
+     "label": "1983"
+    },
+    {
+     "value": 37,
+     "year": 1976,
+     "label": "1976"
+    },
+    {
+     "value": 39,
+     "year": 1937,
+     "label": "1937"
+    }
+   ],
+   "gain": [
+    {
+     "value": 7,
+     "year": 2018,
+     "label": "2018"
+    },
+    {
+     "value": 11,
+     "year": 1970,
+     "label": "1970"
+    }
+   ]
+  }
+ },
+ "recent": [
+  {
+   "election": 1986,
+   "midterm": true,
+   "president": "Ronald Reagan",
+   "senate_d": 55,
+   "senate_r": 45,
+   "house_d": 258,
+   "house_r": 177,
+   "senate_gain": 8,
+   "house_gain": 5
+  },
+  {
+   "election": 1988,
+   "midterm": false,
+   "president": "George H. W. Bush",
+   "senate_d": 55,
+   "senate_r": 45,
+   "house_d": 260,
+   "house_r": 175,
+   "senate_gain": 0,
+   "house_gain": 2
+  },
+  {
+   "election": 1990,
+   "midterm": true,
+   "president": "George H. W. Bush",
+   "senate_d": 56,
+   "senate_r": 44,
+   "house_d": 267,
+   "house_r": 167,
+   "senate_gain": 1,
+   "house_gain": 7
+  },
+  {
+   "election": 1992,
+   "midterm": false,
+   "president": "Bill Clinton",
+   "senate_d": 57,
+   "senate_r": 43,
+   "house_d": 258,
+   "house_r": 176,
+   "senate_gain": 1,
+   "house_gain": -9
+  },
+  {
+   "election": 1994,
+   "midterm": true,
+   "president": "Bill Clinton",
+   "senate_d": 47,
+   "senate_r": 53,
+   "house_d": 204,
+   "house_r": 230,
+   "senate_gain": -10,
+   "house_gain": -54
+  },
+  {
+   "election": 1996,
+   "midterm": false,
+   "president": "Bill Clinton",
+   "senate_d": 45,
+   "senate_r": 55,
+   "house_d": 206,
+   "house_r": 227,
+   "senate_gain": -2,
+   "house_gain": 2
+  },
+  {
+   "election": 1998,
+   "midterm": true,
+   "president": "Bill Clinton",
+   "senate_d": 45,
+   "senate_r": 55,
+   "house_d": 211,
+   "house_r": 223,
+   "senate_gain": 0,
+   "house_gain": 5
+  },
+  {
+   "election": 2000,
+   "midterm": false,
+   "president": "George W. Bush",
+   "senate_d": 50,
+   "senate_r": 50,
+   "house_d": 212,
+   "house_r": 221,
+   "senate_gain": 5,
+   "house_gain": 1
+  },
+  {
+   "election": 2002,
+   "midterm": true,
+   "president": "George W. Bush",
+   "senate_d": 49,
+   "senate_r": 51,
+   "house_d": 205,
+   "house_r": 229,
+   "senate_gain": -1,
+   "house_gain": -7
+  },
+  {
+   "election": 2004,
+   "midterm": false,
+   "president": "George W. Bush",
+   "senate_d": 45,
+   "senate_r": 55,
+   "house_d": 202,
+   "house_r": 232,
+   "senate_gain": -4,
+   "house_gain": -3
+  },
+  {
+   "election": 2006,
+   "midterm": true,
+   "president": "George W. Bush",
+   "senate_d": 51,
+   "senate_r": 49,
+   "house_d": 233,
+   "house_r": 202,
+   "senate_gain": 6,
+   "house_gain": 31
+  },
+  {
+   "election": 2008,
+   "midterm": false,
+   "president": "Barack Obama",
+   "senate_d": 58,
+   "senate_r": 40,
+   "house_d": 257,
+   "house_r": 178,
+   "senate_gain": 7,
+   "house_gain": 24
+  },
+  {
+   "election": 2010,
+   "midterm": true,
+   "president": "Barack Obama",
+   "senate_d": 53,
+   "senate_r": 47,
+   "house_d": 193,
+   "house_r": 242,
+   "senate_gain": -5,
+   "house_gain": -64
+  },
+  {
+   "election": 2012,
+   "midterm": false,
+   "president": "Barack Obama",
+   "senate_d": 55,
+   "senate_r": 45,
+   "house_d": 201,
+   "house_r": 234,
+   "senate_gain": 2,
+   "house_gain": 8
+  },
+  {
+   "election": 2014,
+   "midterm": true,
+   "president": "Barack Obama",
+   "senate_d": 46,
+   "senate_r": 54,
+   "house_d": 188,
+   "house_r": 247,
+   "senate_gain": -9,
+   "house_gain": -13
+  },
+  {
+   "election": 2016,
+   "midterm": false,
+   "president": "Donald Trump",
+   "senate_d": 48,
+   "senate_r": 50,
+   "house_d": 194,
+   "house_r": 241,
+   "senate_gain": 2,
+   "house_gain": 6
+  },
+  {
+   "election": 2018,
+   "midterm": true,
+   "president": "Donald Trump",
+   "senate_d": 47,
+   "senate_r": 53,
+   "house_d": 235,
+   "house_r": 200,
+   "senate_gain": -1,
+   "house_gain": 41
+  },
+  {
+   "election": 2020,
+   "midterm": false,
+   "president": "Joe Biden",
+   "senate_d": 48,
+   "senate_r": 51,
+   "house_d": 222,
+   "house_r": 213,
+   "senate_gain": 1,
+   "house_gain": -13
+  },
+  {
+   "election": 2022,
+   "midterm": true,
+   "president": "Joe Biden",
+   "senate_d": 50,
+   "senate_r": 49,
+   "house_d": 212,
+   "house_r": 222,
+   "senate_gain": 2,
+   "house_gain": -10
+  },
+  {
+   "election": 2024,
+   "midterm": false,
+   "president": "Donald Trump",
+   "senate_d": 47,
+   "senate_r": 53,
+   "house_d": 215,
+   "house_r": 219,
+   "senate_gain": -3,
+   "house_gain": 3
+  }
+ ]
+}

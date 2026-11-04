@@ -1344,3 +1344,62 @@ table.plain tr.brk td { border-top: 2px solid var(--line); padding-top: .8rem; }
 
 /* How it works: the error curves' chamber headings sit under a list, not a chart. */
 #errorcurve .three-col { margin-top: 1.2rem; }
+
+/* ---- election night (js/panels/night.js) ---------------------------------- */
+.night-lede { font-size: 1.02rem; line-height: 1.5; color: var(--ink-dim); max-width: 72ch; margin: 1.1rem 0 1.2rem; }
+.night-lede b { color: var(--ink); font-weight: 600; }
+.night-cards { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-bottom: 1rem; }
+.night-card .prob { font-size: 2.4rem; }
+.night-card .seats { font-size: .82rem; line-height: 1.45; }
+.night-hold { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin: .4rem 0 1.2rem; }
+.night-hold .chip { margin-left: 0; }
+.night-hold .hint { font-size: .84rem; color: var(--muted); max-width: 60ch; }
+.night-upsets { margin-top: .6rem; }
+.night-swing-table { margin: 0 0 1.2rem; }
+table.night-table td.num { white-space: nowrap; }
+.night-progress-row { margin: .4rem 0 1rem; }
+.night-progress-row .pc-h { margin-bottom: .2rem; }
+.night-progress-cap { font-size: .86rem; color: var(--ink-dim); max-width: 60ch; margin: .2rem 0 0; }
+.night-progress-cap b { color: var(--ink); }
+
+
+/* ---- the record books: vertical ladders ---------------------------------- */
+.night-ladder { margin: .4rem 0 1.8rem; padding-bottom: 1.2rem; border-bottom: 1px solid var(--line-soft); }
+.night-ladder:last-of-type { border-bottom: 0; }
+.night-ladder .pc-h { margin-bottom: .2rem; }
+.night-ladder .night-lede { margin: .2rem 0 .9rem; }
+.ladder-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.4rem 2.2rem; }
+.ladder-title { font: 500 .72rem/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: .5rem; }
+.ladder-rungs { list-style: none; margin: 0; padding: 0; border-left: 3px solid var(--line); }
+.ladder-row { display: grid; grid-template-columns: 4.2rem 1fr auto; align-items: baseline; gap: .6rem;
+              padding: .32rem .7rem .32rem .9rem; border-bottom: 1px solid var(--line-soft); font-size: .9rem; color: var(--muted); }
+.ladder-row .lv { font: 400 1.25rem/1 var(--serif); font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+.ladder-row .ll { color: var(--ink-dim); }
+.ladder-row .ls { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+.ladder-row.passed .lv, .ladder-row.passed .ll { color: var(--ink); }
+.ladder-row.passed .ls { color: #5ed6b8; }
+.ladder-row.passed .ls::before { content: '\2713  '; }
+.ladder-row.next { border-top: 1px dashed var(--faint); }
+.ladder-row.next .lv, .ladder-row.next .ll { color: var(--ink); }
+.ladder-row.next .ls { color: var(--accent); }
+.ladder-row.tonight { background: rgba(94, 214, 184, .13); border-left: 3px solid #5ed6b8; margin-left: -3px; }
+.ladder-row.tonight .lv { color: #5ed6b8; font-size: 1.45rem; }
+.ladder-row.tonight .ll { color: #5ed6b8; font-weight: 600; }
+.ladder-more { padding: .25rem .9rem; font-size: .78rem; color: var(--faint); }
+
+#night-upsets { margin-top: 1.6rem; }
+#night-upsets .wl-h { margin-bottom: .4rem; }
+
+/* ---- upsets strip: equal, readable blocks ---------------------------------- */
+.upset-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 2rem; margin: .4rem 0 1rem; }
+.upset-side-label { font: 500 .72rem/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: .45rem; }
+.upset-side.rep .upset-side-label { text-align: right; }
+.upset-blocks { display: flex; flex-wrap: wrap; gap: 4px; }
+.upset-side.rep .upset-blocks { justify-content: flex-end; }
+.upset-block { width: 72px; height: 42px; border: 0; border-radius: 3px; padding: 4px 4px 3px; cursor: pointer;
+               display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; color: var(--bg); font-family: var(--sans); }
+.upset-block .ub-id { font-size: .8rem; font-weight: 700; line-height: 1; }
+.upset-block .ub-fc { font-size: .66rem; line-height: 1; opacity: .85; white-space: nowrap; }
+.upset-block.called { outline: 2px solid var(--accent); outline-offset: -2px; }
+.upset-block:hover { filter: brightness(1.12); }
+@media (max-width: 640px) { .upset-strip { grid-template-columns: 1fr; } .upset-side.rep .upset-blocks { justify-content: flex-start; } .upset-side.rep .upset-side-label { text-align: left; } }

@@ -26,7 +26,81 @@ const MODES = {
             get: r => (r.median_margin == null || r.lean == null ? null : r.median_margin - r.lean),
             fmt: r => (r.median_margin == null ? '—'
                        : `${(r.median_margin - r.lean >= 0 ? '+' : '')}${(r.median_margin - r.lean).toFixed(1)} vs 2024 lean`) },
+  // Election night. A race carries `night` (main.js attaches it from
+  // data/results.json): called seats take their winner's deep colour, an upset
+  // -- the model favoured the other side -- is ringed, and every uncalled seat
+  // is shaded by its win probability RE-READ from the calls and counts so far
+  // (engine/ingest/results.py, `conditional`), not by the morning's number.
+  night:  { label: 'Tonight', domain: 1, night: true,
+            get: r => {
+              const n = r.night;
+              if (!n) return r.win_prob == null ? null : r.win_prob * 2 - 1;
+              if (n.called) return n.winner === 'D' ? 1 : n.winner === 'R' ? -1 : 0;
+              const p = n.cond_p == null ? r.win_prob : n.cond_p;
+              return p == null ? null : p * 2 - 1;
+            },
+            fmt: r => {
+              const n = r.night;
+              if (!n) return `D win ${(r.win_prob * 100).toFixed(0)}% · no returns yet`;
+              if (n.called) {
+                const who = n.winner === 'D' ? (r.ind_slot === 'D' ? 'independent' : 'Democrat')
+                  : n.winner === 'R' ? (r.ind_slot === 'R' ? 'independent' : 'Republican') : 'third candidate';
+                return `<b>called</b> for the ${who}${n.winner_name ? ` (${n.winner_name})` : ''} · the model gave `
+                  + `${(n.p_winner * 100).toFixed(0)}%${n.upset ? ' · <b>upset</b>' : ''}`;
+              }
+              const p = n.cond_p == null ? r.win_prob : n.cond_p;
+              return `uncalled · D win ${(r.win_prob * 100).toFixed(0)}% → <b>${(p * 100).toFixed(0)}%</b> given tonight`
+                + (n.margin != null && n.eevp >= 20
+                    ? ` · counted ${fmtMargin(n.margin)}, ${n.eevp.toFixed(0)}% in`
+                      + (n.tau != null ? `<br><span class="tip-dim">the count enters the re-read at ±${n.tau.toFixed(1)} points, `
+                                         + `for the ${(100 - n.eevp).toFixed(0)}% still out</span>` : '')
+                    : ` · ${n.eevp.toFixed(0)}% in, too little to read`);
+            } },
 };
+
+const nightFill = r => {
+  const n = r.night;
+  if (n.called) {
+    return n.winner === 'D' ? (r.ind_slot === 'D' ? C.accent : C.demDeep)
+      : n.winner === 'R' ? (r.ind_slot === 'R' ? C.accent : C.repDeep) : C.accent;
+  }
+  if (r.locked) return r.locked_party === 'D' ? C.demDeep : C.repDeep;
+  const p = n.cond_p == null ? r.win_prob : n.cond_p;
+  if (p == null) return C.mid;
+  // The independent's chance, as `indWin` reads it: a three-way race's own
+  // number (the conditional does not re-read it), else the slot they stand in.
+  const indP = r.three_way ? (r.ind_win_prob || 0) : r.ind_slot === 'D' ? p : r.ind_slot === 'R' ? 1 - p : 0;
+  // ONE CHANNEL: the re-read probability, and nothing else. It is the posterior
+  // for the seat, and the count is already inside it, weighted by how much is in
+  // (engine/ingest/results.py, count_tau). Fading the colour by the share counted
+  // as well, which this did for an hour, counted the vote share twice and made a
+  // 99% seat with no votes in look like a toss-up.
+  // An uncalled seat the independent is favoured in ramps toward gold the way a
+  // party seat ramps toward its colour; solid gold is a CALL for the independent.
+  if (indP >= 0.5) return d3.interpolateLab(C.mid, C.accent)(Math.min(1, (indP - 0.5) * 2));
+  return diverging(Math.max(-1, Math.min(1, p * 2 - 1)));
+};
+
+// Upsets ringed, on either hex layout. `path` draws the cell's outline.
+function upsetRings(s, D, path) {
+  s.selectAll('path.upset').data(D.filter(d => d.race && d.race.night && d.race.night.upset)).join('path')
+    .attr('class', 'upset').attr('d', path).attr('fill', 'none')
+    .attr('stroke', C.accent).attr('stroke-width', 2.5).attr('pointer-events', 'none');
+}
+
+function nightLegend(host, extra) {
+  const key = document.createElement('div');
+  key.className = 'keys';
+  key.append(
+    legendSwatch('Called, Democrat', C.demDeep, 'solid: went the way the model favoured'),
+    legendSwatch('Called, Republican', C.repDeep),
+    legendSwatch('Upset', C.accent, 'gold hatch or ring: the model favoured the other side', true),
+    legendSwatch('Uncalled', diverging(0.5), 'the win probability re-read from tonight\u2019s calls and counts: dark at even, full colour at certain; the count is already inside it'),
+    legendSwatch('Independent', C.accent, 'solid when called for them; paler when uncalled and favoured'),
+  );
+  if (extra) key.append(extra);
+  host.append(key);
+}
 
 // An independent standing in a missing party's slot. `win_prob` is the frame's D
 // slot, so where that slot IS the independent their chance is win_prob and a
@@ -42,6 +116,7 @@ const dWin = r => (r.ind_slot === 'D' ? 0 : r.win_prob);
 function paint(M, vsup, showUncertainty) {
   return d => {
     const r = d.race;
+    if (M.night && r.night) return nightFill(r);
     if (r.locked) return r.locked_party === 'D' ? C.demDeep : C.repDeep;
     if ((r.ind_slot || r.three_way) && r.win_prob != null && indWin(r) >= 0.5) return C.accent;
     const v = M.get(r);
@@ -77,6 +152,16 @@ function legend(host, staleCount) {
     legendSwatch('2024 boundaries', C.dim, `${staleCount} districts redrawn for 2026; the forecast is on the new lines, this shape is not`, true),
   );
   host.append(key);
+}
+
+// Upsets on the boundary layouts: a gold hatch over the district, or over every
+// district of the state. The hex layouts ring the cell instead; the legend's
+// swatch is the hatch, which both read as.
+function upsetHatch(s) {
+  s.append('defs').append('pattern').attr('id', 'upsetp').attr('width', 6).attr('height', 6)
+    .attr('patternUnits', 'userSpaceOnUse').attr('patternTransform', 'rotate(45)')
+    .append('line').attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 6)
+    .attr('stroke', C.accent).attr('stroke-width', 2.2);
 }
 
 function staleHatch(s) {
@@ -124,9 +209,17 @@ export function choropleth(host, { boundaries, races, mode = 'prob', showUncerta
   g.selectAll('path.stale').data(D.filter(x => x.race.boundary_stale)).join('path')
     .attr('class', 'stale').attr('d', x => x.d)
     .attr('fill', 'url(#stale)').attr('pointer-events', 'none');
+  if (M.night) {
+    upsetHatch(s);
+    g.selectAll('path.upset').data(D.filter(x => x.race.night && x.race.night.upset)).join('path')
+      .attr('class', 'upset').attr('d', x => x.d)
+      .attr('fill', 'url(#upsetp)').attr('stroke', C.accent).attr('stroke-width', 1.6)
+      .attr('pointer-events', 'none');
+  }
 
   hoverable(cells, describe(M));
-  legend(host, D.filter(x => x.race.boundary_stale).length);
+  if (M.night) nightLegend(host);
+  else legend(host, D.filter(x => x.race.boundary_stale).length);
   return { byId, cells };
 }
 
@@ -169,8 +262,11 @@ export function cartogram(host, { geo, races, mode = 'prob', showUncertainty = t
     .attr('d', d => hexPath(d.x - minX + 2 * size, d.y - minY + 2 * size, size * 0.93))
     .attr('fill', 'url(#stale)').attr('pointer-events', 'none');
 
+  if (M.night) upsetRings(s, D, d => hexPath(d.x - minX + 2 * size, d.y - minY + 2 * size, size * 0.93));
+
   hoverable(cells, describe(M));
-  legend(host, D.filter(d => d.race.boundary_stale).length);
+  if (M.night) nightLegend(host);
+  else legend(host, D.filter(d => d.race.boundary_stale).length);
   return { byId, cells };
 }
 
@@ -301,8 +397,15 @@ export function stateCartogram(host, { geo, races, chamber, cycle = 2026,
     .attr('pointer-events', 'none')
     .text(d => d.state);
 
+  if (M.night) upsetRings(s, D, d => hexPath(...at(d), size * 0.93));
+
   hoverable(cells, stateDescribe(M, chamber, cycle));
-  stateLegend(host, D.filter(d => !d.race).length, chamber, cycle);
+  if (M.night) {
+    nightLegend(host, legendSwatch(`Not up in ${cycle}`, C.faint,
+      `${D.filter(d => !d.race).length} states hold no ${chamber} race this cycle`, true));
+  } else {
+    stateLegend(host, D.filter(d => !d.race).length, chamber, cycle);
+  }
   return { byId: new Map(races.map(r => [r.race_id, r])), cells };
 }
 
@@ -355,7 +458,18 @@ export function stateChoropleth(host, { boundaries, geo, races, chamber, cycle =
     .attr('fill', 'url(#notup)').attr('stroke', 'url(#notup)').attr('stroke-width', 0.7)
     .attr('pointer-events', 'none');
 
+  if (M.night) {
+    upsetHatch(s);
+    g.selectAll('path.upset').data(D.filter(x => x.race && x.race.night && x.race.night.upset)).join('path')
+      .attr('class', 'upset').attr('d', x => x.d)
+      .attr('fill', 'url(#upsetp)').attr('pointer-events', 'none');
+  }
   hoverable(cells, x => stateDescribe(M, chamber, cycle)(x.st));
-  stateLegend(host, cells0.filter(d => !d.race).length, chamber, cycle);
+  if (M.night) {
+    nightLegend(host, legendSwatch(`Not up in ${cycle}`, C.faint,
+      `${cells0.filter(d => !d.race).length} states hold no ${chamber} race this cycle`, true));
+  } else {
+    stateLegend(host, cells0.filter(d => !d.race).length, chamber, cycle);
+  }
   return { byId: new Map(races.map(r => [r.race_id, r])), cells };
 }

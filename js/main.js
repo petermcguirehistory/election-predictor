@@ -32,6 +32,7 @@ import { walkthrough } from './panels/walkthrough.js';
 import { pipeline, pollsterChart, errorCurves, sponsorChart } from './panels/method.js';
 import { watchlist } from './panels/watchlist.js';
 import { flipsPanel } from './panels/flips.js';
+import { nightHeadline, nightTug, nightUpsets, nightProgress, nightLadders, nightPredict, nightSwing, nightCalls, nightCounting } from './panels/night.js';
 import { movementPanel } from './panels/movement.js';
 import { environmentStrip, houseLeverage } from './panels/environment.js';
 import { sparkline } from './charts/sparkline.js';
@@ -42,7 +43,7 @@ import { mountGlossary, auditTerms, term } from './glossary.js';
 
 const store = {
   data: null, pins: [], scope: 'all', mapMode: 'prob', vsup: true, ind: 'sit-out',
-  detail: null, playing: false, layout: 'hex', tab: 'forecast',
+  detail: null, playing: false, layout: 'geo', tab: 'forecast',
   _subs: new Set(),
   subscribe(fn) { this._subs.add(fn); return () => this._subs.delete(fn); },
   // `changed` is the set of keys this update actually moved, or undefined on the
@@ -77,7 +78,9 @@ const HASH_KEYS = ['tab', 'scope', 'layout', 'mapMode', 'vsup', 'ind'];
 // finding 40, in the one place it cannot be seen without a link to compare.
 const TAB_MOVED = { map: 'seats', races: 'seats', flips: 'seats', drivers: 'whatif',
                     record: 'trust' };
-const HASH_DEFAULT = { tab: 'forecast', scope: 'all', layout: 'hex', mapMode: 'prob', vsup: true,
+// `layout` MUST match the store's initial value above, for the same reason as
+// `scope`. Boundaries by default since election night: the shape people know.
+const HASH_DEFAULT = { tab: 'forecast', scope: 'all', layout: 'geo', mapMode: 'prob', vsup: true,
                        ind: 'sit-out' };
 // HOW A CHAMBER WHERE NEITHER PARTY REACHES ITS NUMBER IS RESOLVED -- see
 // config.CONTROL_RULES. `sit-out` (the default, and the engine's headline): the
@@ -1080,9 +1083,12 @@ function renderMap(s) {
   $('#s-map').querySelector('h2').textContent =
     s.scope === 'all' ? 'The country, three ways' : MAP_TITLE[s.scope];
   const ctl = $('#map-controls'); ctl.replaceChildren();
+  // Tonight's mode exists only while the returns are being written.
+  const races = s.results ? withNight(forecast.races, s.results) : forecast.races;
+  const modes = Object.entries(cartogramModes).filter(([k]) => k !== 'night' || s.results);
   toggle(ctl, [['hex', 'Cartogram'], ['geo', 'Boundaries']], s.layout,
          v => store.set({ layout: v }), 'Map layout');
-  toggle(ctl, Object.entries(cartogramModes).map(([k, m]) => [k, m.label]), s.mapMode,
+  toggle(ctl, modes.map(([k, m]) => [k, m.label]), s.mapMode,
          v => store.set({ mapMode: v }), 'Shade by');
   const vb = el('button', s.vsup ? 'on chip' : 'chip', 'Suppress uncertain colour');
   vb.setAttribute('aria-pressed', String(s.vsup));
@@ -1102,12 +1108,12 @@ function renderMap(s) {
 
   perChamber($('#cartogram'), chambers, (host, ch) => {
     const common = {
-      races: forecast.races, mode: s.mapMode, showUncertainty: s.vsup,
+      races, mode: s.mapMode, showUncertainty: s.vsup,
       cycle: forecast.meta.asof.slice(0, 4), onPick: r => open(r),
     };
     let out;
     if (ch === 'house') {
-      const houses = forecast.races.filter(r => r.chamber === 'house');
+      const houses = races.filter(r => r.chamber === 'house');
       out = geo === 'geo'
         ? choropleth(host, { ...common, races: houses, boundaries: s.data.boundaries })
         : cartogram(host, { ...common, races: houses, geo: s.data.geo });
@@ -1216,6 +1222,123 @@ function renderDetail(s) {
 }
 
 function open(race) { store.set({ detail: race }); }
+
+// ---- election night -----------------------------------------------------
+// data/results.json is written every few minutes by engine/ingest/results.py and
+// is absent on any other day; the tab stays pruned without it. Fetched past the
+// cache on purpose -- it is the one file on the site that changes under a reader.
+async function loadResults() {
+  try {
+    const r = await fetch(`data/results.json?t=${Date.now()}`, { cache: 'no-store' });
+    return r.ok ? await r.json() : null;
+  } catch { return null; }
+}
+
+// Every 30 s, against a loop that writes every 60: a new payload is on screen
+// within a minute and a half of the feed moving, with no reload.
+function watchResults() {
+  setInterval(async () => {
+    const r = await loadResults();
+    if (r && (!store.results || r.fetched_at !== store.results.fetched_at)) store.set({ results: r });
+  }, 30_000);
+}
+
+function renderNight(s) {
+  if (!s.results) return;
+  nightHeadline($('#night'), {
+    results: s.results, forecast: s.data.forecast, sims: s.data.sims, viability: s.data.pins,
+    rule: s.ind, pins: s.pins,
+    onHold: pins => store.set({ pins }),
+    onPick: r => open(r),
+  });
+}
+function renderNightTug(s) {
+  if (!s.results) return;
+  nightTug($('#night-tug'), { results: s.results, forecast: s.data.forecast, sims: s.data.sims, onPick: r => open(r) });
+  nightUpsets($('#night-upsets'), { results: s.results, forecast: s.data.forecast, onPick: r => open(r) });
+}
+
+function renderNightProgress(s) {
+  if (!s.results) return;
+  nightProgress($('#night-progress'), { results: s.results, forecast: s.data.forecast, sims: s.data.sims });
+}
+
+function renderNightLadders(s) {
+  if (!s.results) return;
+  nightLadders($('#night-ladders'), { results: s.results, forecast: s.data.forecast, milestones: s.data.milestones });
+}
+
+function renderNightPredict(s) {
+  if (!s.results) return;
+  nightPredict($('#night-predict'), {
+    results: s.results, forecast: s.data.forecast, onPick: r => open(r),
+    onMap: () => document.getElementById('s-night-map').scrollIntoView({ block: 'start' }),
+  });
+}
+
+// The country on the Tonight tab: the same cartograms as Which seats, always in
+// tonight's shade, every chamber in scope. No uncertainty suppression and no
+// replay here -- the colour IS the re-read, and the replay is of the morning's
+// draws.
+function renderNightMap(s) {
+  if (!s.results) return;
+  const { forecast } = s.data;
+  const races = withNight(forecast.races, s.results);
+  const chambers = chambersFor(s.scope, forecast.meta.chambers);
+  const geo = s.layout === 'geo' && s.data.boundaries ? 'geo' : 'hex';
+  const host0 = $('#night-map');
+  host0.replaceChildren();
+  const ctl = el('div', 'night-hold');
+  toggle(ctl, [['geo', 'Boundaries'], ['hex', 'Cartogram']], s.layout,
+         v => store.set({ layout: v }), 'Map layout');
+  host0.append(ctl);
+  const maps = el('div');
+  host0.append(maps);
+  perChamber(maps, chambers, (host, ch) => {
+    const common = { races, mode: 'night', showUncertainty: false,
+                     cycle: forecast.meta.asof.slice(0, 4), onPick: r => open(r) };
+    if (ch === 'house') {
+      const houses = races.filter(r => r.chamber === 'house');
+      if (geo === 'geo') choropleth(host, { ...common, races: houses, boundaries: s.data.boundaries });
+      else cartogram(host, { ...common, races: houses, geo: s.data.geo });
+    } else if (geo === 'geo') {
+      stateChoropleth(host, { ...common, chamber: ch, boundaries: s.data.boundaries, geo: s.data.geo });
+    } else {
+      stateCartogram(host, { ...common, chamber: ch, geo: s.data.geo });
+    }
+  });
+}
+
+// The map's races, with tonight attached: what was called, who won, whether
+// the model had it, and the win probability re-read from the returns.
+function withNight(races, results) {
+  const byId = new Map(results.races.map(r => [r.race_id, r]));
+  const cond = (results.conditional && results.conditional.available && results.conditional.races) || {};
+  return races.map(r => {
+    const n = byId.get(r.race_id);
+    if (!n) return r;
+    const c = cond[r.race_id];
+    return { ...r, night: {
+      called: n.called, winner: n.winner, winner_name: n.winner_name, upset: n.upset,
+      p_winner: n.p_winner, eevp: n.eevp, margin: n.margin, leader: n.leader,
+      cond_p: c ? c.p : null, cond_margin: c ? c.margin : null, tau: c ? c.tau : null,
+    } };
+  });
+}
+
+function renderNightSwing(s) {
+  if (!s.results) return;
+  nightSwing($('#night-swing'), { results: s.results, forecast: s.data.forecast,
+                                  sigma: s.data.forecast.sigma, onPick: r => open(r) });
+}
+function renderNightCalls(s) {
+  if (!s.results) return;
+  nightCalls($('#night-calls'), { results: s.results, forecast: s.data.forecast, onPick: r => open(r) });
+}
+function renderNightCounting(s) {
+  if (!s.results) return;
+  nightCounting($('#night-counting'), { results: s.results, forecast: s.data.forecast, onPick: r => open(r) });
+}
 
 // ---- conditioning -------------------------------------------------------
 
@@ -2018,6 +2141,17 @@ function renderAll(s, changed) {
   // -- a label is cheap, and a reader arriving on a tab must never find a heading
   // still advertising the scope it had two changes ago.
   if (t('pins')) renderPins(s);
+  if (t('results', 'pins', 'ind', 'scope', 'layout')) {
+    paint('s-night', () => renderNight(s));
+    paint('s-night-tug', () => renderNightTug(s));
+    paint('s-night-progress', () => renderNightProgress(s));
+    paint('s-night-ladders', () => renderNightLadders(s));
+    paint('s-night-map', () => renderNightMap(s));
+    paint('s-night-predict', () => renderNightPredict(s));
+    paint('s-night-swing', () => renderNightSwing(s));
+    paint('s-night-calls', () => renderNightCalls(s));
+    paint('s-night-counting', () => renderNightCounting(s));
+  }
   if (t('scope')) renderScopeControl(s);
   if (t('ind')) renderIndControl(s);
   if (t('scope')) renderScopeTags(s);
@@ -2085,7 +2219,7 @@ function renderAll(s, changed) {
     paint('s-walkthrough', () => renderWalkthrough(s));
     paint('s-coverage', () => renderCoverage(s));
   }
-  if (t('scope', 'layout', 'mapMode', 'vsup', 'playing')) paint('s-map', () => renderMap(s));
+  if (t('scope', 'layout', 'mapMode', 'vsup', 'playing', 'results')) paint('s-map', () => renderMap(s));
 
   if (t('ind')) paint('s-scenario', () => renderScenario(s));
   if (!changed) {
@@ -2115,6 +2249,24 @@ async function boot() {
     data.boundaries = await fetch('data/geo/cd-boundaries.json')
       .then(r => (r.ok ? r.json() : null)).catch(() => null);
     store.data = data;
+    // Election night: the returns, if the engine is writing them. The tab's
+    // sections are unhidden here, before prune(), and the page opens on it
+    // once anything has been called -- the hash still names any other tab.
+    store.results = await loadResults();
+    if (store.results) {
+      // The historical ladders are static; absent, that one section stays hidden.
+      store.data.milestones = await fetch('data/milestones.json').then(r => (r.ok ? r.json() : null)).catch(() => null);
+      for (const id of ['s-night', 's-night-tug', 's-night-progress', 's-night-map', 's-night-predict',
+                        's-night-swing', 's-night-calls', 's-night-counting',
+                        ...(store.data.milestones ? ['s-night-ladders'] : [])]) {
+        document.getElementById(id).hidden = false;
+      }
+      if (store.results.n && store.results.n.called > 0) {
+        HASH_DEFAULT.tab = 'night';
+        HASH_DEFAULT.mapMode = 'night';
+      }
+      watchResults();
+    }
     mountScopeSlots();
     applyAvailability(store);
     mountGlossary();
