@@ -438,6 +438,16 @@ table.races th[data-sort]::after { content:' ▲'; color:var(--accent); }
 table.races th[data-sort=desc]::after { content:' ▼'; }
 table.races td { padding:.5rem .7rem; border-bottom:1px solid var(--line-soft); color:var(--ink-dim); }
 table.races td.num { text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono); }
+/* What the ballots say: the verdict chip. A recount question is the one state a
+   reader must not take for a probability, so it is the only one in the accent. */
+.night-table .vd { display:inline-block; font-size:.72rem; letter-spacing:.04em; text-transform:uppercase;
+  padding:.1rem .4rem; border:1px solid var(--line); border-radius:3px; color:var(--muted); white-space:nowrap; }
+.night-table .vd.open { color:var(--ink); }
+.night-table td:first-child { white-space:nowrap; }
+/* Nine columns: at the page's full width the verdict ran 67px past the edge on
+   the standard cell padding, so this table alone sits tighter. */
+#night-counting table.races th, #night-counting table.races td { padding-left:.4rem; padding-right:.4rem; }
+.night-table .vd.recount { color:var(--accent); border-color:var(--accent); }
 table.races tbody tr { cursor:pointer; }
 table.races tbody tr:hover { background:var(--surface); }
 table.races tbody tr:focus { outline:1px solid var(--accent); outline-offset:-1px; }

@@ -84,8 +84,10 @@
           <ul class="pts">
             <li><b>Solid</b> — called, and the model favoured the winner.</li>
             <li><b>Ringed in gold</b> — called against the model's favourite.</li>
-            <li><b>Shaded</b> — uncalled; the colour is the win probability re-read from tonight's calls
-                and counts, so it moves as results land. Hover for the forecast beside it.</li>
+            <li><b>Shaded</b> — uncalled; the colour is the win probability re-read from tonight's
+                returns, so it moves as results land: from the ballots themselves once 80% of a race is in
+                (<a href="#s-night-counting">What the ballots say</a>), from the conditioning below before that.
+                Hover for the forecast beside it.</li>
           </ul>
           <div id="night-map"></div>
         </section>
@@ -115,7 +117,12 @@
           <ul class="pts">
             <li><b>Observed</b> — the counted margin in every race at least 20% in, and the sign alone in
                 every called race without a count. A count's doubt grows with the share still out: about
-                ±1 point when fully counted, ±6 at 87% in, ±18 at 60%, ±31 at 30%.</li>
+                a quarter of a point when fully counted, ±3 at 93% in, ±6 at 87%, ±18 at 60%, ±31 at 30%.</li>
+            <li><b>Where it stops being the right tool</b> — the last few percent of a count. A margin at 97%
+                in is not a measurement with an error bar, it is a lead in ballots, and the prior this
+                conditioning still blends it with can pull a lead of under a point across zero. Chamber
+                totals come from here; a mostly-counted race is read from its own ballots instead, in
+                <a href="#s-night-counting">What the ballots say</a>.</li>
             <li><b>Why early counts cannot stampede it</b> — the gap between votes counted first and votes
                 counted last is the same kind of gap everywhere in a state, and much of the country counts
                 the same kind first. That shared early-count lean is a latent term in the conditioning, not
@@ -157,9 +164,24 @@
           <div id="night-calls"></div>
         </section>
 
-        <section id="s-night-counting" hidden>
-          <h2>Still counting</h2>
-          <p class="q">Uncalled races with votes in, closest forecast first.</p>
+        <section id="s-night-counting" data-toc="What the ballots say" hidden>
+          <h2>What the ballots say</h2>
+          <p class="q">For every uncalled race with a count: how many ballots are left, what they would have to run, and whether that is plausible.</p>
+          <p class="fml-block">final lead = counted lead + ballots still out × their lean</p>
+          <ul class="pts">
+            <li><b>Still out</b> — AP's remainder, corrected by how far its expected totals have missed tonight
+                at the same stage, measured from the races that have finished: the final count has landed
+                below the expected total in most of them. Once AP pins a race at 99% the remainder is a
+                placeholder, and the reading assumes 0.3–2% of the count is still to come in provisionals,
+                cures and overseas ballots.</li>
+            <li><b>Needs</b> — the margin the trailing side must win the remainder by. The late ballots'
+                lean tonight is measured for its spread about the running margin, not its direction: the
+                lean of the ballots counted so far barely predicts the lean of the rest.</li>
+            <li><b>Recount range</b> — a lead under half a percent of a nearly complete count is a question
+                of provisionals and recounts, and is labelled one rather than priced.</li>
+            <li><b>Now</b> — from the ballots once 80% of the vote is in; from the conditioning above before
+                that. The map, the headline and the tug of war use the same number.</li>
+          </ul>
           <div id="night-counting"></div>
         </section>
 

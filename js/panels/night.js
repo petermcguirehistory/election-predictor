@@ -16,7 +16,9 @@
 //                  the counted margin minus the forecast margin, averaged across
 //                  mostly-counted races, is a direct reading of it.
 //   nightCalls     every call, most surprising first.
-//   nightCounting  uncalled races with votes in, closest forecast first.
+//   nightCounting  what the ballots say: every uncalled race with votes in, its
+//                  lead in ballots, the pool still out and what it would have to
+//                  run (results.py `ballots`); recount questions first.
 //
 // EARLY RETURNS ARE NOT A SAMPLE. The first votes counted in a state are whichever
 // kind that state counts first -- mail in some, election-day in others -- and
@@ -231,7 +233,7 @@ function tugRows(results, forecast, sims) {
         L[side + key + (x.upset ? 'Up' : '')].push(x.race_id);
       } else {
         L.open.push(x.race_id);
-        const pD = x.cond_p == null ? x.forecast_p : x.cond_p;
+        const pD = x.live_p ?? x.cond_p ?? x.forecast_p;
         (pD >= 0.5 ? L.expD : L.expR).push(x.race_id);
         const fav = pD >= 0.5 ? sideOf(race, 'D') : sideOf(race, 'R');
         if (fav === held || (held !== 'D' && held !== 'R')) continue;
@@ -951,39 +953,81 @@ export function nightCalls(host, { results, forecast, onPick }) {
 export function nightCounting(host, { results, forecast, onPick }) {
   host.replaceChildren();
   const byId = new Map(forecast.races.map(r => [r.race_id, r]));
-  const rows = results.races.filter(r => !r.called && r.total_votes > 0)
-    .sort((a, b) => Math.abs(a.forecast_p - 0.5) - Math.abs(b.forecast_p - 0.5));
+  const b = results.ballots;
+  const rows = results.races.filter(r => !r.called && r.total_votes > 0);
   if (!rows.length) {
     host.append(el('p', 'chart-note', 'No uncalled race has votes in yet.'));
     return;
   }
-  const close = rows.filter(r => r.forecast_p > 0.05 && r.forecast_p < 0.95);
-  const shown = close.length ? close : rows.slice(0, 40);
+  if (!b || !b.available) {
+    host.append(el('p', 'chart-note', `The ballot reading is not available: ${b && b.why ? b.why : 'the payload carries none'}.`));
+  }
+  // Recount questions first, then the open races closest to even, then the
+  // ones the count has settled; races the ballots cannot read yet sit with the
+  // open ones, by the conditional's number.
+  const rank = { recount: 0, open: 1, decided: 2 };
+  const pNow = r => r.live_p ?? r.cond_p ?? r.forecast_p;
+  rows.sort((a, c) => (rank[a.verdict] ?? 1) - (rank[c.verdict] ?? 1)
+                      || Math.abs(pNow(a) - 0.5) - Math.abs(pNow(c) - 0.5));
   const body = table(host, [{ label: 'Race' }, { label: 'Forecast', num: true }, { label: 'Counted', num: true },
-                            { label: 'In', num: true }, { label: 'Leading' }]);
-  for (const r of shown) {
+                            { label: 'Lead', num: true }, { label: 'Still out', num: true }, { label: 'Needs', num: true },
+                            { label: 'Late ballots', num: true }, { label: 'Now', num: true }, { label: 'Verdict' }]);
+  const n = v => (v == null ? '—' : Math.abs(v).toLocaleString());
+  for (const r of rows) {
     const race = byId.get(r.race_id);
     const tr = body.insertRow();
     tr.tabIndex = 0;
     tr.onclick = () => onPick && onPick(race);
     tr.append(el('td', null, r.race_id + (r.rcv ? ' ·RCV' : '')));
+    const dside = SIDE[sideOf(race, 'D')].short;
     const f = el('td', 'num');
-    f.innerHTML = `${SIDE[sideOf(race, 'D')].short} ${fmtPct(r.forecast_p, 0)} <span class="tip-dim">${fmtMargin(r.forecast_margin)}</span>`;
+    f.innerHTML = `${dside} ${fmtPct(r.forecast_p, 0)} <span class="tip-dim">${fmtMargin(r.forecast_margin)}</span>`;
     tr.append(f);
     const c = el('td', 'num');
     c.innerHTML = r.margin == null ? '—'
-      : r.eevp < results.eevp_min ? `<span class="tip-dim">${fmtMargin(r.margin)}</span>` : `<b>${fmtMargin(r.margin)}</b>`;
+      : `${r.eevp < results.eevp_min ? `<span class="tip-dim">${fmtMargin(r.margin)}</span>` : `<b>${fmtMargin(r.margin)}</b>`}`
+        + ` <span class="tip-dim">${r.eevp.toFixed(0)}% in</span>`;
     tr.append(c);
-    tr.append(el('td', 'num', `${r.eevp.toFixed(0)}%`));
-    const l = el('td');
-    l.innerHTML = r.leader ? `<span style="color:${r.leader === 'D' ? C.dem : r.leader === 'R' ? C.rep : C.accent}">`
-      + `${esc(r.leader === 'OTHER' ? 'third' : SIDE[sideOf(race, r.leader)].short)}</span>` : '';
-    tr.append(l);
+    const fromBallots = r.live_src === 'ballots' && r.live_p != null;
+    const lead = el('td', 'num');
+    lead.innerHTML = r.gap == null ? '—'
+      : `<span style="color:${r.gap > 0 ? C.dem : r.gap < 0 ? C.rep : C.muted}">${r.gap > 0 ? 'D' : r.gap < 0 ? 'R' : ''}</span> ${n(r.gap)}`;
+    tr.append(lead);
+    const out = el('td', 'num');
+    out.innerHTML = r.pool == null ? '—'
+      : r.capped ? `<span class="tip-dim">AP says done</span>` : n(r.pool);
+    tr.append(out);
+    const need = el('td', 'num');
+    need.innerHTML = r.to_tie == null || r.capped ? '<span class="tip-dim">—</span>'
+      : Math.abs(r.to_tie) > 100 ? `<span class="tip-dim">more than there is</span>` : fmtMargin(r.to_tie);
+    tr.append(need);
+    const late = el('td', 'num');
+    late.innerHTML = r.late_lean == null ? '<span class="tip-dim">—</span>' : fmtMargin(r.late_lean);
+    tr.append(late);
+    const now = el('td', 'num');
+    const p = pNow(r);
+    now.innerHTML = p == null ? '—'
+      : `<b>${dside} ${fmtPct(p, 0)}</b> <span class="tip-dim">${fromBallots ? 'ballots' : 'conditional'}</span>`;
+    tr.append(now);
+    const v = el('td');
+    const leader = r.gap > 0 ? SIDE[sideOf(race, 'D')].short : r.gap < 0 ? SIDE[sideOf(race, 'R')].short : '';
+    v.innerHTML = !r.verdict ? '<span class="tip-dim">no reading</span>'
+      : !fromBallots ? `<span class="vd">too early</span>`
+      : r.verdict === 'recount' ? `<span class="vd recount">recount</span>`
+      : r.verdict === 'decided' ? `<span class="vd">decided</span> <span class="tip-dim">${esc(leader)}</span>`
+      : `<span class="vd open">open</span>`;
+    tr.append(v);
   }
   const note = el('p', 'chart-note');
-  note.innerHTML = `${shown.length} of ${rows.length} uncalled races with votes in — those the model gave `
-    + `either side at least a 5% chance, closest first. A counted margin is faint until ${results.eevp_min}% of the `
-    + `expected vote is in. Ranked-choice races (·RCV) show first choices until the tabulation runs.`;
+  note.innerHTML = `${rows.length} uncalled races with votes in. <b>Lead</b> is in ballots; <b>still out</b> is AP's `
+    + `remainder before the correction described above; <b>needs</b> is what the rest would have to run for the `
+    + `trailer to tie. <b>Late ballots</b> is the lean of those counted after 70% of the vote was in`
+    + (b && b.available ? `: across the ${b.late_n} finished races tonight the ballots after 93% in ran `
+      + `${b.late_sd.toFixed(0)} points either side of the running margin, and the earlier late lean predicted `
+      + `them with a correlation of ${b.persistence == null ? '—' : b.persistence.toFixed(2)}, so it widens the `
+      + `reading more than it moves it. A lead under ${(b.recount * 100).toFixed(1)}% of the count on a nearly `
+      + `complete count is a recount question; the reading is from the ballots once ${b.firm.toFixed(0)}% is in.` : '.')
+    + ` Ranked-choice races (·RCV) show first choices until the tabulation runs.`;
   host.append(note);
 }
 
@@ -1135,7 +1179,7 @@ export function upsetCandidates(results, forecast) {
       else if ((r.winner === 'D') === favD) continue;                  // favourite won
       else { pUp = 1; side = r.winner; status = 'called'; }
     } else {
-      const pNow = r.cond_p == null ? r.forecast_p : r.cond_p;
+      const pNow = r.live_p ?? r.cond_p ?? r.forecast_p;
       pUp = favD ? 1 - pNow : pNow;
       side = favD ? 'R' : 'D';
       status = pUp >= 0.5 ? 'leading' : 'possible';
@@ -1255,7 +1299,7 @@ export function raceList({ title, ids, results, forecast, onPick }) {
   const res = new Map(results.races.map(r => [r.race_id, r]));
   const rows = ids.map(id => ({ r: res.get(id), f: byId.get(id) })).filter(x => x.r && x.f);
   // Closest to even first: the ones worth a look.
-  rows.sort((a, b) => Math.abs((a.r.cond_p ?? a.r.forecast_p) - 0.5) - Math.abs((b.r.cond_p ?? b.r.forecast_p) - 0.5));
+  rows.sort((a, b) => Math.abs((a.r.live_p ?? a.r.cond_p ?? a.r.forecast_p) - 0.5) - Math.abs((b.r.live_p ?? b.r.cond_p ?? b.r.forecast_p) - 0.5));
   host.replaceChildren();
   const inner = el('div', 'drawer-inner');
   const close = el('button', 'drawer-close', '×');
@@ -1277,8 +1321,8 @@ export function raceList({ title, ids, results, forecast, onPick }) {
     const dside = SIDE[sideOf(f, 'D')].short;
     const fc = el('td', 'num'); fc.innerHTML = `${dside} ${fmtPct(r.forecast_p, 0)} <span class="tip-dim">${fmtMargin(r.forecast_margin)}</span>`; tr.append(fc);
     const now = el('td', 'num');
-    const pNow = r.called ? (r.winner === 'D' ? 1 : r.winner === 'R' ? 0 : null) : (r.cond_p ?? r.forecast_p);
-    now.innerHTML = pNow == null ? '—' : `<b>${dside} ${fmtPct(pNow, 0)}</b>` + (r.cond_margin != null && !r.called ? ` <span class="tip-dim">${fmtMargin(r.cond_margin)}</span>` : '');
+    const pNow = r.called ? (r.winner === 'D' ? 1 : r.winner === 'R' ? 0 : null) : (r.live_p ?? r.cond_p ?? r.forecast_p);
+    now.innerHTML = pNow == null ? '—' : `<b>${dside} ${fmtPct(pNow, 0)}</b>` + (!r.called ? ` <span class="tip-dim">${r.live_src === 'ballots' ? 'ballots' : fmtMargin(r.cond_margin)}</span>` : '');
     tr.append(now);
     const cnt = el('td', 'num');
     cnt.innerHTML = r.margin == null ? '—' : `${fmtMargin(r.margin)} <span class="tip-dim">${r.eevp.toFixed(0)}% in</span>`;

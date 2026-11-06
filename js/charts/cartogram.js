@@ -30,13 +30,14 @@ const MODES = {
   // data/results.json): called seats take their winner's deep colour, an upset
   // -- the model favoured the other side -- is ringed, and every uncalled seat
   // is shaded by its win probability RE-READ from the calls and counts so far
-  // (engine/ingest/results.py, `conditional`), not by the morning's number.
+  // (engine/ingest/results.py: `ballots` once most of the vote is in, the
+  // `conditional` before that; `live_p`), not by the morning's number.
   night:  { label: 'Tonight', domain: 1, night: true,
             get: r => {
               const n = r.night;
               if (!n) return r.win_prob == null ? null : r.win_prob * 2 - 1;
               if (n.called) return n.winner === 'D' ? 1 : n.winner === 'R' ? -1 : 0;
-              const p = n.cond_p == null ? r.win_prob : n.cond_p;
+              const p = n.live_p ?? n.cond_p ?? r.win_prob;
               return p == null ? null : p * 2 - 1;
             },
             fmt: r => {
@@ -48,12 +49,18 @@ const MODES = {
                 return `<b>called</b> for the ${who}${n.winner_name ? ` (${n.winner_name})` : ''} · the model gave `
                   + `${(n.p_winner * 100).toFixed(0)}%${n.upset ? ' · <b>upset</b>' : ''}`;
               }
-              const p = n.cond_p == null ? r.win_prob : n.cond_p;
-              return `uncalled · D win ${(r.win_prob * 100).toFixed(0)}% → <b>${(p * 100).toFixed(0)}%</b> given tonight`
+              const p = n.live_p ?? n.cond_p ?? r.win_prob;
+              const fromBallots = n.live_src === 'ballots' && n.live_p != null;
+              return `uncalled · D win ${(r.win_prob * 100).toFixed(0)}% → <b>${(p * 100).toFixed(0)}%</b> `
+                + (fromBallots ? 'from the ballots' : 'given tonight')
                 + (n.margin != null && n.eevp >= 20
                     ? ` · counted ${fmtMargin(n.margin)}, ${n.eevp.toFixed(0)}% in`
-                      + (n.tau != null ? `<br><span class="tip-dim">the count enters the re-read at ±${n.tau.toFixed(1)} points, `
-                                         + `for the ${(100 - n.eevp).toFixed(0)}% still out</span>` : '')
+                      + (fromBallots
+                          ? `<br><span class="tip-dim">lead ${Math.abs(n.gap).toLocaleString()} ballots, about ${n.pool.toLocaleString()} still out`
+                            + (n.to_tie != null ? `; the rest would have to run ${fmtMargin(n.to_tie)} to tie` : '')
+                            + (n.verdict === 'recount' ? ' · recount range' : '') + '</span>'
+                          : n.tau != null ? `<br><span class="tip-dim">the count enters the re-read at ±${n.tau.toFixed(1)} points, `
+                                            + `for the ${(100 - n.eevp).toFixed(0)}% still out</span>` : '')
                     : ` · ${n.eevp.toFixed(0)}% in, too little to read`);
             } },
 };
@@ -65,7 +72,7 @@ const nightFill = r => {
       : n.winner === 'R' ? (r.ind_slot === 'R' ? C.accent : C.repDeep) : C.accent;
   }
   if (r.locked) return r.locked_party === 'D' ? C.demDeep : C.repDeep;
-  const p = n.cond_p == null ? r.win_prob : n.cond_p;
+  const p = n.live_p ?? n.cond_p ?? r.win_prob;
   if (p == null) return C.mid;
   // The independent's chance, as `indWin` reads it: a three-way race's own
   // number (the conditional does not re-read it), else the slot they stand in.
@@ -140,7 +147,7 @@ function describe(M) {
   };
 }
 
-function legend(host, staleCount) {
+function legend(host) {
   const key = document.createElement('div');
   key.className = 'keys';
   key.append(
@@ -149,7 +156,6 @@ function legend(host, staleCount) {
     legendSwatch('Independent favoured', C.accent, 'counts for neither party'),
     legendSwatch('Uncertain', d3.interpolateLab(C.mid, C.surface)(0.42),
                  'colour is suppressed where the model knows less'),
-    legendSwatch('2024 boundaries', C.dim, `${staleCount} districts redrawn for 2026; the forecast is on the new lines, this shape is not`, true),
   );
   host.append(key);
 }
@@ -164,15 +170,12 @@ function upsetHatch(s) {
     .attr('stroke', C.accent).attr('stroke-width', 2.2);
 }
 
-function staleHatch(s) {
-  const defs = s.append('defs');
-  // Texture, not shade. At 4px/0.55 this washed California and Texas to grey and
-  // did the suppressing that the palette is supposed to do, twice over.
-  defs.append('pattern').attr('id', 'stale').attr('width', 5).attr('height', 5)
-    .attr('patternUnits', 'userSpaceOnUse').attr('patternTransform', 'rotate(45)')
-    .append('line').attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 5)
-    .attr('stroke', C.bg).attr('stroke-width', 1).attr('stroke-opacity', 0.3);
-}
+// Districts on superseded lines carry no mark on either layout. They used to
+// take a hatch of background-coloured lines at 30% opacity; over the party colour
+// that read as a slightly darker shade of the same hue, which is to say as
+// nothing, and over a whole redrawn state it looked like a rendering fault
+// (removed 2026-11-05). The tooltip still says "shape is the 2024 line" and the
+// caption under the map counts them, so the fact is not lost, only the texture.
 
 // Real district boundaries. Same projection and the same encodings as the hex
 // layout, so the toggle changes only WHERE a district is drawn.
@@ -196,7 +199,6 @@ export function choropleth(host, { boundaries, races, mode = 'prob', showUncerta
   const W = Math.max(...xs) - minX + pad, H = Math.max(...ys) - minY + pad;
 
   const s = svg(host, W, H, `District map shaded by ${M.label.toLowerCase()}`);
-  staleHatch(s);
   const g = s.append('g').attr('transform', `translate(${-minX},${-minY})`);
 
   const cells = g.selectAll('path.cd').data(D).join('path').attr('class', 'cd')
@@ -206,9 +208,6 @@ export function choropleth(host, { boundaries, races, mode = 'prob', showUncerta
     .style('cursor', 'pointer')
     .on('click', (e, x) => onPick && onPick(x.race));
 
-  g.selectAll('path.stale').data(D.filter(x => x.race.boundary_stale)).join('path')
-    .attr('class', 'stale').attr('d', x => x.d)
-    .attr('fill', 'url(#stale)').attr('pointer-events', 'none');
   if (M.night) {
     upsetHatch(s);
     g.selectAll('path.upset').data(D.filter(x => x.race.night && x.race.night.upset)).join('path')
@@ -219,7 +218,7 @@ export function choropleth(host, { boundaries, races, mode = 'prob', showUncerta
 
   hoverable(cells, describe(M));
   if (M.night) nightLegend(host);
-  else legend(host, D.filter(x => x.race.boundary_stale).length);
+  else legend(host);
   return { byId, cells };
 }
 
@@ -247,7 +246,6 @@ export function cartogram(host, { geo, races, mode = 'prob', showUncertainty = t
   const vsup = vsupScale({ domain: M.domain });
   const s = svg(host, W, H, `Hex cartogram of 435 districts shaded by ${M.label.toLowerCase()}`);
 
-  staleHatch(s);
   const cells = s.selectAll('path.cd').data(D).join('path').attr('class', 'cd')
     .attr('d', d => hexPath(d.x - minX + 2 * size, d.y - minY + 2 * size, size * 0.93))
     .attr('fill', paint(M, vsup, showUncertainty))
@@ -255,18 +253,11 @@ export function cartogram(host, { geo, races, mode = 'prob', showUncertainty = t
     .style('cursor', 'pointer')
     .on('click', (e, d) => onPick && onPick(d.race));
 
-  // Districts on superseded lines get a hatch as well as suppressed colour --
-  // their POSITION on this map is approximate too, not just their number.
-  s.selectAll('path.stale').data(D.filter(d => d.race.boundary_stale)).join('path')
-    .attr('class', 'stale')
-    .attr('d', d => hexPath(d.x - minX + 2 * size, d.y - minY + 2 * size, size * 0.93))
-    .attr('fill', 'url(#stale)').attr('pointer-events', 'none');
-
   if (M.night) upsetRings(s, D, d => hexPath(d.x - minX + 2 * size, d.y - minY + 2 * size, size * 0.93));
 
   hoverable(cells, describe(M));
   if (M.night) nightLegend(host);
-  else legend(host, D.filter(d => d.race.boundary_stale).length);
+  else legend(host);
   return { byId, cells };
 }
 

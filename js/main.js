@@ -1049,7 +1049,7 @@ function renderEnvironment(s) {
 }
 
 // Functions rather than strings, because one of them has to count something. The
-// hatched-district sentence used to name four states from memory; ten states
+// redrawn-district sentence used to name four states from memory; ten states
 // redrew, covering 181 districts, and the same sentence also said their PRIORS
 // were wrong when the priors have been on the 2026 lines for every district since
 // workstream C — contradicting the legend directly beneath it. Both facts now come
@@ -1059,8 +1059,8 @@ const MAP_CAPTION = {
     const stale = f.races.filter(r => r.chamber === 'house' && r.boundary_stale);
     const states = new Set(stale.map(r => r.state));
     return `One equal hex per district, placed on 2024 lines.
-      ${stale.length ? `Hatched: <b>${stale.length} districts in ${states.size} states</b> that
-      redrew for 2026 \u2014 forecast on the new lines, placed on the old.` : ''}`;
+      ${stale.length ? `<b>${stale.length} districts in ${states.size} states</b> redrew for 2026:
+      forecast on the new lines, placed on the old; the tooltip says which.` : ''}`;
   },
   'house:geo': () => `District boundaries on 2024 lines. Area is not votes: use the cartogram to
      read seats.`,
@@ -1310,7 +1310,9 @@ function renderNightMap(s) {
 }
 
 // The map's races, with tonight attached: what was called, who won, whether
-// the model had it, and the win probability re-read from the returns.
+// the model had it, and the win probability re-read from the returns -- from
+// the ballots themselves once FIRM of the vote is in (results.py `ballots`),
+// from the conditioning before that; `live_src` says which.
 function withNight(races, results) {
   const byId = new Map(results.races.map(r => [r.race_id, r]));
   const cond = (results.conditional && results.conditional.available && results.conditional.races) || {};
@@ -1322,6 +1324,8 @@ function withNight(races, results) {
       called: n.called, winner: n.winner, winner_name: n.winner_name, upset: n.upset,
       p_winner: n.p_winner, eevp: n.eevp, margin: n.margin, leader: n.leader,
       cond_p: c ? c.p : null, cond_margin: c ? c.margin : null, tau: c ? c.tau : null,
+      live_p: n.live_p ?? null, live_src: n.live_src || 'conditional',
+      gap: n.gap ?? null, pool: n.pool ?? null, to_tie: n.to_tie ?? null, verdict: n.verdict || null,
     } };
   });
 }
