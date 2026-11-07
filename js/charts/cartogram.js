@@ -26,6 +26,21 @@ const MODES = {
             get: r => (r.median_margin == null || r.lean == null ? null : r.median_margin - r.lean),
             fmt: r => (r.median_margin == null ? '—'
                        : `${(r.median_margin - r.lean >= 0 ? '+' : '')}${(r.median_margin - r.lean).toFixed(1)} vs 2024 lean`) },
+  // What happened. The counted margin against the 2024 presidential margin in
+  // the same place (results.py `after`; main.js attaches it as `night.shift`),
+  // read only once a race is mostly counted. Diverging about no change, not
+  // about even: a safe red seat that moved twelve points left is blue here.
+  shift:  { label: 'Bluer or redder than 2024', domain: 30, after: true, legend: shiftLegend,
+            get: r => (r.night && r.night.shift != null ? r.night.shift : null),
+            fmt: r => {
+              const n = r.night;
+              if (!n || n.shift == null) {
+                return n && n.eevp > 0 ? `${n.eevp.toFixed(0)}% in · not read against 2024 until 90%` : 'no count yet';
+              }
+              return `<b>${n.shift >= 0 ? 'D' : 'R'}+${Math.abs(n.shift).toFixed(1)}</b> from the 2024 presidential vote · `
+                + `president ${fmtMargin(n.pres_margin)}, counted ${fmtMargin(n.margin)} at ${n.eevp.toFixed(0)}% in`
+                + (n.turnout != null ? `<br><span class="tip-dim">${Math.round(n.turnout * 100)}% of the 2024 vote came back</span>` : '');
+            } },
   // Election night. A race carries `night` (main.js attaches it from
   // data/results.json): called seats take their winner's deep colour, an upset
   // -- the model favoured the other side -- is ringed, and every uncalled seat
@@ -123,6 +138,10 @@ const dWin = r => (r.ind_slot === 'D' ? 0 : r.win_prob);
 function paint(M, vsup, showUncertainty) {
   return d => {
     const r = d.race;
+    if (M.after) {
+      const v = M.get(r);
+      return v == null ? C.line : diverging(Math.max(-1, Math.min(1, v / M.domain)));
+    }
     if (M.night && r.night) return nightFill(r);
     if (r.locked) return r.locked_party === 'D' ? C.demDeep : C.repDeep;
     if ((r.ind_slot || r.three_way) && r.win_prob != null && indWin(r) >= 0.5) return C.accent;
@@ -135,6 +154,7 @@ function paint(M, vsup, showUncertainty) {
 function describe(M) {
   return d => {
     const r = d.race;
+    if (M.after) return `<b>${r.race_id}</b> · ${r.state}<br>${M.fmt(r)}`;
     return `<b>${r.race_id}</b> · ${r.state}<br>` +
       (r.locked ? 'settled — same-party general'
                 : `${M.fmt(r)}<br><span class="tip-dim">±${r.sigma_total?.toFixed(1)} pts · ` +
@@ -145,6 +165,19 @@ function describe(M) {
                    : r.ind_slot ? '<br><span class="tip-dim">no Republican on the ballot: the '
                     + 'independent\u2019s win counts for neither party</span>' : ''));
   };
+}
+
+function shiftLegend(host, extra) {
+  const key = document.createElement('div');
+  key.className = 'keys';
+  key.append(
+    legendSwatch('Bluer than 2024', diverging(0.6),
+                 'the counted margin moved toward the Democrats from the 2024 presidential vote in the same place; full colour at thirty points'),
+    legendSwatch('Redder than 2024', diverging(-0.6), 'moved toward the Republicans'),
+    legendSwatch('Not read yet', C.line, 'under 90% counted, or no count'),
+  );
+  if (extra) key.append(extra);
+  host.append(key);
 }
 
 function legend(host) {
@@ -218,6 +251,7 @@ export function choropleth(host, { boundaries, races, mode = 'prob', showUncerta
 
   hoverable(cells, describe(M));
   if (M.night) nightLegend(host);
+  else if (M.legend) M.legend(host);
   else legend(host);
   return { byId, cells };
 }
@@ -257,6 +291,7 @@ export function cartogram(host, { geo, races, mode = 'prob', showUncertainty = t
 
   hoverable(cells, describe(M));
   if (M.night) nightLegend(host);
+  else if (M.legend) M.legend(host);
   else legend(host);
   return { byId, cells };
 }
@@ -324,6 +359,10 @@ function stateDescribe(M, chamber, cycle) {
       return `<b>${d.state}</b><br><span class="tip-dim">no ${chamber} race in ${cycle}</span>`;
     }
     const r = d.race;
+    if (M.after) {
+      return `<b>${r.race_id}</b> · ${d.state}<br>${M.fmt(r)}`
+        + (d.list.length > 1 ? `<br><span class="tip-dim">${d.list.length} races here — showing ${r.race_id}</span>` : '');
+    }
     return `<b>${r.race_id}</b> · ${d.state}<br>` +
       (r.locked ? 'settled — same-party general' : `${M.fmt(r)}<br>`) +
       `<span class="tip-dim">σ ${r.sigma_total?.toFixed(1)} · ` +
@@ -394,6 +433,9 @@ export function stateCartogram(host, { geo, races, chamber, cycle = 2026,
   if (M.night) {
     nightLegend(host, legendSwatch(`Not up in ${cycle}`, C.faint,
       `${D.filter(d => !d.race).length} states hold no ${chamber} race this cycle`, true));
+  } else if (M.legend) {
+    M.legend(host, legendSwatch(`Not up in ${cycle}`, C.faint,
+      `${D.filter(d => !d.race).length} states hold no ${chamber} race this cycle`, true));
   } else {
     stateLegend(host, D.filter(d => !d.race).length, chamber, cycle);
   }
@@ -458,6 +500,9 @@ export function stateChoropleth(host, { boundaries, geo, races, chamber, cycle =
   hoverable(cells, x => stateDescribe(M, chamber, cycle)(x.st));
   if (M.night) {
     nightLegend(host, legendSwatch(`Not up in ${cycle}`, C.faint,
+      `${cells0.filter(d => !d.race).length} states hold no ${chamber} race this cycle`, true));
+  } else if (M.legend) {
+    M.legend(host, legendSwatch(`Not up in ${cycle}`, C.faint,
       `${cells0.filter(d => !d.race).length} states hold no ${chamber} race this cycle`, true));
   } else {
     stateLegend(host, cells0.filter(d => !d.race).length, chamber, cycle);

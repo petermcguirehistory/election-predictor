@@ -1373,6 +1373,13 @@ table.night-table td.num { white-space: nowrap; }
 .night-progress-cap b { color: var(--ink); }
 
 
+/* ---- what happened (js/panels/after.js) ---------------------------------- */
+#after-shift .wl-h, #after-turnout .wl-h { margin-top: 1.6rem; }
+.after-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem 2.2rem; margin-top: .4rem; }
+.after-two table.plain { margin-top: .4rem; }
+table.plain tr.pick { cursor: pointer; }
+table.plain tr.pick:hover td { background: rgba(255, 255, 255, .04); }
+
 /* ---- the record books: vertical ladders ---------------------------------- */
 .night-ladder { margin: .4rem 0 1.8rem; padding-bottom: 1.2rem; border-bottom: 1px solid var(--line-soft); }
 .night-ladder:last-of-type { border-bottom: 0; }

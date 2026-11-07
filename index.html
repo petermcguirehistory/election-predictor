@@ -187,6 +187,58 @@
 
       </div>
 
+      <div class="tabpanel" id="tab-after" data-tab="after" data-tab-label="What happened" role="tabpanel" tabindex="0" hidden>
+
+        <section id="s-after-shift" data-toc="Bluer or redder" hidden>
+          <h2>Bluer or redder than 2024</h2>
+          <p class="q">Compared with how the same places voted for president two years ago: how many moved toward the Democrats, how many toward the Republicans, and by how much?</p>
+          <p class="fml-block">shift = counted margin − 2024 presidential margin, same district or state</p>
+          <ul class="pts">
+            <li><b>Baseline</b> — Harris minus Trump in 2024, on the 2026 district lines where a state redrew,
+                and the statewide vote for Senate and governor races. It is the one number every race has.
+                A midterm electorate is smaller than a presidential one, so a shift is partly who turned out
+                and partly who changed their mind; <a href="#s-after-turnout">Who turned out</a> separates
+                the two.</li>
+            <li><b>Counted</b> — a race enters once 90% of its expected vote is in. Before that a margin says
+                more about which precincts report first than about the electorate.</li>
+            <li><b>By votes cast</b> — the median treats every race alike; the vote-weighted shift is the
+                shift of the ballots themselves, which a big district moves more than a small one.</li>
+            <li><b>Forecast expected</b> — the same subtraction with the model's median margin in place of
+                the count, so the two can be read side by side.</li>
+          </ul>
+          <div id="after-shift"></div>
+        </section>
+
+        <section id="s-after-turnout" data-toc="Who turned out" hidden>
+          <h2>Who turned out</h2>
+          <p class="q">How much of the 2024 electorate came back, where it held up, where it fell away, and whether the places that lost the most voters are the ones that moved?</p>
+          <p class="fml-block">turnout = 2026 votes ÷ 2024 presidential votes, same district or state</p>
+          <ul class="pts">
+            <li><b>2026 votes</b> — the count once AP reports a race complete; AP's expected total while it is
+                still being counted, which has run a little high tonight.</li>
+            <li><b>Harris and Trump districts</b> — the same ratio over the districts each carried in 2024.
+                If one side's voters stayed home, it shows here before it shows in any margin.</li>
+            <li><b>Against 2022</b> — the last midterm's House vote by state, where every district in the state
+                is in and none went uncontested. The presidential comparison says who came back; the midterm
+                comparison says whether this was a big midterm.</li>
+            <li><b>Turnout against shift</b> — a district that kept its voters and still moved is a change of
+                mind; one that lost half of them is a change of electorate.</li>
+          </ul>
+          <div id="after-turnout"></div>
+        </section>
+
+        <section id="s-after-map" data-toc="Where it moved" hidden>
+          <h2>Where it moved</h2>
+          <p class="q">Every district and state, shaded by how far it moved from its 2024 presidential vote.</p>
+          <ul class="pts">
+            <li><b>Blue</b> — bluer than the place voted for president in 2024; <b>red</b> — redder. Full colour
+                at thirty points. Grey is a race under 90% counted. Hover for the two margins and the turnout.</li>
+          </ul>
+          <div id="after-map"></div>
+        </section>
+
+      </div>
+
       <div class="tabpanel" id="tab-forecast" data-tab="forecast" data-tab-label="Who wins" role="tabpanel" tabindex="0">
 
         <section id="s-headline" data-toc="The forecast">

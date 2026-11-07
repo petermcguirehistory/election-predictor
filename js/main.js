@@ -33,6 +33,7 @@ import { pipeline, pollsterChart, errorCurves, sponsorChart } from './panels/met
 import { watchlist } from './panels/watchlist.js';
 import { flipsPanel } from './panels/flips.js';
 import { nightHeadline, nightTug, nightUpsets, nightProgress, nightLadders, nightPredict, nightSwing, nightCalls, nightCounting } from './panels/night.js';
+import { afterShift, afterTurnout } from './panels/after.js';
 import { movementPanel } from './panels/movement.js';
 import { environmentStrip, houseLeverage } from './panels/environment.js';
 import { sparkline } from './charts/sparkline.js';
@@ -1085,7 +1086,7 @@ function renderMap(s) {
   const ctl = $('#map-controls'); ctl.replaceChildren();
   // Tonight's mode exists only while the returns are being written.
   const races = s.results ? withNight(forecast.races, s.results) : forecast.races;
-  const modes = Object.entries(cartogramModes).filter(([k]) => k !== 'night' || s.results);
+  const modes = Object.entries(cartogramModes).filter(([, v]) => !(v.night || v.after) || s.results);
   toggle(ctl, [['hex', 'Cartogram'], ['geo', 'Boundaries']], s.layout,
          v => store.set({ layout: v }), 'Map layout');
   toggle(ctl, modes.map(([k, m]) => [k, m.label]), s.mapMode,
@@ -1280,13 +1281,13 @@ function renderNightPredict(s) {
 // tonight's shade, every chamber in scope. No uncertainty suppression and no
 // replay here -- the colour IS the re-read, and the replay is of the morning's
 // draws.
-function renderNightMap(s) {
+function renderResultsMap(s, hostId, mode) {
   if (!s.results) return;
   const { forecast } = s.data;
   const races = withNight(forecast.races, s.results);
   const chambers = chambersFor(s.scope, forecast.meta.chambers);
   const geo = s.layout === 'geo' && s.data.boundaries ? 'geo' : 'hex';
-  const host0 = $('#night-map');
+  const host0 = $(hostId);
   host0.replaceChildren();
   const ctl = el('div', 'night-hold');
   toggle(ctl, [['geo', 'Boundaries'], ['hex', 'Cartogram']], s.layout,
@@ -1295,7 +1296,7 @@ function renderNightMap(s) {
   const maps = el('div');
   host0.append(maps);
   perChamber(maps, chambers, (host, ch) => {
-    const common = { races, mode: 'night', showUncertainty: false,
+    const common = { races, mode, showUncertainty: false,
                      cycle: forecast.meta.asof.slice(0, 4), onPick: r => open(r) };
     if (ch === 'house') {
       const houses = races.filter(r => r.chamber === 'house');
@@ -1308,6 +1309,10 @@ function renderNightMap(s) {
     }
   });
 }
+
+function renderNightMap(s) { renderResultsMap(s, '#night-map', 'night'); }
+// What happened: the same maps shaded by the shift from the 2024 presidential vote.
+function renderAfterMap(s) { renderResultsMap(s, '#after-map', 'shift'); }
 
 // The map's races, with tonight attached: what was called, who won, whether
 // the model had it, and the win probability re-read from the returns -- from
@@ -1326,10 +1331,20 @@ function withNight(races, results) {
       cond_p: c ? c.p : null, cond_margin: c ? c.margin : null, tau: c ? c.tau : null,
       live_p: n.live_p ?? null, live_src: n.live_src || 'conditional',
       gap: n.gap ?? null, pool: n.pool ?? null, to_tie: n.to_tie ?? null, verdict: n.verdict || null,
+      // What happened (results.py `after`): against the 2024 presidential vote in the same place.
+      shift: n.shift ?? null, turnout: n.turnout ?? null, pres_margin: n.pres_margin ?? r.pres_margin ?? null,
     } };
   });
 }
 
+function renderAfterShift(s) {
+  if (!s.results) return;
+  afterShift($('#after-shift'), { results: s.results, forecast: s.data.forecast, onPick: r => open(r) });
+}
+function renderAfterTurnout(s) {
+  if (!s.results) return;
+  afterTurnout($('#after-turnout'), { results: s.results, forecast: s.data.forecast, onPick: r => open(r) });
+}
 function renderNightSwing(s) {
   if (!s.results) return;
   nightSwing($('#night-swing'), { results: s.results, forecast: s.data.forecast,
@@ -2155,6 +2170,9 @@ function renderAll(s, changed) {
     paint('s-night-swing', () => renderNightSwing(s));
     paint('s-night-calls', () => renderNightCalls(s));
     paint('s-night-counting', () => renderNightCounting(s));
+    paint('s-after-shift', () => renderAfterShift(s));
+    paint('s-after-turnout', () => renderAfterTurnout(s));
+    paint('s-after-map', () => renderAfterMap(s));
   }
   if (t('scope')) renderScopeControl(s);
   if (t('ind')) renderIndControl(s);
@@ -2264,6 +2282,10 @@ async function boot() {
                         's-night-swing', 's-night-calls', 's-night-counting',
                         ...(store.data.milestones ? ['s-night-ladders'] : [])]) {
         document.getElementById(id).hidden = false;
+      }
+      // What happened: written by the engine once any race is mostly counted.
+      if (store.results.after && store.results.after.available) {
+        for (const id of ['s-after-shift', 's-after-turnout', 's-after-map']) document.getElementById(id).hidden = false;
       }
       if (store.results.n && store.results.n.called > 0) {
         HASH_DEFAULT.tab = 'night';
